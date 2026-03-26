@@ -3,6 +3,12 @@ import { apiGet } from "../api.js";
 import { Av, sx } from "../features/tree/TreeAvatars";
 import { TreePersonCardOverlay } from "../features/tree/TreePersonCardOverlay";
 import { applyTreeFocus, extractParentMapsForTree, focusForClick } from "../lib/treeFocus.js";
+import { Alert, AlertDescription, AlertTitle } from "@/components/ui/alert";
+import { Badge } from "@/components/ui/badge";
+import { Button } from "@/components/ui/button";
+import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
+import { Separator } from "@/components/ui/separator";
+import { Skeleton } from "@/components/ui/skeleton";
 function strId(v) {
   if (!v) return "";
   if (typeof v === "string") return v;
@@ -910,75 +916,79 @@ export default function Tree() {
   return (
     <>
       <div className="tree-page">
-        <header className="tree-header">
-          <div className="tree-intro">
-            <h1 className="tree-title">Генеалогическое древо</h1>
-            <p className="tree-hint">
+        <Card className="tree-header">
+          <CardHeader className="tree-intro">
+            <CardTitle className="tree-title">Генеалогическое древо</CardTitle>
+            <CardDescription className="tree-hint">
               Перетаскивайте узлы или фон. Колёсико — масштаб. Клик по человеку — карточка и фокус ветви
               (отец/мать — одна линия, остальные — путь к предку).
-            </p>
+            </CardDescription>
             {branchFocus ? (
-              <p className="tree-hint tree-hint--focus">
+              <Badge variant="secondary" className="w-fit">
                 Режим:{" "}
                 {branchFocus.type === "paternal"
                   ? "только отцовская линия"
                   : branchFocus.type === "maternal"
                     ? "только материнская линия"
                     : "линия к выбранному предку"}
-              </p>
+              </Badge>
             ) : null}
-          </div>
-          <div className="tree-toolbar-row">
+          </CardHeader>
+          <CardContent className="tree-toolbar-row">
             <div className="tree-stats" aria-label="Статистика древа">
-              <span className="tree-stat">{filteredData.people.length} чел.</span>
-              <span className="tree-stat">{filteredData.relationships.length} связей</span>
-              <span className="tree-stat">{Math.round(cam.s * 100)}%</span>
+              <Badge variant="outline">{filteredData.people.length} чел.</Badge>
+              <Badge variant="outline">{filteredData.relationships.length} связей</Badge>
+              <Badge variant="outline">{Math.round(cam.s * 100)}%</Badge>
             </div>
-            <ul className="tree-legend" aria-label="Типы линий на древе">
-              <li className="tree-legend-item">
+            <div className="tree-legend" aria-label="Типы линий на древе">
+              <Badge variant="secondary" className="tree-legend-item">
                 <span className="tree-legend-swatch tree-legend-swatch--parent" aria-hidden />
                 <span>Родство</span>
-              </li>
-              <li className="tree-legend-item">
+              </Badge>
+              <Badge variant="secondary" className="tree-legend-item">
                 <span className="tree-legend-swatch tree-legend-swatch--spouse" aria-hidden />
                 <span>Супруги</span>
-              </li>
-              <li className="tree-legend-item">
+              </Badge>
+              <Badge variant="secondary" className="tree-legend-item">
                 <span className="tree-legend-swatch tree-legend-swatch--sibling" aria-hidden />
                 <span>Братья и сёстры</span>
-              </li>
-            </ul>
+              </Badge>
+            </div>
             <div className="tree-actions">
-              <button
+              <Button
                 type="button"
-                className="tree-btn tree-btn--text"
+                variant="outline"
+                size="sm"
                 onClick={resetCameraToFit}
                 aria-label="Подогнать древо в экран"
               >
                 В экран
-              </button>
+              </Button>
               {branchFocus ? (
-                <button type="button" className="tree-btn tree-btn--text" onClick={() => setBranchFocus(null)}>
+                <Button type="button" variant="ghost" size="sm" onClick={() => setBranchFocus(null)}>
                   Всё древо
-                </button>
+                </Button>
               ) : null}
-              <button
+              <Separator orientation="vertical" className="h-6" />
+              <Button
                 type="button"
-                className="tree-btn"
+                variant="default"
+                size="sm"
                 onClick={() => void load()}
                 disabled={loading}
                 aria-label="Обновить данные"
               >
-                {loading ? "…" : "⟳"}
-              </button>
+                {loading ? "…" : "Обновить"}
+              </Button>
             </div>
-          </div>
-        </header>
+          </CardContent>
+        </Card>
 
         {err ? (
-          <div className="tree-err" role="alert">
-            Ошибка: {err}
-          </div>
+          <Alert variant="destructive" className="tree-err">
+            <AlertTitle>Ошибка загрузки</AlertTitle>
+            <AlertDescription>{err}</AlertDescription>
+          </Alert>
         ) : null}
 
         <div
@@ -1131,20 +1141,24 @@ export default function Tree() {
 
           {loading ? (
             <div className="tree-loading" aria-busy="true" aria-live="polite">
-              <div className="tree-spin" />
-              Загрузка…
+              <Skeleton className="h-8 w-8 rounded-full" />
+              <span>Загрузка…</span>
             </div>
           ) : null}
         </div>
 
         {g.unplaced.length > 0 ? (
-          <footer className="tree-unplaced">
-            <div className="tree-unplaced-title">Не размещены ({g.unplaced.length})</div>
+          <Card className="tree-unplaced">
+            <CardHeader>
+              <CardTitle className="tree-unplaced-title">Не размещены ({g.unplaced.length})</CardTitle>
+            </CardHeader>
             <div className="tree-unplaced-list">
               {g.unplaced.map((p) => (
-                <button
+                <Button
                   key={p.id}
                   type="button"
+                  variant="secondary"
+                  size="sm"
                   className="tree-unplaced-item"
                   onClick={() => {
                     const f = focusForClick(
@@ -1159,10 +1173,10 @@ export default function Tree() {
                 >
                   <Av p={p} size={22} />
                   {fmtName(p)}
-                </button>
+                </Button>
               ))}
             </div>
-          </footer>
+          </Card>
         ) : null}
       </div>
 
@@ -1184,9 +1198,11 @@ export default function Tree() {
             }}
             onPointerDown={(e) => e.stopPropagation()}
           >
-            <button
+            <Button
               type="button"
               className="tree-lp-item"
+              variant="ghost"
+              size="sm"
               role="menuitem"
               onClick={() => {
                 setLpMenu(null);
@@ -1195,10 +1211,12 @@ export default function Tree() {
             >
               Подсветить линию матери
               <span className="tree-lp-item-hint">↟</span>
-            </button>
-            <button
+            </Button>
+            <Button
               type="button"
               className="tree-lp-item"
+              variant="ghost"
+              size="sm"
               role="menuitem"
               onClick={() => {
                 setLpMenu(null);
@@ -1207,10 +1225,12 @@ export default function Tree() {
             >
               Подсветить линию отца
               <span className="tree-lp-item-hint">↟</span>
-            </button>
-            <button
+            </Button>
+            <Button
               type="button"
               className="tree-lp-item"
+              variant="ghost"
+              size="sm"
               role="menuitem"
               onClick={() => {
                 setLpMenu(null);
@@ -1219,11 +1239,13 @@ export default function Tree() {
             >
               Ветка к предку
               <span className="tree-lp-item-hint">↗</span>
-            </button>
+            </Button>
             <div className="tree-lp-divider" aria-hidden />
-            <button
+            <Button
               type="button"
               className="tree-lp-item"
+              variant="ghost"
+              size="sm"
               role="menuitem"
               onClick={() => {
                 setLpMenu(null);
@@ -1232,7 +1254,7 @@ export default function Tree() {
             >
               Открыть карточку
               <span className="tree-lp-item-hint">⤢</span>
-            </button>
+            </Button>
           </div>
         </div>
       ) : null}
