@@ -1103,10 +1103,11 @@
 
   display: flex;
   flex-direction: column;
-  height: calc(100vh - 3.5rem - 3rem);
-  width: calc(100vw - 2rem);
-  max-width: calc(100vw - 2rem);
-  margin-left: calc(50% - 50vw + 1rem);
+  height: calc(100vh - 3.5rem);
+  width: 100vw;
+  max-width: 100vw;
+  margin-left: calc(50% - 50vw);
+  margin-top: -1.5rem;
   font-family: var(--tree-font-body);
   background:
     radial-gradient(ellipse 100% 70% at 12% -10%, rgba(59, 130, 246, 0.09), transparent 52%),
@@ -1120,119 +1121,18 @@
   box-shadow: inset 0 1px 0 rgba(255, 255, 255, 0.04);
 }
 
-.tree-header {
-  display: flex;
-  flex-direction: column;
-  gap: 0.65rem;
-  padding: 0.75rem 1.1rem 0.85rem;
-  background: linear-gradient(180deg, rgba(18, 22, 34, 0.97) 0%, rgba(12, 14, 22, 0.98) 100%);
-  border-bottom: 1px solid rgba(96, 165, 250, 0.1);
-  flex-shrink: 0;
-  z-index: 10;
-  backdrop-filter: blur(10px);
-}
-
-.tree-intro {
-  min-width: 0;
-}
-
-.tree-title {
-  margin: 0;
-  font-family: var(--tree-font-display);
-  font-size: 1.1rem;
-  font-weight: 700;
-  letter-spacing: 0.04em;
-  text-transform: uppercase;
-  color: var(--tree-text-title);
-}
-
-.tree-hint {
-  margin: 0.35rem 0 0;
-  font-size: 0.72rem;
-  line-height: 1.45;
-  color: var(--tree-text-muted);
-  max-width: 52rem;
-}
-
-.tree-hint--focus {
-  margin-top: 0.45rem;
-  opacity: 0.92;
-  color: rgba(199, 210, 254, 0.72);
-}
-
-.tree-toolbar-row {
-  display: flex;
-  flex-wrap: wrap;
-  align-items: center;
-  justify-content: space-between;
-  gap: 0.65rem 1rem;
-}
-
-.tree-stats {
-  display: flex;
-  flex-wrap: wrap;
-  gap: 0.35rem;
-  align-items: center;
-}
-
-.tree-stat {
-  padding: 0.2rem 0.55rem;
-  border-radius: 999px;
-  font-size: 0.65rem;
-  font-weight: 600;
-  letter-spacing: 0.02em;
-  border: 1px solid var(--tree-accent-blue);
-  background: rgba(15, 23, 42, 0.65);
-  color: rgba(191, 219, 254, 0.72);
-  box-shadow: 0 1px 0 rgba(255, 255, 255, 0.05);
-}
-
-.tree-legend {
-  display: flex;
-  flex-wrap: wrap;
-  gap: 0.65rem 1rem;
-  align-items: center;
-  list-style: none;
-  margin: 0;
-  padding: 0;
-  font-size: 0.65rem;
-  color: rgba(186, 205, 255, 0.62);
-}
-
-.tree-legend-item {
-  display: inline-flex;
-  align-items: center;
-  gap: 0.35rem;
-}
-
-.tree-legend-swatch {
-  width: 1.35rem;
-  height: 3px;
-  border-radius: 2px;
-  box-shadow: 0 0 8px currentColor;
-}
-
-.tree-legend-swatch--parent {
-  background: linear-gradient(90deg, #4f8cc8, #9fd4ff);
-  color: var(--tree-legend-parent);
-}
-
-.tree-legend-swatch--spouse {
-  background: linear-gradient(90deg, #9b6bb8, #e8b4ff);
-  color: var(--tree-legend-spouse);
-}
-
-.tree-legend-swatch--sibling {
-  background: linear-gradient(90deg, #6a7fd8, #a5b8f0);
-  color: var(--tree-legend-sibling);
-}
-
 .tree-actions {
   display: flex;
   flex-wrap: wrap;
   gap: 0.35rem;
   align-items: center;
-  margin-left: auto;
+}
+
+.tree-actions--overlay {
+  position: absolute;
+  top: 0.75rem;
+  right: 0.75rem;
+  z-index: 30;
 }
 
 .tree-btn {
@@ -1407,6 +1307,11 @@
   cursor: move;
 }
 
+.tree-dim {
+  opacity: 0.2 !important;
+  filter: saturate(0.35);
+}
+
 .tree-node--enter {
   animation: tree-node-enter 0.35s ease-out var(--tree-enter-delay, 0s) forwards;
 }
@@ -1441,13 +1346,13 @@
   display: flex;
   align-items: center;
   gap: 0.5rem;
-  padding: 0.4rem 0.7rem 0.4rem 0.4rem;
+  padding: 0.5rem 0.9rem 0.5rem 0.5rem;
   border-radius: 999px;
   border: 1px solid rgba(255, 255, 255, 0.1);
   background: linear-gradient(145deg, rgba(28, 32, 48, 0.88), rgba(16, 18, 30, 0.82));
   color: rgba(235, 242, 255, 0.94);
   cursor: pointer;
-  min-width: 140px;
+  min-width: 220px;
   backdrop-filter: blur(14px);
   font-family: inherit;
   box-shadow:
@@ -1486,7 +1391,7 @@
 
 .tree-chip-name {
   font-weight: 650;
-  font-size: 0.76rem;
+  font-size: 0.9rem;
   letter-spacing: -0.01em;
   white-space: nowrap;
   overflow: hidden;
@@ -1494,8 +1399,8 @@
 }
 
 .tree-chip-sub {
-  font-size: 0.64rem;
-  color: rgba(186, 205, 255, 0.45);
+  font-size: 0.72rem;
+  color: rgba(186, 205, 255, 0.7);
 }
 
 .tree-loading {

@@ -10,6 +10,44 @@ const RELATION_TYPES = [
   "бабушка", "дедушка", "дядя", "тётя", "сестра", "брат",
 ];
 
+function normalizeHumanName(v) {
+  return String(v || "")
+    .trim()
+    .replace(/\s+/g, " ")
+    .replace(/(^|[\s-])[a-zA-Zа-яА-ЯёЁ]/g, (m) => m.toUpperCase());
+}
+
+function trimText(v) {
+  return String(v || "").trim().replace(/\s+/g, " ");
+}
+
+function useAddressSuggestions(query) {
+  const [items, setItems] = useState([]);
+  useEffect(() => {
+    const q = String(query || "").trim();
+    if (q.length < 3) {
+      setItems([]);
+      return;
+    }
+    const id = setTimeout(async () => {
+      try {
+        const res = await fetch(
+          `https://nominatim.openstreetmap.org/search?format=json&addressdetails=1&limit=8&q=${encodeURIComponent(q)}`,
+          { headers: { Accept: "application/json" } },
+        );
+        if (!res.ok) return;
+        const data = await res.json();
+        const next = Array.isArray(data) ? data.map((x) => x.display_name).filter(Boolean) : [];
+        setItems(next);
+      } catch {
+        setItems([]);
+      }
+    }, 260);
+    return () => clearTimeout(id);
+  }, [query]);
+  return items;
+}
+
 export default function AddRelativeStepperForm({ persons, self, onCreated }) {
   const [birthCityMode, setBirthCityMode] = useState("list");
   const [burialMode, setBurialMode] = useState("list");
@@ -28,7 +66,6 @@ export default function AddRelativeStepperForm({ persons, self, onCreated }) {
     birthDate: "",
     birthCity: "",
     birthCityCustom: "",
-    phone: "",
     alive: true,
     deathDate: "",
     burialPlace: "",
@@ -50,9 +87,28 @@ export default function AddRelativeStepperForm({ persons, self, onCreated }) {
   }
 
   const needsLine = !["дочь", "сын", "брат", "сестра"].includes(form.relationType);
+  const birthAddressQuery = birthCityMode === "custom" ? form.birthCityCustom : form.birthCity;
+  const burialAddressQuery = burialMode === "custom" ? form.burialPlace : form.burialPlace;
+  const birthAddressSuggestions = useAddressSuggestions(birthAddressQuery);
+  const burialAddressSuggestions = useAddressSuggestions(burialAddressQuery);
 
   const buildPayload = useCallback(() => {
     const payload = { ...form };
+    payload.lastName = normalizeHumanName(payload.lastName);
+    payload.firstName = normalizeHumanName(payload.firstName);
+    payload.middleName = normalizeHumanName(payload.middleName);
+    payload.maidenName = normalizeHumanName(payload.maidenName);
+    payload.birthCity = trimText(payload.birthCity);
+    payload.birthCityCustom = trimText(payload.birthCityCustom);
+    payload.burialPlace = trimText(payload.burialPlace);
+    payload.notes = trimText(payload.notes);
+    payload.biography = trimText(payload.biography);
+    payload.education = trimText(payload.education);
+    payload.workPath = trimText(payload.workPath);
+    payload.militaryPath = trimText(payload.militaryPath);
+
+    delete payload.phone;
+
     if (!needsLine) payload.line = "";
     if (birthCityMode === "custom") {
       payload.birthCity = "";
@@ -68,9 +124,38 @@ export default function AddRelativeStepperForm({ persons, self, onCreated }) {
 
   const onBeforeComplete = useCallback(async () => {
     setSubmitErr("");
+    const p = buildPayload();
+    if (!p.basePersonId) {
+      setSubmitErr("Выберите базового человека.");
+      throw new Error("validation");
+    }
+    if (!p.relationType) {
+      setSubmitErr("Выберите тип родственной связи.");
+      throw new Error("validation");
+    }
+    if (!p.lastName || !p.firstName || !p.middleName) {
+      setSubmitErr("Фамилия, имя и отчество обязательны.");
+      throw new Error("validation");
+    }
+    if (!p.sex) {
+      setSubmitErr("Пол обязателен.");
+      throw new Error("validation");
+    }
+    if (!p.birthDate) {
+      setSubmitErr("Дата рождения обязательна.");
+      throw new Error("validation");
+    }
+    if (!(p.birthCity || p.birthCityCustom)) {
+      setSubmitErr("Укажите место рождения.");
+      throw new Error("validation");
+    }
+    if (!p.alive && (!p.deathDate || !p.burialPlace)) {
+      setSubmitErr("Для умершего родственника укажите дату смерти и место захоронения.");
+      throw new Error("validation");
+    }
     setSubmitting(true);
     try {
-      await apiPost("/api/persons", buildPayload());
+      await apiPost("/api/persons", p);
       onCreated?.();
     } catch (e) {
       setSubmitErr(e?.message || String(e));
@@ -139,27 +224,23 @@ export default function AddRelativeStepperForm({ persons, self, onCreated }) {
           <div className="label">Фамилия, имя, отчество</div>
           <div className="row">
             <div className="col">
-              <input className="input" placeholder="Фамилия" value={form.lastName} onChange={(e) => set("lastName", e.target.value)} />
+              <input className="input" placeholder="Фамилия" required value={form.lastName} onChange={(e) => set("lastName", e.target.value)} />
             </div>
             <div className="col">
-              <input className="input" placeholder="Имя" value={form.firstName} onChange={(e) => set("firstName", e.target.value)} />
+              <input className="input" placeholder="Имя" required value={form.firstName} onChange={(e) => set("firstName", e.target.value)} />
             </div>
             <div className="col">
-              <input className="input" placeholder="Отчество" value={form.middleName} onChange={(e) => set("middleName", e.target.value)} />
+              <input className="input" placeholder="Отчество" required value={form.middleName} onChange={(e) => set("middleName", e.target.value)} />
             </div>
           </div>
           <div className="row">
             <div className="col">
               <div className="label">Пол</div>
-              <select className="select" value={form.sex} onChange={(e) => set("sex", e.target.value)}>
+              <select className="select" required value={form.sex} onChange={(e) => set("sex", e.target.value)}>
                 <option value="">Не указан</option>
                 <option value="M">Мужской</option>
                 <option value="F">Женский</option>
               </select>
-            </div>
-            <div className="col">
-              <div className="label">Телефон</div>
-              <input className="input" value={form.phone} onChange={(e) => set("phone", e.target.value)} />
             </div>
           </div>
           {form.sex === "F" ? (
@@ -179,7 +260,7 @@ export default function AddRelativeStepperForm({ persons, self, onCreated }) {
           <h3 className="rel-step-title">Рождение</h3>
           <p className="rel-step-hint">Дата и место рождения — опора для века на странице «Семья» и для карты.</p>
           <div className="label">Дата рождения</div>
-          <input type="date" className="input" value={form.birthDate} onChange={(e) => set("birthDate", e.target.value)} />
+          <input type="date" className="input" required value={form.birthDate} onChange={(e) => set("birthDate", e.target.value)} />
           <div className="label">Место рождения</div>
           <div className="row" style={{ alignItems: "center" }}>
             <label className="badge" style={{ cursor: "pointer" }}>
@@ -190,7 +271,7 @@ export default function AddRelativeStepperForm({ persons, self, onCreated }) {
             </label>
           </div>
           {birthCityMode === "list" ? (
-            <select className="select" value={form.birthCity} onChange={(e) => set("birthCity", e.target.value)}>
+            <select className="select" required value={form.birthCity} onChange={(e) => set("birthCity", e.target.value)}>
               <option value="">Не выбрано</option>
               {CITY_OPTIONS.map((c) => (
                 <option key={c} value={c}>
@@ -199,12 +280,21 @@ export default function AddRelativeStepperForm({ persons, self, onCreated }) {
               ))}
             </select>
           ) : (
-            <input
-              className="input"
-              value={form.birthCityCustom}
-              onChange={(e) => set("birthCityCustom", e.target.value)}
-              placeholder="Например: Тула"
-            />
+            <>
+              <input
+                className="input"
+                required
+                value={form.birthCityCustom}
+                onChange={(e) => set("birthCityCustom", e.target.value)}
+                placeholder="Начните вводить адрес или населенный пункт"
+                list="birth-address-suggestions"
+              />
+              <datalist id="birth-address-suggestions">
+                {birthAddressSuggestions.map((s) => (
+                  <option key={s} value={s} />
+                ))}
+              </datalist>
+            </>
           )}
         </Step>
 
@@ -218,7 +308,7 @@ export default function AddRelativeStepperForm({ persons, self, onCreated }) {
           {!form.alive ? (
             <>
               <div className="label">Дата смерти</div>
-              <input type="date" className="input" value={form.deathDate} onChange={(e) => set("deathDate", e.target.value)} />
+              <input type="date" className="input" required={!form.alive} value={form.deathDate} onChange={(e) => set("deathDate", e.target.value)} />
               <div className="label">Место захоронения</div>
               <div className="row" style={{ alignItems: "center" }}>
                 <label className="badge" style={{ cursor: "pointer" }}>
@@ -229,7 +319,7 @@ export default function AddRelativeStepperForm({ persons, self, onCreated }) {
                 </label>
               </div>
               {burialMode === "list" ? (
-                <select className="select" value={form.burialPlace} onChange={(e) => set("burialPlace", e.target.value)}>
+                <select className="select" required={!form.alive} value={form.burialPlace} onChange={(e) => set("burialPlace", e.target.value)}>
                   <option value="">Не выбрано</option>
                   {CITY_OPTIONS.map((c) => (
                     <option key={c} value={c}>
@@ -238,12 +328,21 @@ export default function AddRelativeStepperForm({ persons, self, onCreated }) {
                   ))}
                 </select>
               ) : (
-                <input
-                  className="input"
-                  value={form.burialPlace}
-                  onChange={(e) => set("burialPlace", e.target.value)}
-                  placeholder="Например: Тула"
-                />
+                <>
+                  <input
+                    className="input"
+                    required={!form.alive}
+                    value={form.burialPlace}
+                    onChange={(e) => set("burialPlace", e.target.value)}
+                    placeholder="Начните вводить адрес места захоронения"
+                    list="burial-address-suggestions"
+                  />
+                  <datalist id="burial-address-suggestions">
+                    {burialAddressSuggestions.map((s) => (
+                      <option key={s} value={s} />
+                    ))}
+                  </datalist>
+                </>
               )}
             </>
           ) : (

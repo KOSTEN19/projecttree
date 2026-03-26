@@ -7,8 +7,7 @@ const CITY_CIRCLE_LAYER_ID = "city-circles";
 const CITY_LABEL_LAYER_ID = "city-labels";
 const CITY_COUNT_LAYER_ID = "city-count";
 
-function getMapStyle(theme) {
-  const isDark = theme === "dark";
+function getMapStyle() {
   return {
     version: 8,
     glyphs: "https://demotiles.maplibre.org/font/{fontstack}/{range}.pbf",
@@ -16,9 +15,7 @@ function getMapStyle(theme) {
       carto: {
         type: "raster",
         tiles: [
-          isDark
-            ? "https://basemaps.cartocdn.com/dark_all/{z}/{x}/{y}@2x.png"
-            : "https://basemaps.cartocdn.com/light_all/{z}/{x}/{y}@2x.png",
+          "https://basemaps.cartocdn.com/rastertiles/voyager/{z}/{x}/{y}@2x.png",
         ],
         tileSize: 256,
         attribution: "&copy; CartoDB &copy; OpenStreetMap",
@@ -29,17 +26,12 @@ function getMapStyle(theme) {
         id: "base",
         type: "raster",
         source: "carto",
-        paint: isDark
-          ? {
-              "raster-brightness-max": 0.74,
-              "raster-saturation": -0.18,
-              "raster-contrast": 0.18,
-            }
-          : {
-              "raster-brightness-max": 1,
-              "raster-saturation": -0.08,
-              "raster-contrast": 0.22,
-            },
+        paint: {
+          "raster-brightness-min": 0.02,
+          "raster-brightness-max": 1.12,
+          "raster-saturation": 0.3,
+          "raster-contrast": 0.35,
+        },
       },
     ],
   };
@@ -77,10 +69,6 @@ function normalizeLon(lon) {
   return normalized;
 }
 
-function getTheme() {
-  return document.documentElement.classList.contains("dark") ? "dark" : "light";
-}
-
 export default function MapPage() {
   const [filter, setFilter] = useState("birth");
   const [markers, setMarkers] = useState([]);
@@ -88,7 +76,6 @@ export default function MapPage() {
   const [error, setError] = useState("");
   const [panel, setPanel] = useState(null);
   const [card, setCard] = useState(null);
-  const [theme, setTheme] = useState(() => getTheme());
 
   const boxRef = useRef(null);
   const mapRef = useRef(null);
@@ -171,7 +158,7 @@ export default function MapPage() {
           "circle-radius": ["interpolate", ["linear"], ["get", "count"], 1, 8, 2, 12, 5, 18, 10, 22],
           "circle-color": ["case", [">", ["get", "count"], 1], "#3b82f6", "#f43f5e"],
           "circle-stroke-width": 2.2,
-          "circle-stroke-color": theme === "dark" ? "#e2e8f0" : "#0f172a",
+          "circle-stroke-color": "#0f172a",
           "circle-opacity": 0.95,
         },
       });
@@ -188,7 +175,7 @@ export default function MapPage() {
           "text-allow-overlap": true,
         },
         paint: {
-          "text-color": theme === "dark" ? "#ffffff" : "#0f172a",
+          "text-color": "#0f172a",
         },
       });
     }
@@ -206,8 +193,8 @@ export default function MapPage() {
           "text-allow-overlap": true,
         },
         paint: {
-          "text-color": theme === "dark" ? "#e2e8f0" : "#0f172a",
-          "text-halo-color": theme === "dark" ? "rgba(2, 6, 23, 0.95)" : "rgba(248, 250, 252, 0.98)",
+          "text-color": "#111827",
+          "text-halo-color": "rgba(248, 250, 252, 0.98)",
           "text-halo-width": 1.5,
         },
       });
@@ -259,7 +246,7 @@ export default function MapPage() {
       });
       mapHandlersBound.current = true;
     }
-  }, [getCityFeatureCollection, theme]);
+  }, [getCityFeatureCollection]);
 
   const refreshSourceData = useCallback(() => {
     const mp = mapRef.current;
@@ -294,7 +281,7 @@ export default function MapPage() {
 
     const mp = new maplibregl.Map({
       container: el,
-      style: getMapStyle(theme),
+      style: getMapStyle(),
       center: [50, 55],
       zoom: 3.5,
       attributionControl: false,
@@ -316,33 +303,7 @@ export default function MapPage() {
       try { mp.remove(); } catch {}
       mapRef.current = null;
     };
-  }, [ensureLayers, refreshSourceData, theme]);
-
-  useEffect(() => {
-    const observer = new MutationObserver(() => {
-      setTheme(getTheme());
-    });
-    observer.observe(document.documentElement, { attributes: true, attributeFilter: ["class"] });
-    return () => observer.disconnect();
-  }, []);
-
-  useEffect(() => {
-    const mp = mapRef.current;
-    if (!mp) return;
-    mapReady.current = false;
-    mapHandlersBound.current = false;
-    mp.setStyle(getMapStyle(theme));
-    const onLoad = () => {
-      mapReady.current = true;
-      ensureLayers();
-      refreshSourceData();
-      mp.resize();
-    };
-    mp.once("load", onLoad);
-    return () => {
-      mp.off("load", onLoad);
-    };
-  }, [theme, ensureLayers, refreshSourceData]);
+  }, [ensureLayers, refreshSourceData]);
 
   useEffect(() => {
     const mp = mapRef.current;
@@ -355,13 +316,13 @@ export default function MapPage() {
     });
     ro.observe(el);
     return () => ro.disconnect();
-  }, [theme]);
+  }, []);
 
   useEffect(() => {
     const mp = mapRef.current;
     if (!mp || !mapReady.current) return;
     mp.resize();
-  }, [panel, filter, theme]);
+  }, [panel, filter]);
 
   const cities = new Set((markers || []).map(x => x.label)).size;
 

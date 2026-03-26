@@ -18,6 +18,17 @@ function yearOf(person) {
   return Number.isFinite(y) && y > 1000 && y < 2100 ? y : null;
 }
 
+function trimText(v) {
+  return String(v || "").trim().replace(/\s+/g, " ");
+}
+
+function normalizeHumanName(v) {
+  return String(v || "")
+    .trim()
+    .replace(/\s+/g, " ")
+    .replace(/(^|[\s-])[a-zA-Zа-яА-ЯёЁ]/g, (m) => m.toUpperCase());
+}
+
 function centuryOf(year) {
   return Math.ceil(year / 100);
 }
@@ -262,6 +273,19 @@ function RelativeCard({ person, onUpdated, onDeleted }) {
 
   async function save() {
     const payload = { ...p };
+    payload.lastName = normalizeHumanName(payload.lastName);
+    payload.firstName = normalizeHumanName(payload.firstName);
+    payload.middleName = normalizeHumanName(payload.middleName);
+    payload.maidenName = normalizeHumanName(payload.maidenName || "");
+    payload.birthCity = trimText(payload.birthCity);
+    payload.birthCityCustom = trimText(payload.birthCityCustom);
+    payload.burialPlace = trimText(payload.burialPlace);
+    payload.notes = trimText(payload.notes);
+    payload.biography = trimText(payload.biography);
+    payload.education = trimText(payload.education);
+    payload.workPath = trimText(payload.workPath);
+    payload.militaryPath = trimText(payload.militaryPath);
+    delete payload.phone;
 
     if (birthMode === "list") {
       payload.birthCity = birthListValue;
@@ -345,8 +369,6 @@ function RelativeCard({ person, onUpdated, onDeleted }) {
             </>
           )}
 
-          <div className="label">Телефон</div>
-          <input className="input" value={p.phone} onChange={(e) => set("phone", e.target.value)} />
         </div>
 
         <div className="col">

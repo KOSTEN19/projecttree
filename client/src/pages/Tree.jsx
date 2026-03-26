@@ -4,10 +4,8 @@ import { Av, sx } from "../features/tree/TreeAvatars";
 import { TreePersonCardOverlay } from "../features/tree/TreePersonCardOverlay";
 import { applyTreeFocus, extractParentMapsForTree, focusForClick } from "../lib/treeFocus.js";
 import { Alert, AlertDescription, AlertTitle } from "@/components/ui/alert";
-import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
-import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
-import { Separator } from "@/components/ui/separator";
+import { Card, CardHeader, CardTitle } from "@/components/ui/card";
 import { Skeleton } from "@/components/ui/skeleton";
 function strId(v) {
   if (!v) return "";
@@ -685,17 +683,7 @@ export default function Tree() {
   const camDrag = useRef(null);
   const nodeDrag = useRef(null);
 
-  const LONGPRESS_MS = 520;
-  const lpTimer = useRef(null);
-  const lpStart = useRef(null); // { x, y, id }
   const suppressNextClickRef = useRef(false);
-
-  const clearLpTimer = useCallback(() => {
-    if (lpTimer.current) {
-      clearTimeout(lpTimer.current);
-      lpTimer.current = null;
-    }
-  }, []);
 
   useEffect(() => {
     if (!card) return undefined;
@@ -714,12 +702,6 @@ export default function Tree() {
     window.addEventListener("keydown", onKey);
     return () => window.removeEventListener("keydown", onKey);
   }, [lpMenu]);
-
-  useEffect(() => {
-    return () => {
-      clearLpTimer();
-    };
-  }, [clearLpTimer]);
 
   async function load() {
     setLoading(true); setErr("");
@@ -744,12 +726,20 @@ export default function Tree() {
     return extractParentMapsForTree(data.relationships, byId);
   }, [data]);
 
-  const filteredData = useMemo(
-    () => applyTreeFocus(data, branchFocus),
-    [data, branchFocus],
-  );
-
-  const g = useMemo(() => buildGraphSmart(filteredData), [filteredData]);
+  const focusData = useMemo(() => applyTreeFocus(data, branchFocus), [data, branchFocus]);
+  const focusedPeopleIds = useMemo(() => {
+    const s = new Set();
+    for (const p of focusData.people || []) s.add(pId(p));
+    return s;
+  }, [focusData.people]);
+  const g = useMemo(() => buildGraphSmart(data), [data]);
+  const activeUnitIds = useMemo(() => {
+    const s = new Set();
+    for (const u of g.units) {
+      if ((u.persons || []).some((p) => focusedPeopleIds.has(pId(p)))) s.add(u.unitId);
+    }
+    return s;
+  }, [g.units, focusedPeopleIds]);
 
   const resetCameraToFit = useCallback(() => {
     const el = vpRef.current;
@@ -891,115 +881,22 @@ export default function Tree() {
     setReady(false);
   }, [loading, g.units.length]);
 
-  const startChipLongPress = (e, person) => {
-    // Если идёт перетаскивание узлов, не запускаем long-press.
-    if (nodeDrag.current?.active) return;
-
-    // Для мыши long-press должен реагировать только на левую кнопку.
-    if (e.pointerType === "mouse" && e.button !== 0) return;
-
-    // Пытаемся подавить нативные touch-меню (если браузер блокирует - это не критично).
-    if (typeof e.preventDefault === "function") e.preventDefault();
-
-    clearLpTimer();
-    lpStart.current = { x: e.clientX, y: e.clientY, id: person.id };
-    const x = e.clientX;
-    const y = e.clientY;
-
-    lpTimer.current = setTimeout(() => {
-      lpTimer.current = null;
-      suppressNextClickRef.current = true;
-      setLpMenu({ x, y, person });
-    }, LONGPRESS_MS);
-  };
-
-  const cancelChipLongPress = () => {
-    clearLpTimer();
-    lpStart.current = null;
-  };
-
-  const moveChipLongPress = (e) => {
-    const st = lpStart.current;
-    if (!st) return;
-    const dx = Math.abs(e.clientX - st.x);
-    const dy = Math.abs(e.clientY - st.y);
-    if (dx + dy > 12) {
-      // Пользователь начал жест как “перетаскивание/скролл” вместо long-press.
-      suppressNextClickRef.current = true;
-      cancelChipLongPress();
-    }
-  };
-
   return (
     <>
       <div className="tree-page">
-        <Card className="tree-header">
-          <CardHeader className="tree-intro">
-            <CardTitle className="tree-title">Генеалогическое древо</CardTitle>
-            <CardDescription className="tree-hint">
-              Перетаскивайте узлы или фон. Колёсико — масштаб. Клик по человеку — карточка и фокус ветви
-              (отец/мать — одна линия, остальные — путь к предку).
-            </CardDescription>
-            {branchFocus ? (
-              <Badge variant="secondary" className="w-fit">
-                Режим:{" "}
-                {branchFocus.type === "paternal"
-                  ? "только отцовская линия"
-                  : branchFocus.type === "maternal"
-                    ? "только материнская линия"
-                    : "линия к выбранному предку"}
-              </Badge>
-            ) : null}
-          </CardHeader>
-          <CardContent className="tree-toolbar-row">
-            <div className="tree-stats" aria-label="Статистика древа">
-              <Badge variant="outline">{filteredData.people.length} чел.</Badge>
-              <Badge variant="outline">{filteredData.relationships.length} связей</Badge>
-              <Badge variant="outline">{Math.round(cam.s * 100)}%</Badge>
-            </div>
-            <div className="tree-legend" aria-label="Типы линий на древе">
-              <Badge variant="secondary" className="tree-legend-item">
-                <span className="tree-legend-swatch tree-legend-swatch--parent" aria-hidden />
-                <span>Родство</span>
-              </Badge>
-              <Badge variant="secondary" className="tree-legend-item">
-                <span className="tree-legend-swatch tree-legend-swatch--spouse" aria-hidden />
-                <span>Супруги</span>
-              </Badge>
-              <Badge variant="secondary" className="tree-legend-item">
-                <span className="tree-legend-swatch tree-legend-swatch--sibling" aria-hidden />
-                <span>Братья и сёстры</span>
-              </Badge>
-            </div>
-            <div className="tree-actions">
-              <Button
-                type="button"
-                variant="outline"
-                size="sm"
-                onClick={resetCameraToFit}
-                aria-label="Подогнать древо в экран"
-              >
-                В экран
-              </Button>
-              {branchFocus ? (
-                <Button type="button" variant="ghost" size="sm" onClick={() => setBranchFocus(null)}>
-                  Всё древо
-                </Button>
-              ) : null}
-              <Separator orientation="vertical" className="h-6" />
-              <Button
-                type="button"
-                variant="default"
-                size="sm"
-                onClick={() => void load()}
-                disabled={loading}
-                aria-label="Обновить данные"
-              >
-                {loading ? "…" : "Обновить"}
-              </Button>
-            </div>
-          </CardContent>
-        </Card>
+        <div className="tree-actions tree-actions--overlay">
+          <Button type="button" variant="outline" size="sm" onClick={resetCameraToFit}>
+            В экран
+          </Button>
+          {branchFocus ? (
+            <Button type="button" variant="secondary" size="sm" onClick={() => setBranchFocus(null)}>
+              Убрать фокус
+            </Button>
+          ) : null}
+          <Button type="button" variant="default" size="sm" onClick={() => void load()} disabled={loading}>
+            {loading ? "…" : "Обновить"}
+          </Button>
+        </div>
 
         {err ? (
           <Alert variant="destructive" className="tree-err">
@@ -1088,7 +985,7 @@ export default function Tree() {
                       ? "url(#treeStrokeSpouse)"
                       : "url(#treeStrokeSibling)";
                 return (
-                  <g key={i}>
+                  <g key={i} className={branchFocus && (!activeUnitIds.has(e.from) || !activeUnitIds.has(e.to)) ? "tree-dim" : ""}>
                     <path d={e.d} className={`tree-edge-bg tree-ebg-${e.kind}`} filter="url(#treeSvgGlow)" />
                     <path d={e.d} className={`tree-edge tree-e-${e.kind}`} stroke={grad} />
                   </g>
@@ -1103,7 +1000,7 @@ export default function Tree() {
               return (
                 <div
                   key={u.unitId}
-                  className={`tree-node${u.virtual ? " tree-node--virt" : ""}${ready ? " tree-node--enter" : ""}`}
+                  className={`tree-node${u.virtual ? " tree-node--virt" : ""}${ready ? " tree-node--enter" : ""}${branchFocus && !activeUnitIds.has(u.unitId) ? " tree-dim" : ""}`}
                   style={{
                     left: p.x,
                     top: p.y,
@@ -1118,28 +1015,17 @@ export default function Tree() {
                         key={person.id}
                         type="button"
                         className={`tree-chip ${sx(person)}${person.isSelf ? " self" : ""}`}
-                        onClick={() => {
+                        onClick={(e) => {
                           if (suppressNextClickRef.current) {
                             suppressNextClickRef.current = false;
                             return;
                           }
                           if (nodeDrag.current?.active) return;
-                          const f = focusForClick(
-                            data.mePersonId,
-                            person.id,
-                            parentMaps.fatherOf,
-                            parentMaps.motherOf,
-                          );
-                          setBranchFocus(f);
-                          setCard(person);
+                          const r = e.currentTarget.getBoundingClientRect();
+                          setLpMenu({ x: r.left + r.width / 2, y: r.bottom + 8, person });
                         }}
-                        onPointerDown={(e) => startChipLongPress(e, person)}
-                        onPointerUp={() => cancelChipLongPress()}
-                        onPointerCancel={() => cancelChipLongPress()}
-                        onPointerLeave={() => cancelChipLongPress()}
-                        onPointerMove={(e) => moveChipLongPress(e)}
                       >
-                        <Av p={person} size={38} />
+                        <Av p={person} size={48} />
                         <div className="tree-chip-text">
                           <div className="tree-chip-name">{fmtName(person)}</div>
                           <div className="tree-chip-sub">
@@ -1147,6 +1033,7 @@ export default function Tree() {
                               ? "Вы"
                               : safeText(person.birthDate) || safeText(person.birthCity) || ""}
                           </div>
+                          <div className="tree-chip-sub">{safeText(person.middleName) || (person.sex === "M" ? "муж." : person.sex === "F" ? "жен." : "пол не указан")}</div>
                         </div>
                       </button>
                     ))}
@@ -1223,6 +1110,7 @@ export default function Tree() {
               role="menuitem"
               onClick={() => {
                 setLpMenu(null);
+                setCard(lpMenu.person);
                 setBranchFocus({ type: "maternal", anchorId: lpMenu.person.id });
               }}
             >
@@ -1237,6 +1125,7 @@ export default function Tree() {
               role="menuitem"
               onClick={() => {
                 setLpMenu(null);
+                setCard(lpMenu.person);
                 setBranchFocus({ type: "paternal", anchorId: lpMenu.person.id });
               }}
             >
@@ -1251,6 +1140,7 @@ export default function Tree() {
               role="menuitem"
               onClick={() => {
                 setLpMenu(null);
+                setCard(lpMenu.person);
                 setBranchFocus({ type: "lineage", anchorId: lpMenu.person.id });
               }}
             >
