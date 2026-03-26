@@ -16,7 +16,10 @@ import (
 )
 
 func main() {
-	cfg := config.Load()
+	cfg, err := config.Load()
+	if err != nil {
+		log.Fatalf("[fatal] config: %v", err)
+	}
 	if os.Getenv("GIN_MODE") == "" {
 		gin.SetMode(gin.ReleaseMode)
 	}
@@ -25,7 +28,9 @@ func main() {
 		log.Fatalf("[fatal] %v", err)
 	}
 
-	middleware.InitJWT(cfg.JWTSecret)
+	if err := middleware.InitJWT(cfg.JWTSecret, cfg.JWTBindProcess, cfg.JWTAccessTTL); err != nil {
+		log.Fatalf("[fatal] jwt: %v", err)
+	}
 
 	seed.RunDemoSeed()
 	seed.RunAdminSeed()

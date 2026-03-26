@@ -145,24 +145,44 @@ export function applyTreeFocus(data, focus) {
 
   const { fatherOf, motherOf } = extractParentMaps(relationships, byId);
   const adj = buildUndirectedAdj(relationships, byId);
-  const mo = motherOf.get(mePersonId);
-  const fa = fatherOf.get(mePersonId);
-  const blockEdge = fa && mo ? (fa < mo ? `${fa}|${mo}` : `${mo}|${fa}`) : null;
 
   let keep;
 
   if (focus.type === "paternal") {
+    const anchorId = focus.anchorId ? strId(focus.anchorId) : mePersonId;
+    if (!byId.has(anchorId)) {
+      return { mePersonId, people: [...(people || [])], relationships: [...(relationships || [])] };
+    }
+    const mo = motherOf.get(anchorId);
+    const fa = fatherOf.get(anchorId);
     if (!mo) {
       return { mePersonId, people: [...(people || [])], relationships: [...(relationships || [])] };
     }
-    const side = bfsFrom(mo, mePersonId, adj, blockEdge);
+    const blockEdge = fa && mo ? (fa < mo ? `${fa}|${mo}` : `${mo}|${fa}`) : null;
+    const side = bfsFrom(mo, anchorId, adj, blockEdge);
     keep = new Set([...byId.keys()].filter((id) => !side.has(id)));
+    // Если подсветка выбрана относительно не-“Я”, поддерживаем видимость “Я”.
+    if (anchorId !== mePersonId) {
+      const path = shortestPath(adj, mePersonId, anchorId);
+      if (path) path.forEach((id) => keep.add(id));
+    }
   } else if (focus.type === "maternal") {
+    const anchorId = focus.anchorId ? strId(focus.anchorId) : mePersonId;
+    if (!byId.has(anchorId)) {
+      return { mePersonId, people: [...(people || [])], relationships: [...(relationships || [])] };
+    }
+    const mo = motherOf.get(anchorId);
+    const fa = fatherOf.get(anchorId);
     if (!fa) {
       return { mePersonId, people: [...(people || [])], relationships: [...(relationships || [])] };
     }
-    const side = bfsFrom(fa, mePersonId, adj, blockEdge);
+    const blockEdge = fa && mo ? (fa < mo ? `${fa}|${mo}` : `${mo}|${fa}`) : null;
+    const side = bfsFrom(fa, anchorId, adj, blockEdge);
     keep = new Set([...byId.keys()].filter((id) => !side.has(id)));
+    if (anchorId !== mePersonId) {
+      const path = shortestPath(adj, mePersonId, anchorId);
+      if (path) path.forEach((id) => keep.add(id));
+    }
   } else if (focus.type === "lineage" && focus.anchorId) {
     const anchor = strId(focus.anchorId);
     if (anchor === mePersonId) {

@@ -672,11 +672,24 @@ export default function Tree() {
   const [branchFocus, setBranchFocus] = useState(null);
   const [err, setErr] = useState("");
   const [card, setCard] = useState(null);
+  const [lpMenu, setLpMenu] = useState(null); // { x, y, person }
   const vpRef = useRef(null);
   const [pos, setPos] = useState({});
   const [cam, setCam] = useState({ x: 0, y: 0, s: 1 });
   const camDrag = useRef(null);
   const nodeDrag = useRef(null);
+
+  const LONGPRESS_MS = 520;
+  const lpTimer = useRef(null);
+  const lpStart = useRef(null); // { x, y, id }
+  const lpSuppressedClickId = useRef(null);
+
+  const clearLpTimer = useCallback(() => {
+    if (lpTimer.current) {
+      clearTimeout(lpTimer.current);
+      lpTimer.current = null;
+    }
+  }, []);
 
   useEffect(() => {
     if (!card) return undefined;
@@ -686,6 +699,21 @@ export default function Tree() {
     window.addEventListener("keydown", onKey);
     return () => window.removeEventListener("keydown", onKey);
   }, [card]);
+
+  useEffect(() => {
+    if (!lpMenu) return undefined;
+    function onKey(e) {
+      if (e.key === "Escape") setLpMenu(null);
+    }
+    window.addEventListener("keydown", onKey);
+    return () => window.removeEventListener("keydown", onKey);
+  }, [lpMenu]);
+
+  useEffect(() => {
+    return () => {
+      clearLpTimer();
+    };
+  }, [clearLpTimer]);
 
   async function load() {
     setLoading(true); setErr("");
@@ -840,6 +868,44 @@ export default function Tree() {
     }
     setReady(false);
   }, [loading, g.units.length]);
+
+  const startChipLongPress = (e, person) => {
+    // Если идёт перетаскивание узлов, не запускаем long-press.
+    if (nodeDrag.current?.active) return;
+
+    // Для мыши long-press должен реагировать только на левую кнопку.
+    if (e.pointerType === "mouse" && e.button !== 0) return;
+
+    // Пытаемся подавить нативные touch-меню (если браузер блокирует - это не критично).
+    if (typeof e.preventDefault === "function") e.preventDefault();
+
+    clearLpTimer();
+    lpStart.current = { x: e.clientX, y: e.clientY, id: person.id };
+    const x = e.clientX;
+    const y = e.clientY;
+
+    lpTimer.current = setTimeout(() => {
+      lpTimer.current = null;
+      lpSuppressedClickId.current = person.id;
+      setLpMenu({ x, y, person });
+    }, LONGPRESS_MS);
+  };
+
+  const cancelChipLongPress = () => {
+    clearLpTimer();
+    lpStart.current = null;
+  };
+
+  const moveChipLongPress = (e) => {
+    const st = lpStart.current;
+    if (!st) return;
+    const dx = Math.abs(e.clientX - st.x);
+    const dy = Math.abs(e.clientY - st.y);
+    if (dx + dy > 12) {
+      // Пользователь начал жест как “перетаскивание/скролл” вместо long-press.
+      cancelChipLongPress();
+    }
+  };
 
   return (
     <>
@@ -1026,6 +1092,10 @@ export default function Tree() {
                         type="button"
                         className={`tree-chip ${sx(person)}${person.isSelf ? " self" : ""}`}
                         onClick={() => {
+                          if (lpSuppressedClickId.current === person.id) {
+                            lpSuppressedClickId.current = null;
+                            return;
+                          }
                           if (nodeDrag.current?.active) return;
                           const f = focusForClick(
                             data.mePersonId,
@@ -1036,6 +1106,11 @@ export default function Tree() {
                           setBranchFocus(f);
                           setCard(person);
                         }}
+                        onPointerDown={(e) => startChipLongPress(e, person)}
+                        onPointerUp={() => cancelChipLongPress()}
+                        onPointerCancel={() => cancelChipLongPress()}
+                        onPointerLeave={() => cancelChipLongPress()}
+                        onPointerMove={(e) => moveChipLongPress(e)}
                       >
                         <Av p={person} size={38} />
                         <div className="tree-chip-text">
@@ -1090,6 +1165,77 @@ export default function Tree() {
           </footer>
         ) : null}
       </div>
+
+      {lpMenu ? (
+        <div
+          className="tree-lp-menu-overlay"
+          role="presentation"
+          onPointerDown={(e) => {
+            if (e.target === e.currentTarget) setLpMenu(null);
+          }}
+        >
+          <div
+            className="tree-lp-menu"
+            role="menu"
+            aria-label="Действия с родственником"
+            style={{
+              left: lpMenu.x,
+              top: lpMenu.y,
+            }}
+            onPointerDown={(e) => e.stopPropagation()}
+          >
+            <button
+              type="button"
+              className="tree-lp-item"
+              role="menuitem"
+              onClick={() => {
+                setLpMenu(null);
+                setBranchFocus({ type: "maternal", anchorId: lpMenu.person.id });
+              }}
+            >
+              Подсветить линию матери
+              <span className="tree-lp-item-hint">↟</span>
+            </button>
+            <button
+              type="button"
+              className="tree-lp-item"
+              role="menuitem"
+              onClick={() => {
+                setLpMenu(null);
+                setBranchFocus({ type: "paternal", anchorId: lpMenu.person.id });
+              }}
+            >
+              Подсветить линию отца
+              <span className="tree-lp-item-hint">↟</span>
+            </button>
+            <button
+              type="button"
+              className="tree-lp-item"
+              role="menuitem"
+              onClick={() => {
+                setLpMenu(null);
+                setBranchFocus({ type: "lineage", anchorId: lpMenu.person.id });
+              }}
+            >
+              Ветка к предку
+              <span className="tree-lp-item-hint">↗</span>
+            </button>
+            <div className="tree-lp-divider" aria-hidden />
+            <button
+              type="button"
+              className="tree-lp-item"
+              role="menuitem"
+              onClick={() => {
+                setLpMenu(null);
+                setCard(lpMenu.person);
+              }}
+            >
+              Открыть карточку
+              <span className="tree-lp-item-hint">⤢</span>
+            </button>
+          </div>
+        </div>
+      ) : null}
 
       {card ? <TreePersonCardOverlay card={card} onClose={() => setCard(null)} /> : null}
     </>

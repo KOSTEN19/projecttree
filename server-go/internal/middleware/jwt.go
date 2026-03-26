@@ -1,6 +1,9 @@
 package middleware
 
 import (
+	"crypto/rand"
+	"encoding/hex"
+	"fmt"
 	"net/http"
 	"strings"
 	"time"
@@ -9,17 +12,59 @@ import (
 	"github.com/golang-jwt/jwt/v5"
 )
 
-var jwtSecret []byte
+const jwtIssuer = "project-drevo"
 
-func InitJWT(secret string) {
+var (
+	jwtSecret         []byte
+	processInstanceID string // пусто, если привязка к процессу отключена
+	accessTTL         time.Duration
+	bindProcess       bool
+)
+
+func InitJWT(secret string, bindToProcess bool, ttl time.Duration) error {
+	if len(secret) < 32 {
+		return fmt.Errorf("jwt: secret too short")
+	}
 	jwtSecret = []byte(secret)
+	bindProcess = bindToProcess
+	accessTTL = ttl
+	processInstanceID = ""
+	if !bindToProcess {
+		return nil
+	}
+	buf := make([]byte, 16)
+	if _, err := rand.Read(buf); err != nil {
+		return fmt.Errorf("jwt: process instance id: %w", err)
+	}
+	processInstanceID = hex.EncodeToString(buf)
+	return nil
+}
+
+type accessClaims struct {
+	ProcessID string `json:"pid,omitempty"`
+	jwt.RegisteredClaims
 }
 
 func GenerateToken(userID string) (string, error) {
-	claims := jwt.MapClaims{
-		"userId": userID,
-		"exp":    time.Now().Add(7 * 24 * time.Hour).Unix(),
+	now := time.Now()
+	jti := make([]byte, 8)
+	if _, err := rand.Read(jti); err != nil {
+		return "", err
 	}
+
+	claims := accessClaims{
+		RegisteredClaims: jwt.RegisteredClaims{
+			Subject:   userID,
+			Issuer:    jwtIssuer,
+			IssuedAt:  jwt.NewNumericDate(now),
+			ExpiresAt: jwt.NewNumericDate(now.Add(accessTTL)),
+			ID:        hex.EncodeToString(jti),
+		},
+	}
+	if bindProcess && processInstanceID != "" {
+		claims.ProcessID = processInstanceID
+	}
+
 	token := jwt.NewWithClaims(jwt.SigningMethodHS256, claims)
 	return token.SignedString(jwtSecret)
 }
@@ -33,21 +78,35 @@ func RequireAuth() gin.HandlerFunc {
 		}
 
 		tokenStr := strings.TrimPrefix(header, "Bearer ")
-		token, err := jwt.Parse(tokenStr, func(t *jwt.Token) (any, error) {
+		var claims accessClaims
+		token, err := jwt.ParseWithClaims(tokenStr, &claims, func(t *jwt.Token) (any, error) {
+			if t.Method != jwt.SigningMethodHS256 {
+				return nil, fmt.Errorf("unexpected signing method %v", t.Header["alg"])
+			}
 			return jwtSecret, nil
 		})
-		if err != nil || !token.Valid {
+		if err != nil {
+			c.AbortWithStatusJSON(http.StatusUnauthorized, gin.H{"error": "not_authorized"})
+			return
+		}
+		if !token.Valid {
 			c.AbortWithStatusJSON(http.StatusUnauthorized, gin.H{"error": "not_authorized"})
 			return
 		}
 
-		claims, ok := token.Claims.(jwt.MapClaims)
-		if !ok {
+		if claims.Issuer != "" && claims.Issuer != jwtIssuer {
 			c.AbortWithStatusJSON(http.StatusUnauthorized, gin.H{"error": "not_authorized"})
 			return
 		}
 
-		userID, _ := claims["userId"].(string)
+		if bindProcess {
+			if claims.ProcessID == "" || claims.ProcessID != processInstanceID {
+				c.AbortWithStatusJSON(http.StatusUnauthorized, gin.H{"error": "not_authorized"})
+				return
+			}
+		}
+
+		userID := strings.TrimSpace(claims.Subject)
 		if userID == "" {
 			c.AbortWithStatusJSON(http.StatusUnauthorized, gin.H{"error": "not_authorized"})
 			return

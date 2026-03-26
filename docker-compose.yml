@@ -24,7 +24,11 @@ services:
       - MONGO_URI=mongodb://${MONGO_ROOT_USER:-root}:${MONGO_ROOT_PASSWORD:-project_drevo_mongo_dev}@mongodb:27017/project_drevo?authSource=admin
       - ADMIN_LOGIN=${ADMIN_LOGIN:-admin}
       - ADMIN_PASSWORD=${ADMIN_PASSWORD:-V9!mQ2#tK7@pL4$zR6}
-      - JWT_SECRET=Kf9zT2pQ7vN3mX1aL0sR8yH5cD6uJ4wE9bG2rP1tV7nZ3qX8mS0aF6kL2hD9cQ1
+      # Секрет ≥32 символов; задайте свой в .env. После смены секрета все JWT станут недействительны.
+      - JWT_SECRET=${JWT_SECRET:-Kf9zT2pQ7vN3mX1aL0sR8yH5cD6uJ4wE9bG2rP1tV7nZ3qX8mS0aF6kL2hD9cQ1}
+      # true: новый процесс = все старые токены отклоняются (удобно при пересборке контейнера).
+      - JWT_BIND_TO_PROCESS=${JWT_BIND_TO_PROCESS:-true}
+      - JWT_ACCESS_TTL=${JWT_ACCESS_TTL:-24h}
       - CLIENT_ORIGIN=*
       - SCANNERS_LOG_PATH=/var/log/nginx/scanners.log
     volumes:
