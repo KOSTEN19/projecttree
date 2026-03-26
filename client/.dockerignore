@@ -1,0 +1,10 @@
+# node_modules с хоста не в контекст — в образе только `npm ci` по lockfile (папка в git не хранится).
+node_modules
+dist
+.git
+.gitignore
+*.log
+.env
+.env.*
+npm-debug.log*
+.DS_Store

@@ -1,0 +1,42 @@
+# Dependencies (не коммитить; в Docker — только `npm ci` в client/Dockerfile)
+node_modules/
+client/node_modules/
+
+# Build output
+dist/
+build/
+*.tsbuildinfo
+
+# Go
+server-go/server
+server-go/server.exe
+*.test
+
+# Runtime / secrets (do not commit)
+.env
+.env.*
+!.env.example
+server-go/data/
+
+# Локальная БД MongoDB (docker-compose bind mount ./mongo-data)
+mongo-data/
+
+# Логи nginx (access, scanners)
+logs/
+
+# Logs & caches
+*.log
+.npm-cache/
+.eslintcache
+.vite/
+.turbo/
+.parcel-cache/
+.cache/
+
+# IDE / OS
+.vscode/
+.idea/
+*.swp
+*.swo
+.DS_Store
+Thumbs.db

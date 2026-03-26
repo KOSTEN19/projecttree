@@ -1,0 +1,156 @@
+/* Компактный вид в сетке «Моя семья» */
+.rel-pc-grid-slot {
+  display: flex;
+  justify-content: center;
+  width: 100%;
+}
+
+.rel-pc-grid-slot .pc-card-wrapper {
+  width: 100%;
+  max-width: 280px;
+}
+
+.rel-pc-grid-slot .pc-card {
+  height: auto;
+  min-height: 300px;
+  max-height: 440px;
+  width: 100%;
+  max-width: 280px;
+}
+
+/* Слои: блики снизу, фото и текст цветные и читаемые */
+.rel-pc-grid-slot .pc-avatar-content {
+  z-index: 4;
+  mix-blend-mode: normal;
+  isolation: isolate;
+}
+
+.rel-pc-grid-slot .pc-avatar-content .avatar,
+.rel-pc-grid-slot .pc-avatar-content .pc-avatar-fallback {
+  filter: none;
+}
+
+/* Текст поверх плавного затемнения сверху (переход в фото) */
+.rel-pc-grid-slot .pc-content:not(.pc-avatar-content) {
+  z-index: 5;
+  transform: translate3d(0, 0, 0.1px);
+  mix-blend-mode: normal;
+  pointer-events: none;
+}
+
+.rel-pc-grid-slot .pc-content:not(.pc-avatar-content)::before {
+  content: "";
+  position: absolute;
+  inset: 0;
+  z-index: 0;
+  pointer-events: none;
+  border-radius: inherit;
+  background: linear-gradient(
+    180deg,
+    rgba(5, 8, 14, 0.91) 0%,
+    rgba(5, 8, 14, 0.72) 22%,
+    rgba(5, 8, 14, 0.38) 45%,
+    rgba(5, 8, 14, 0.08) 68%,
+    transparent 100%
+  );
+}
+
+/* Имя и фамилия сверху, фото внизу карточки (нижняя панель скрыта) */
+.rel-pc-grid-slot .pc-details {
+  position: relative;
+  z-index: 1;
+  top: 0.65rem;
+  left: 0;
+  right: 0;
+  padding: 0 0.65rem 0.5rem;
+  align-items: center;
+  box-sizing: border-box;
+}
+
+.rel-pc-grid-slot .pc-details h3 {
+  font-size: min(4svh, 1.35rem);
+  line-height: 1.2;
+  text-align: center;
+  max-width: 100%;
+  overflow-wrap: anywhere;
+}
+
+.rel-pc-grid-slot .pc-details p {
+  top: 0;
+  margin-top: 0.35rem;
+  white-space: normal;
+  width: auto;
+  max-width: 95%;
+  text-align: center;
+  line-height: 1.25;
+}
+
+.rel-pc-grid-slot .pc-avatar-content .avatar,
+.rel-pc-grid-slot .pc-avatar-content .pc-avatar-fallback {
+  max-height: 72%;
+}
+
+/* Спокойный вид: без «неонового» текста и яркого холо при наведении */
+.rel-pc-grid-slot .pc-details h3 {
+  background-image: none;
+  -webkit-text-fill-color: rgba(255, 255, 255, 0.94);
+  background-clip: border-box;
+  -webkit-background-clip: border-box;
+  color: rgba(255, 255, 255, 0.94);
+}
+
+.rel-pc-grid-slot .pc-details p {
+  background-image: none;
+  -webkit-text-fill-color: rgba(255, 255, 255, 0.65);
+  background-clip: border-box;
+  -webkit-background-clip: border-box;
+  color: rgba(255, 255, 255, 0.65);
+}
+
+.rel-pc-grid-slot .pc-shine {
+  z-index: 2;
+  animation: none;
+  opacity: 0.28;
+  mix-blend-mode: soft-light;
+  filter: brightness(0.5) contrast(1.05) saturate(0.2) opacity(0.9);
+}
+
+.rel-pc-grid-slot .pc-card:hover .pc-shine,
+.rel-pc-grid-slot .pc-card.active .pc-shine {
+  filter: brightness(0.48) contrast(1.05) saturate(0.18) opacity(0.85);
+  animation: none;
+}
+
+.rel-pc-grid-slot .pc-card:hover .pc-shine::before,
+.rel-pc-grid-slot .pc-card.active .pc-shine::before,
+.rel-pc-grid-slot .pc-card:hover .pc-shine::after,
+.rel-pc-grid-slot .pc-card.active .pc-shine::after {
+  opacity: 0.06;
+}
+
+.rel-pc-grid-slot .pc-glare {
+  z-index: 3;
+  opacity: 0.22;
+  mix-blend-mode: soft-light;
+  filter: brightness(0.75) contrast(1.05);
+}
+
+.rel-pc-grid-slot .pc-card:hover .pc-glare,
+.rel-pc-grid-slot .pc-card.active .pc-glare {
+  opacity: 0.14;
+}
+
+.rel-pc-grid-slot .pc-card-wrapper:hover,
+.rel-pc-grid-slot .pc-card-wrapper.active {
+  --card-opacity: 0.42;
+  --behind-glow-color: rgba(90, 130, 190, 0.38);
+}
+
+.rel-pc-grid-slot .pc-behind {
+  filter: blur(40px) saturate(1);
+}
+
+.rel-pc-grid-slot .pc-card:hover,
+.rel-pc-grid-slot .pc-card.active {
+  transform: translateZ(0) rotateX(calc(var(--rotate-y) * 0.28)) rotateY(calc(var(--rotate-x) * 0.28));
+}

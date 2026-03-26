@@ -1,0 +1,80 @@
+/* Тёмная тема и встраивание в модалку «Добавить родственника» */
+.rel-stepper-host .outer-container {
+  aspect-ratio: unset;
+  min-height: 0;
+  align-items: stretch;
+  justify-content: flex-start;
+  padding: 0;
+  width: 100%;
+}
+
+.rel-stepper-host .step-circle-container {
+  max-width: 100%;
+  width: 100%;
+  border-color: var(--border);
+  background: var(--card);
+  box-shadow: none;
+}
+
+.rel-stepper-host .step-indicator-row {
+  padding: 1rem 1.25rem 0.75rem;
+}
+
+.rel-stepper-host .step-default {
+  padding-left: 1.25rem;
+  padding-right: 1.25rem;
+  padding-bottom: 0.5rem;
+}
+
+.rel-stepper-host .footer-container {
+  padding: 0 1.25rem 1.25rem;
+}
+
+.rel-stepper-host .footer-nav {
+  margin-top: 1.25rem;
+}
+
+.rel-stepper-host .back-button {
+  color: var(--muted-foreground);
+}
+
+.rel-stepper-host .back-button:hover {
+  color: var(--foreground);
+}
+
+.rel-stepper-host .next-button {
+  background-color: var(--primary);
+  color: var(--primary-foreground);
+}
+
+.rel-stepper-host .next-button:hover {
+  filter: brightness(1.06);
+}
+
+.rel-stepper-host .next-button:disabled {
+  opacity: 0.55;
+  cursor: not-allowed;
+}
+
+.rel-stepper-host .step-connector {
+  background-color: var(--border);
+}
+
+.rel-stepper-host .step-indicator-inner {
+  background-color: var(--muted) !important;
+  color: var(--muted-foreground) !important;
+}
+
+.rel-stepper-host .rel-step-title {
+  font-size: 0.95rem;
+  font-weight: 600;
+  margin: 0 0 0.75rem;
+  color: var(--foreground);
+}
+
+.rel-stepper-host .rel-step-hint {
+  font-size: 0.75rem;
+  color: var(--muted-foreground);
+  margin: 0 0 1rem;
+  line-height: 1.45;
+}

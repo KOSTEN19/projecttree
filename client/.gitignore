@@ -1,0 +1,9 @@
+# Локальные зависимости и сборка (дублирует корень для ясности)
+node_modules/
+dist/
+# Генерируется `npm run ui:pull` / prebuild (реестр shadcn, как через MCP в Cursor)
+src/components/ui/*.tsx
+.vite/
+*.local
+.env
+.env.*

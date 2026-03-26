@@ -1,0 +1,45 @@
+# Переменные: см. .env.example (MONGO_ROOT_USER / MONGO_ROOT_PASSWORD).
+# Данные MongoDB лежат в ./mongo-data (не в анонимном томе Docker).
+# Полный сброс БД: docker compose down && rm -rf mongo-data && docker compose up -d
+# Именованный том docker compose down -v с хоста не удаляет — для bind-mount нужно убрать каталог.
+services:
+  mongodb:
+    image: mongo:7
+    volumes:
+      - ./mongo-data:/data/db
+    environment:
+      MONGO_INITDB_ROOT_USERNAME: ${MONGO_ROOT_USER:-root}
+      MONGO_INITDB_ROOT_PASSWORD: ${MONGO_ROOT_PASSWORD:-project_drevo_mongo_dev}
+    # Порт 27017 НЕ пробрасывается на хост — MongoDB только внутри сети compose
+    # (доступ у контейнера server по имени mongodb). Снаружи и с хоста напрямую недоступна.
+    # Админка (с паролем из .env): см. README.
+
+  server:
+    build: ./server-go
+    depends_on:
+      - mongodb
+    environment:
+      - PORT=3001
+      # БД project_drevo — имя как в server-go/internal/config DefaultMongoDBName
+      - MONGO_URI=mongodb://${MONGO_ROOT_USER:-root}:${MONGO_ROOT_PASSWORD:-project_drevo_mongo_dev}@mongodb:27017/project_drevo?authSource=admin
+      - ADMIN_LOGIN=${ADMIN_LOGIN:-admin}
+      - ADMIN_PASSWORD=${ADMIN_PASSWORD:-V9!mQ2#tK7@pL4$zR6}
+      - JWT_SECRET=Kf9zT2pQ7vN3mX1aL0sR8yH5cD6uJ4wE9bG2rP1tV7nZ3qX8mS0aF6kL2hD9cQ1
+      - CLIENT_ORIGIN=*
+      - SCANNERS_LOG_PATH=/var/log/nginx/scanners.log
+    volumes:
+      - ./logs/nginx:/var/log/nginx:ro
+    ports:
+      - "3001:3001"
+
+  # Фронт: в образе `npm ci` (client/node_modules не в git) → prebuild/shadcn → Vite → dist в nginx.
+  client:
+    build:
+      context: ./client
+    depends_on:
+      - server
+    ports:
+      - "80:80"
+    volumes:
+      # access.log, scanners.log — попытки сканирования смотреть в scanners.log
+      - ./logs/nginx:/var/log/nginx
