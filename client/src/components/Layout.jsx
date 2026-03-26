@@ -13,7 +13,7 @@ const NAV_ITEMS = [
   { label: "Профиль", to: "/app/profile" },
 ];
 
-export default function Layout({ user, onLogout }) {
+export default function Layout({ user, onLogout, theme = "dark", onToggleTheme }) {
   const nav = useNavigate();
 
   function logout() {
@@ -51,6 +51,9 @@ export default function Layout({ user, onLogout }) {
             ))}
           </nav>
           <div className="flex items-center gap-3">
+            <Button variant="ghost" size="sm" onClick={onToggleTheme} aria-label="Переключить тему">
+              {theme === "dark" ? "Светлая" : "Тёмная"}
+            </Button>
             <Avatar className="size-8">
               <AvatarFallback className="text-xs font-medium">{initials}</AvatarFallback>
             </Avatar>

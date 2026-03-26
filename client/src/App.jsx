@@ -24,6 +24,12 @@ function RequireAuth({ user, children }) {
 export default function App() {
   const [user, setUser] = useState(null);
   const [loaded, setLoaded] = useState(false);
+  const [theme, setTheme] = useState(() => {
+    if (typeof window === "undefined") return "dark";
+    const saved = window.localStorage.getItem("theme");
+    if (saved === "light" || saved === "dark") return saved;
+    return "dark";
+  });
 
   async function loadMe() {
     try {
@@ -43,6 +49,13 @@ export default function App() {
   useEffect(() => {
     loadMe();
   }, []);
+
+  useEffect(() => {
+    const root = document.documentElement;
+    root.classList.toggle("dark", theme === "dark");
+    root.style.colorScheme = theme;
+    window.localStorage.setItem("theme", theme);
+  }, [theme]);
 
   if (!loaded) {
     return (
@@ -68,11 +81,19 @@ export default function App() {
           path="/app"
           element={
             <RequireAuth user={user}>
-              <Layout user={user} onLogout={() => setUser(null)} />
+              <Layout
+                user={user}
+                onLogout={() => setUser(null)}
+                theme={theme}
+                onToggleTheme={() => setTheme((t) => (t === "dark" ? "light" : "dark"))}
+              />
             </RequireAuth>
           }
         >
-          <Route path="home" element={<Home user={user} />} />
+          <Route
+            path="home"
+            element={<Home user={user} />}
+          />
           <Route path="profile" element={<Profile onProfileUpdated={loadMe} />} />
           <Route path="relatives" element={<Relatives />} />
           <Route path="tree" element={<Tree />} />
