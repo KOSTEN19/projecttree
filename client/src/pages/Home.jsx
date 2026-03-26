@@ -141,7 +141,7 @@ function generateHistoricalInsights(persons) {
       start: 1904,
       end: 1905,
       image:
-        "https://upload.wikimedia.org/wikipedia/commons/8/89/Russian_troops_in_Manchuria_1904.jpg",
+        "https://cdn.ruwiki.ru/commonswiki/files/8/89/Russian_troops_in_Manchuria_1904.jpg",
       source: "https://ru.ruwiki.ru/wiki/Русско-японская_война",
     },
     {
@@ -150,7 +150,7 @@ function generateHistoricalInsights(persons) {
       years: "1914–1918",
       start: 1914,
       end: 1918,
-      image: "https://upload.wikimedia.org/wikipedia/commons/1/17/World_War_I_Montage.jpg",
+      image: "https://cdn.ruwiki.ru/commonswiki/files/1/17/World_War_I_Montage.jpg",
       source: "https://ru.ruwiki.ru/wiki/Первая_мировая_война",
     },
     {
@@ -159,7 +159,7 @@ function generateHistoricalInsights(persons) {
       years: "1917–1922",
       start: 1917,
       end: 1922,
-      image: "https://upload.wikimedia.org/wikipedia/commons/8/89/Provisional_government_meeting.jpg",
+      image: "https://cdn.ruwiki.ru/commonswiki/files/8/89/Provisional_government_meeting.jpg",
       source: "https://ru.ruwiki.ru/wiki/Революция_1917_года_в_России",
     },
     {
@@ -168,7 +168,7 @@ function generateHistoricalInsights(persons) {
       years: "1928–1937",
       start: 1928,
       end: 1937,
-      image: "https://upload.wikimedia.org/wikipedia/commons/6/6f/DneproGES_1930.jpg",
+      image: "https://cdn.ruwiki.ru/commonswiki/files/6/6f/DneproGES_1930.jpg",
       source: "https://ru.ruwiki.ru/wiki/Индустриализация_в_СССР",
     },
     {
@@ -177,8 +177,8 @@ function generateHistoricalInsights(persons) {
       years: "1941–1945",
       start: 1941,
       end: 1945,
-      image: "https://upload.wikimedia.org/wikipedia/commons/5/5d/Raising_a_flag_over_the_Reichstag_-_Restoration.jpg",
-      source: "https://ru.ruwiki.ru/wiki/Великая_Отечественная_война",
+      image: "https://cdn.ruwiki.ru/commonswiki/files/e/ee/WW2_collage.jpg",
+      source: "https://ru.ruwiki.ru/wiki/Вторая_мировая_война",
     },
     {
       key: "postwar",
@@ -186,7 +186,7 @@ function generateHistoricalInsights(persons) {
       years: "1945–1953",
       start: 1945,
       end: 1953,
-      image: "https://upload.wikimedia.org/wikipedia/commons/3/35/Moscow_1950s.jpg",
+      image: "https://cdn.ruwiki.ru/commonswiki/files/3/35/Moscow_1950s.jpg",
       source: "https://ru.ruwiki.ru/wiki/СССР",
     },
     {
@@ -195,7 +195,7 @@ function generateHistoricalInsights(persons) {
       years: "1957–1969",
       start: 1957,
       end: 1969,
-      image: "https://upload.wikimedia.org/wikipedia/commons/0/04/Yuri_Gagarin_1961.jpg",
+      image: "https://cdn.ruwiki.ru/commonswiki/files/0/04/Yuri_Gagarin_1961.jpg",
       source: "https://ru.ruwiki.ru/wiki/Космическая_гонка",
     },
     {
@@ -204,7 +204,7 @@ function generateHistoricalInsights(persons) {
       years: "1953–1964",
       start: 1953,
       end: 1964,
-      image: "https://upload.wikimedia.org/wikipedia/commons/8/80/Nikita_Khrushchev_1963.jpg",
+      image: "https://cdn.ruwiki.ru/commonswiki/files/8/80/Nikita_Khrushchev_1963.jpg",
       source: "https://ru.ruwiki.ru/wiki/Хрущёвская_оттепель",
     },
     {
@@ -213,7 +213,7 @@ function generateHistoricalInsights(persons) {
       years: "1964–1982",
       start: 1964,
       end: 1982,
-      image: "https://upload.wikimedia.org/wikipedia/commons/7/7e/Brezhnev_1973.jpg",
+      image: "https://cdn.ruwiki.ru/commonswiki/files/7/7e/Brezhnev_1973.jpg",
       source: "https://ru.ruwiki.ru/wiki/Эпоха_застоя",
     },
     {
@@ -222,7 +222,7 @@ function generateHistoricalInsights(persons) {
       years: "1979–1989",
       start: 1979,
       end: 1989,
-      image: "https://upload.wikimedia.org/wikipedia/commons/4/4d/Soviet_troops_in_Afghanistan.jpg",
+      image: "https://cdn.ruwiki.ru/commonswiki/files/4/4d/Soviet_troops_in_Afghanistan.jpg",
       source: "https://ru.ruwiki.ru/wiki/Афганская_война_(1979—1989)",
     },
     {
@@ -231,7 +231,7 @@ function generateHistoricalInsights(persons) {
       years: "1985–1991",
       start: 1985,
       end: 1991,
-      image: "https://upload.wikimedia.org/wikipedia/commons/1/1d/Gorbachev_1987.jpg",
+      image: "https://cdn.ruwiki.ru/commonswiki/files/1/1d/Gorbachev_1987.jpg",
       source: "https://ru.ruwiki.ru/wiki/Перестройка",
     },
     {
@@ -240,7 +240,7 @@ function generateHistoricalInsights(persons) {
       years: "1991–2000",
       start: 1991,
       end: 2000,
-      image: "https://upload.wikimedia.org/wikipedia/commons/a/a9/Moscow_1990s.jpg",
+      image: "https://cdn.ruwiki.ru/commonswiki/files/a/a9/Moscow_1990s.jpg",
       source: "https://ru.ruwiki.ru/wiki/История_России_(1991—настоящее_время)",
     },
   ];
