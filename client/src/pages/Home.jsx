@@ -129,7 +129,7 @@ function generateHistoricalInsights(persons) {
       end: 1905,
       image:
         "https://upload.wikimedia.org/wikipedia/commons/8/89/Russian_troops_in_Manchuria_1904.jpg",
-      source: "https://commons.wikimedia.org/wiki/File:Russian_troops_in_Manchuria_1904.jpg",
+      source: "https://ru.ruwiki.ru/wiki/Русско-японская_война",
     },
     {
       key: "ww1",
@@ -138,7 +138,7 @@ function generateHistoricalInsights(persons) {
       start: 1914,
       end: 1918,
       image: "https://upload.wikimedia.org/wikipedia/commons/1/17/World_War_I_Montage.jpg",
-      source: "https://commons.wikimedia.org/wiki/File:World_War_I_Montage.jpg",
+      source: "https://ru.ruwiki.ru/wiki/Первая_мировая_война",
     },
     {
       key: "revolution",
@@ -147,7 +147,7 @@ function generateHistoricalInsights(persons) {
       start: 1917,
       end: 1922,
       image: "https://upload.wikimedia.org/wikipedia/commons/8/89/Provisional_government_meeting.jpg",
-      source: "https://commons.wikimedia.org/wiki/File:Provisional_government_meeting.jpg",
+      source: "https://ru.ruwiki.ru/wiki/Революция_1917_года_в_России",
     },
     {
       key: "collectivization",
@@ -156,7 +156,7 @@ function generateHistoricalInsights(persons) {
       start: 1928,
       end: 1937,
       image: "https://upload.wikimedia.org/wikipedia/commons/6/6f/DneproGES_1930.jpg",
-      source: "https://commons.wikimedia.org/wiki/File:DneproGES_1930.jpg",
+      source: "https://ru.ruwiki.ru/wiki/Индустриализация_в_СССР",
     },
     {
       key: "ww2",
@@ -165,8 +165,7 @@ function generateHistoricalInsights(persons) {
       start: 1941,
       end: 1945,
       image: "https://upload.wikimedia.org/wikipedia/commons/5/5d/Raising_a_flag_over_the_Reichstag_-_Restoration.jpg",
-      source:
-        "https://commons.wikimedia.org/wiki/File:Raising_a_flag_over_the_Reichstag_-_Restoration.jpg",
+      source: "https://ru.ruwiki.ru/wiki/Великая_Отечественная_война",
     },
     {
       key: "postwar",
@@ -175,7 +174,7 @@ function generateHistoricalInsights(persons) {
       start: 1945,
       end: 1953,
       image: "https://upload.wikimedia.org/wikipedia/commons/3/35/Moscow_1950s.jpg",
-      source: "https://commons.wikimedia.org/wiki/File:Moscow_1950s.jpg",
+      source: "https://ru.ruwiki.ru/wiki/СССР",
     },
     {
       key: "space",
@@ -184,7 +183,7 @@ function generateHistoricalInsights(persons) {
       start: 1957,
       end: 1969,
       image: "https://upload.wikimedia.org/wikipedia/commons/0/04/Yuri_Gagarin_1961.jpg",
-      source: "https://commons.wikimedia.org/wiki/File:Yuri_Gagarin_1961.jpg",
+      source: "https://ru.ruwiki.ru/wiki/Космическая_гонка",
     },
     {
       key: "thaw",
@@ -193,7 +192,7 @@ function generateHistoricalInsights(persons) {
       start: 1953,
       end: 1964,
       image: "https://upload.wikimedia.org/wikipedia/commons/8/80/Nikita_Khrushchev_1963.jpg",
-      source: "https://commons.wikimedia.org/wiki/File:Nikita_Khrushchev_1963.jpg",
+      source: "https://ru.ruwiki.ru/wiki/Хрущёвская_оттепель",
     },
     {
       key: "stagnation",
@@ -202,7 +201,7 @@ function generateHistoricalInsights(persons) {
       start: 1964,
       end: 1982,
       image: "https://upload.wikimedia.org/wikipedia/commons/7/7e/Brezhnev_1973.jpg",
-      source: "https://commons.wikimedia.org/wiki/File:Brezhnev_1973.jpg",
+      source: "https://ru.ruwiki.ru/wiki/Эпоха_застоя",
     },
     {
       key: "afghan",
@@ -211,7 +210,7 @@ function generateHistoricalInsights(persons) {
       start: 1979,
       end: 1989,
       image: "https://upload.wikimedia.org/wikipedia/commons/4/4d/Soviet_troops_in_Afghanistan.jpg",
-      source: "https://commons.wikimedia.org/wiki/File:Soviet_troops_in_Afghanistan.jpg",
+      source: "https://ru.ruwiki.ru/wiki/Афганская_война_(1979—1989)",
     },
     {
       key: "perestroika",
@@ -220,7 +219,7 @@ function generateHistoricalInsights(persons) {
       start: 1985,
       end: 1991,
       image: "https://upload.wikimedia.org/wikipedia/commons/1/1d/Gorbachev_1987.jpg",
-      source: "https://commons.wikimedia.org/wiki/File:Gorbachev_1987.jpg",
+      source: "https://ru.ruwiki.ru/wiki/Перестройка",
     },
     {
       key: "new-russia",
@@ -229,7 +228,7 @@ function generateHistoricalInsights(persons) {
       start: 1991,
       end: 2000,
       image: "https://upload.wikimedia.org/wikipedia/commons/a/a9/Moscow_1990s.jpg",
-      source: "https://commons.wikimedia.org/wiki/File:Moscow_1990s.jpg",
+      source: "https://ru.ruwiki.ru/wiki/История_России_(1991—настоящее_время)",
     },
   ];
 
@@ -296,6 +295,10 @@ export default function Home({ user }) {
     });
     return arr.slice(0, 18);
   }, [people]);
+  const relativesTapeLoop = useMemo(() => {
+    if (relativesForTape.length === 0) return [];
+    return [...relativesForTape, ...relativesForTape];
+  }, [relativesForTape]);
   const updates = useMemo(() => {
     return [...people]
       .filter((p) => p.birthDate || p.notes || p.birthCity || p.birthCityCustom)
@@ -322,12 +325,13 @@ export default function Home({ user }) {
     if (!el || relativesForTape.length <= 1) return;
     const id = setInterval(() => {
       if (isTapeHovered) return;
-      const atEnd = el.scrollLeft + el.clientWidth >= el.scrollWidth - 6;
+      const half = el.scrollWidth / 2;
+      const atEnd = el.scrollLeft >= half - 6;
       if (atEnd) {
         el.scrollTo({ left: 0, behavior: "smooth" });
         return;
       }
-      el.scrollBy({ left: Math.max(220, el.clientWidth * 0.45), behavior: "smooth" });
+      el.scrollBy({ left: Math.max(160, el.clientWidth * 0.32), behavior: "smooth" });
     }, 2600);
     return () => clearInterval(id);
   }, [relativesForTape.length, isTapeHovered]);
@@ -378,8 +382,8 @@ export default function Home({ user }) {
           onMouseEnter={() => setIsTapeHovered(true)}
           onMouseLeave={() => setIsTapeHovered(false)}
         >
-          {relativesForTape.map((p) => (
-            <Card key={p.id} className="home-relative-card">
+          {relativesTapeLoop.map((p, idx) => (
+            <Card key={`${p.id}-${idx}`} className="home-relative-card">
               <CardHeader>
                 <div className="home-relative-avatar">{initials(p)}</div>
                 <div className="space-y-1">
@@ -443,7 +447,7 @@ export default function Home({ user }) {
                   <CardDescription>
                     Источник изображения:{" "}
                     <a href={fact.source} target="_blank" rel="noreferrer" className="underline">
-                      Wikimedia Commons
+                      РУВИКИ
                     </a>
                   </CardDescription>
                 ) : null}

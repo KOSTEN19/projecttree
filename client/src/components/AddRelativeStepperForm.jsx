@@ -1,5 +1,5 @@
 import React, { useCallback, useEffect, useState } from "react";
-import { apiPost } from "../api.js";
+import { apiGet, apiPost } from "../api.js";
 import Stepper, { Step } from "../vendor/react-bits/Stepper/Stepper.jsx";
 import "../vendor/react-bits/Stepper/Stepper.css";
 import "./StepperRelatives.css";
@@ -30,13 +30,8 @@ function useAddressSuggestions(query) {
     }
     const id = setTimeout(async () => {
       try {
-        const res = await fetch(
-          `https://nominatim.openstreetmap.org/search?format=json&addressdetails=1&limit=8&q=${encodeURIComponent(q)}`,
-          { headers: { Accept: "application/json" } },
-        );
-        if (!res.ok) return;
-        const data = await res.json();
-        const next = Array.isArray(data) ? data.map((x) => x.display_name).filter(Boolean) : [];
+        const data = await apiGet(`/api/geo/suggest?q=${encodeURIComponent(q)}&limit=8`);
+        const next = Array.isArray(data?.items) ? data.items.filter(Boolean) : [];
         setItems(next);
       } catch {
         setItems([]);
