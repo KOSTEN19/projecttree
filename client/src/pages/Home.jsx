@@ -5,6 +5,9 @@ import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/com
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 
+const HISTORICAL_FALLBACK_IMAGE =
+  "https://images.unsplash.com/photo-1461360228754-6e81c478b882?auto=format&fit=crop&w=1200&q=80";
+
 function fullName(p) {
   return [p?.lastName, p?.firstName, p?.middleName].filter(Boolean).join(" ").trim() || "Без имени";
 }
@@ -77,30 +80,40 @@ function generateFacts(persons, relationships, mePersonId) {
       title: "Глубина древа",
       value: depth ? `${depth + 1} поколений` : "н/д",
       hint: "Количество уровней от вашего узла.",
+      image:
+        "https://images.unsplash.com/photo-1511497584788-876760111969?auto=format&fit=crop&w=1200&q=80",
     },
     {
       key: "timeline",
       title: "Временной диапазон",
       value: years.length ? `${Math.min(...years)} — ${Math.max(...years)}` : "н/д",
       hint: "Диапазон годов рождения в семейной базе.",
+      image:
+        "https://images.unsplash.com/photo-1461360228754-6e81c478b882?auto=format&fit=crop&w=1200&q=80",
     },
     {
       key: "city",
       title: "Центральный город рода",
       value: topCity ? `${topCity[0]} (${topCity[1]})` : "н/д",
       hint: "Город, который чаще других встречается в карточках.",
+      image:
+        "https://images.unsplash.com/photo-1477959858617-67f85cf4f1df?auto=format&fit=crop&w=1200&q=80",
     },
     {
       key: "branch",
       title: "Самая длинная ветка",
       value: longest ? `${longest + 1} человек` : "н/д",
       hint: "Максимальная длина цепочки родства по графу.",
+      image:
+        "https://images.unsplash.com/photo-1518791841217-8f162f1e1131?auto=format&fit=crop&w=1200&q=80",
     },
     {
       key: "line",
       title: "Отцовская / материнская линия",
       value: `${paternal} / ${maternal}`,
       hint: "Количество явно отмеченных связей «отец» и «мать».",
+      image:
+        "https://images.unsplash.com/photo-1511895426328-dc8714191300?auto=format&fit=crop&w=1200&q=80",
     },
   ];
   return facts;
@@ -345,7 +358,9 @@ export default function Home({ user }) {
               Летопись семьи
             </Badge>
             <h1 className="home-title home-memorial-title">
-              {user?.firstName ? `${user.firstName}, ваши предки должны идти строем памяти` : "Они должны идти строем памяти"}
+              {user?.firstName
+                ? `${user.firstName}, сохраните историю своей семьи`
+                : "Сохраните историю своей семьи"}
             </h1>
             <p className="home-subtitle">
               Цифровая семейная летопись: сохраняйте истории, показывайте поколения, собирайте документы и
@@ -416,6 +431,19 @@ export default function Home({ user }) {
         <div className="grid gap-3 md:grid-cols-2 xl:grid-cols-3">
           {facts.map((fact) => (
             <Card key={fact.key} className="home-story-card">
+              {fact.image ? (
+                <img
+                  src={fact.image}
+                  alt={fact.title}
+                  className="home-historical-image"
+                  loading="lazy"
+                  referrerPolicy="no-referrer"
+                  onError={(e) => {
+                    if (e.currentTarget.src === HISTORICAL_FALLBACK_IMAGE) return;
+                    e.currentTarget.src = HISTORICAL_FALLBACK_IMAGE;
+                  }}
+                />
+              ) : null}
               <CardHeader>
                 <CardDescription>{fact.title}</CardDescription>
                 <CardTitle className="text-2xl">{fact.value}</CardTitle>
@@ -437,6 +465,11 @@ export default function Home({ user }) {
                   alt={fact.title}
                   className="home-historical-image"
                   loading="lazy"
+                  referrerPolicy="no-referrer"
+                  onError={(e) => {
+                    if (e.currentTarget.src === HISTORICAL_FALLBACK_IMAGE) return;
+                    e.currentTarget.src = HISTORICAL_FALLBACK_IMAGE;
+                  }}
                 />
               ) : null}
               <CardHeader>

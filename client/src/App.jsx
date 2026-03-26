@@ -24,12 +24,7 @@ function RequireAuth({ user, children }) {
 export default function App() {
   const [user, setUser] = useState(null);
   const [loaded, setLoaded] = useState(false);
-  const [theme, setTheme] = useState(() => {
-    if (typeof window === "undefined") return "dark";
-    const saved = window.localStorage.getItem("theme");
-    if (saved === "light" || saved === "dark") return saved;
-    return "dark";
-  });
+  const [theme, setTheme] = useState("dark");
 
   async function loadMe() {
     try {
