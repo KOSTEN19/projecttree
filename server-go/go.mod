@@ -5,7 +5,7 @@ go 1.23
 require (
 	github.com/gin-contrib/cors v1.7.3
 	github.com/gin-gonic/gin v1.10.0
-	github.com/golang-jwt/jwt/v5 v5.2.1
+	github.com/golang-jwt/jwt/v5 v5.2.2
 	go.mongodb.org/mongo-driver/v2 v2.1.0
 	golang.org/x/crypto v0.33.0
 	golang.org/x/sync v0.11.0
