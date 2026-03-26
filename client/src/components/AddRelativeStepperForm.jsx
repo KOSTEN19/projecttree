@@ -1,6 +1,5 @@
 import React, { useCallback, useEffect, useState } from "react";
 import { apiPost } from "../api.js";
-import { CITY_OPTIONS } from "../data/cities.js";
 import Stepper, { Step } from "../vendor/react-bits/Stepper/Stepper.jsx";
 import "../vendor/react-bits/Stepper/Stepper.css";
 import "./StepperRelatives.css";
@@ -49,10 +48,10 @@ function useAddressSuggestions(query) {
 }
 
 export default function AddRelativeStepperForm({ persons, self, onCreated }) {
-  const [burialMode, setBurialMode] = useState("list");
   const [submitting, setSubmitting] = useState(false);
   const [submitErr, setSubmitErr] = useState("");
   const [birthSuggestOpen, setBirthSuggestOpen] = useState(false);
+  const [burialSuggestOpen, setBurialSuggestOpen] = useState(false);
 
   const [form, setForm] = useState({
     basePersonId: self?.id || "",
@@ -88,7 +87,7 @@ export default function AddRelativeStepperForm({ persons, self, onCreated }) {
 
   const needsLine = !["дочь", "сын", "брат", "сестра"].includes(form.relationType);
   const birthAddressQuery = form.birthCityCustom;
-  const burialAddressQuery = burialMode === "custom" ? form.burialPlace : form.burialPlace;
+  const burialAddressQuery = form.burialPlace;
   const birthAddressSuggestions = useAddressSuggestions(birthAddressQuery);
   const burialAddressSuggestions = useAddressSuggestions(burialAddressQuery);
 
@@ -128,6 +127,10 @@ export default function AddRelativeStepperForm({ persons, self, onCreated }) {
       setSubmitErr("Выберите тип родственной связи.");
       throw new Error("validation");
     }
+    if (needsLine && !p.line) {
+      setSubmitErr("Укажите линию родства.");
+      throw new Error("validation");
+    }
     if (!p.lastName || !p.firstName || !p.middleName) {
       setSubmitErr("Фамилия, имя и отчество обязательны.");
       throw new Error("validation");
@@ -146,6 +149,10 @@ export default function AddRelativeStepperForm({ persons, self, onCreated }) {
     }
     if (!p.alive && (!p.deathDate || !p.burialPlace)) {
       setSubmitErr("Для умершего родственника укажите дату смерти и место захоронения.");
+      throw new Error("validation");
+    }
+    if (!p.biography) {
+      setSubmitErr("На последнем шаге поле «Биография» обязательно.");
       throw new Error("validation");
     }
     setSubmitting(true);
@@ -205,7 +212,7 @@ export default function AddRelativeStepperForm({ persons, self, onCreated }) {
           {!needsLine ? (
             <div className="small">Для «дочь», «сын», «брат», «сестра» линия не указывается.</div>
           ) : (
-            <select className="select" value={form.line} onChange={(e) => set("line", e.target.value)}>
+            <select className="select" required={needsLine} value={form.line} onChange={(e) => set("line", e.target.value)}>
               <option value="">Не указано</option>
               <option value="male">Мужская линия</option>
               <option value="female">Женская линия</option>
@@ -303,40 +310,38 @@ export default function AddRelativeStepperForm({ persons, self, onCreated }) {
               <div className="label">Дата смерти</div>
               <input type="date" className="input" required={!form.alive} value={form.deathDate} onChange={(e) => set("deathDate", e.target.value)} />
               <div className="label">Место захоронения</div>
-              <div className="row" style={{ alignItems: "center" }}>
-                <label className="badge" style={{ cursor: "pointer" }}>
-                  <input type="radio" checked={burialMode === "list"} onChange={() => setBurialMode("list")} /> Из списка
-                </label>
-                <label className="badge" style={{ cursor: "pointer" }}>
-                  <input type="radio" checked={burialMode === "custom"} onChange={() => setBurialMode("custom")} /> Вручную
-                </label>
-              </div>
-              {burialMode === "list" ? (
-                <select className="select" required={!form.alive} value={form.burialPlace} onChange={(e) => set("burialPlace", e.target.value)}>
-                  <option value="">Не выбрано</option>
-                  {CITY_OPTIONS.map((c) => (
-                    <option key={c} value={c}>
-                      {c}
-                    </option>
-                  ))}
-                </select>
-              ) : (
-                <>
-                  <input
-                    className="input"
-                    required={!form.alive}
-                    value={form.burialPlace}
-                    onChange={(e) => set("burialPlace", e.target.value)}
-                    placeholder="Начните вводить адрес места захоронения"
-                    list="burial-address-suggestions"
-                  />
-                  <datalist id="burial-address-suggestions">
+              <div className="rel-suggest-wrap">
+                <input
+                  className="input"
+                  required={!form.alive}
+                  value={form.burialPlace}
+                  onChange={(e) => {
+                    set("burialPlace", e.target.value);
+                    setBurialSuggestOpen(true);
+                  }}
+                  onFocus={() => setBurialSuggestOpen(true)}
+                  onBlur={() => setTimeout(() => setBurialSuggestOpen(false), 120)}
+                  placeholder="Начните вводить адрес места захоронения"
+                />
+                {burialSuggestOpen && burialAddressSuggestions.length > 0 ? (
+                  <div className="rel-suggest-menu select">
                     {burialAddressSuggestions.map((s) => (
-                      <option key={s} value={s} />
+                      <button
+                        key={s}
+                        type="button"
+                        className="rel-suggest-item"
+                        onMouseDown={(e) => {
+                          e.preventDefault();
+                          set("burialPlace", s);
+                          setBurialSuggestOpen(false);
+                        }}
+                      >
+                        {s}
+                      </button>
                     ))}
-                  </datalist>
-                </>
-              )}
+                  </div>
+                ) : null}
+              </div>
             </>
           ) : (
             <div className="small" style={{ marginTop: 8 }}>
@@ -347,9 +352,9 @@ export default function AddRelativeStepperForm({ persons, self, onCreated }) {
 
         <Step>
           <h3 className="rel-step-title">Биография и заметки</h3>
-          <p className="rel-step-hint">Всё необязательно: можно заполнить позже в карточке родственника.</p>
+          <p className="rel-step-hint">На этом шаге обязательна только биография. Остальные поля можно заполнить позже.</p>
           <div className="label">Биография</div>
-          <textarea className="textarea" rows={3} value={form.biography} onChange={(e) => set("biography", e.target.value)} />
+          <textarea className="textarea" required rows={3} value={form.biography} onChange={(e) => set("biography", e.target.value)} />
           <div className="label">Образование</div>
           <textarea className="textarea" rows={2} value={form.education} onChange={(e) => set("education", e.target.value)} />
           <div className="label">Трудовой путь</div>

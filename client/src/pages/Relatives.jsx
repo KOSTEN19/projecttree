@@ -5,7 +5,6 @@ import AddRelativeStepperForm from "../components/AddRelativeStepperForm.jsx";
 import Modal from "../components/Modal.jsx";
 import FamilyProfileCard from "../components/FamilyProfileCard.jsx";
 import AddRelativePixelCard from "../components/AddRelativePixelCard.jsx";
-import { CITY_OPTIONS } from "../data/cities.js";
 import { Card, CardContent } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import FamilyRelationStats from "@/components/FamilyRelationStats";
@@ -274,8 +273,9 @@ export default function Relatives() {
 function RelativeCard({ person, onUpdated, onDeleted }) {
   const [p, setP] = useState(person);
   const [birthSuggestOpen, setBirthSuggestOpen] = useState(false);
-  const [burialMode, setBurialMode] = useState("list");
+  const [burialSuggestOpen, setBurialSuggestOpen] = useState(false);
   const birthAddressSuggestions = useAddressSuggestions(p?.birthCityCustom || "");
+  const burialAddressSuggestions = useAddressSuggestions(p?.burialPlace || "");
 
   useEffect(() => {
     const ext = Array.isArray(person?.externalLinks) ? person.externalLinks : [];
@@ -285,9 +285,7 @@ function RelativeCard({ person, onUpdated, onDeleted }) {
     });
     setBirthSuggestOpen(false);
 
-    const burialText = person?.burialPlace || "";
-    const isFromList = CITY_OPTIONS.includes(burialText);
-    setBurialMode(isFromList ? "list" : "custom");
+    setBurialSuggestOpen(false);
   }, [person]);
 
   if (!p) return <div className="small">Не выбрано</div>;
@@ -441,23 +439,37 @@ function RelativeCard({ person, onUpdated, onDeleted }) {
               <input type="date" className="input" value={p.deathDate} onChange={(e) => set("deathDate", e.target.value)} />
 
               <div className="label">Место захоронения (из списка или вручную)</div>
-              <div className="row" style={{ alignItems: "center" }}>
-                <label className="badge" style={{ cursor: "pointer" }}>
-                  <input type="radio" checked={burialMode === "list"} onChange={() => setBurialMode("list")} /> Из списка
-                </label>
-                <label className="badge" style={{ cursor: "pointer" }}>
-                  <input type="radio" checked={burialMode === "custom"} onChange={() => setBurialMode("custom")} /> Ввести вручную
-                </label>
+              <div className="rel-suggest-wrap">
+                <input
+                  className="input"
+                  value={p.burialPlace || ""}
+                  onChange={(e) => {
+                    set("burialPlace", e.target.value);
+                    setBurialSuggestOpen(true);
+                  }}
+                  onFocus={() => setBurialSuggestOpen(true)}
+                  onBlur={() => setTimeout(() => setBurialSuggestOpen(false), 120)}
+                  placeholder="Начните вводить адрес места захоронения"
+                />
+                {burialSuggestOpen && burialAddressSuggestions.length > 0 ? (
+                  <div className="rel-suggest-menu select">
+                    {burialAddressSuggestions.map((s) => (
+                      <button
+                        key={s}
+                        type="button"
+                        className="rel-suggest-item"
+                        onMouseDown={(e) => {
+                          e.preventDefault();
+                          set("burialPlace", s);
+                          setBurialSuggestOpen(false);
+                        }}
+                      >
+                        {s}
+                      </button>
+                    ))}
+                  </div>
+                ) : null}
               </div>
-
-              {burialMode === "list" ? (
-                <select className="select" value={p.burialPlace || ""} onChange={(e) => set("burialPlace", e.target.value)}>
-                  <option value="">Не выбрано</option>
-                  {CITY_OPTIONS.map((c) => <option key={c} value={c}>{c}</option>)}
-                </select>
-              ) : (
-                <input className="input" value={p.burialPlace || ""} onChange={(e) => set("burialPlace", e.target.value)} placeholder="Например: Тула" />
-              )}
             </>
           ) : null}
         </div>

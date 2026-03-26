@@ -1108,8 +1108,11 @@ export default function Tree() {
               variant="ghost"
               size="sm"
               role="menuitem"
-              onClick={() => {
+              onClick={(e) => {
+                e.preventDefault();
+                e.stopPropagation();
                 setLpMenu(null);
+                setCard(null);
                 setBranchFocus({ type: "maternal", anchorId: lpMenu.person.id });
               }}
             >
@@ -1122,8 +1125,11 @@ export default function Tree() {
               variant="ghost"
               size="sm"
               role="menuitem"
-              onClick={() => {
+              onClick={(e) => {
+                e.preventDefault();
+                e.stopPropagation();
                 setLpMenu(null);
+                setCard(null);
                 setBranchFocus({ type: "paternal", anchorId: lpMenu.person.id });
               }}
             >
@@ -1136,8 +1142,11 @@ export default function Tree() {
               variant="ghost"
               size="sm"
               role="menuitem"
-              onClick={() => {
+              onClick={(e) => {
+                e.preventDefault();
+                e.stopPropagation();
                 setLpMenu(null);
+                setCard(null);
                 setBranchFocus({ type: "lineage", anchorId: lpMenu.person.id });
               }}
             >
@@ -1151,7 +1160,9 @@ export default function Tree() {
               variant="ghost"
               size="sm"
               role="menuitem"
-              onClick={() => {
+              onClick={(e) => {
+                e.preventDefault();
+                e.stopPropagation();
                 setLpMenu(null);
                 setCard(lpMenu.person);
               }}

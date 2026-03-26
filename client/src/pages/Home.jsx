@@ -238,28 +238,18 @@ function generateHistoricalInsights(persons) {
       ...e,
       count: overlaps(e.start, e.end),
     }))
-    .filter((e) => e.count > 0)
-    .sort((a, b) => b.count - a.count || a.start - b.start)
-    .slice(0, 10)
+    .sort((a, b) => a.start - b.start)
+    .slice(0, 12)
     .map((e) => ({
       key: e.key,
       title: `${e.title} (${e.years})`,
-      text: `Не менее ${e.count} родственников из вашей летописи жили в этот период.`,
+      text:
+        e.count > 0
+          ? `Не менее ${e.count} родственников из вашей летописи жили в этот период.`
+          : "Пока в вашей базе не хватает дат, чтобы подтвердить пересечение с этой эпохой.",
       image: e.image,
       source: e.source,
     }));
-
-  if (cards.length === 0) {
-    return [
-      {
-        key: "no-history",
-        title: "Исторические факты пока недоступны",
-        text: "Добавьте больше дат рождения и смерти родственников, чтобы показать связь вашей семьи с эпохами и событиями.",
-        image: "",
-        source: "",
-      },
-    ];
-  }
 
   return cards;
 }
@@ -270,6 +260,7 @@ export default function Home({ user }) {
   const [relationships, setRelationships] = useState([]);
   const [mePersonId, setMePersonId] = useState("");
   const carouselRef = useRef(null);
+  const [isTapeHovered, setIsTapeHovered] = useState(false);
 
   useEffect(() => {
     (async () => {
@@ -326,6 +317,21 @@ export default function Home({ user }) {
     el.scrollBy({ left: dir * Math.max(280, el.clientWidth * 0.65), behavior: "smooth" });
   };
 
+  useEffect(() => {
+    const el = carouselRef.current;
+    if (!el || relativesForTape.length <= 1) return;
+    const id = setInterval(() => {
+      if (isTapeHovered) return;
+      const atEnd = el.scrollLeft + el.clientWidth >= el.scrollWidth - 6;
+      if (atEnd) {
+        el.scrollTo({ left: 0, behavior: "smooth" });
+        return;
+      }
+      el.scrollBy({ left: Math.max(220, el.clientWidth * 0.45), behavior: "smooth" });
+    }, 2600);
+    return () => clearInterval(id);
+  }, [relativesForTape.length, isTapeHovered]);
+
   return (
     <div className="home-shell home-memorial -mx-4 space-y-10 md:-mx-6">
       <section className="home-hero home-memorial-hero px-4 py-9 md:px-6 md:py-12">
@@ -366,7 +372,12 @@ export default function Home({ user }) {
             <Button variant="outline" size="sm" onClick={() => scrollTape(1)}>→</Button>
           </div>
         </div>
-        <div className="home-relatives-tape" ref={carouselRef}>
+        <div
+          className="home-relatives-tape"
+          ref={carouselRef}
+          onMouseEnter={() => setIsTapeHovered(true)}
+          onMouseLeave={() => setIsTapeHovered(false)}
+        >
           {relativesForTape.map((p) => (
             <Card key={p.id} className="home-relative-card">
               <CardHeader>
