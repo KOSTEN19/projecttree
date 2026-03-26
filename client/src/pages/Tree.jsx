@@ -688,7 +688,7 @@ export default function Tree() {
   const LONGPRESS_MS = 520;
   const lpTimer = useRef(null);
   const lpStart = useRef(null); // { x, y, id }
-  const lpSuppressedClickId = useRef(null);
+  const suppressNextClickRef = useRef(false);
 
   const clearLpTimer = useCallback(() => {
     if (lpTimer.current) {
@@ -791,7 +791,7 @@ export default function Tree() {
 
   const onBgDown = (e) => {
     if (e.button !== 0 || nodeDrag.current) return;
-    camDrag.current = { sx: e.clientX, sy: e.clientY, ox: cam.x, oy: cam.y };
+    camDrag.current = { sx: e.clientX, sy: e.clientY, ox: cam.x, oy: cam.y, moved: false };
   };
 
   const onNodeDown = (e, unitId) => {
@@ -808,6 +808,7 @@ export default function Tree() {
       const dx = e.clientX - nd.sx, dy = e.clientY - nd.sy;
       if (!nd.active && Math.abs(dx) + Math.abs(dy) < 5) return;
       nd.active = true;
+      suppressNextClickRef.current = true;
       setPos(prev => ({
         ...prev,
         [nd.unitId]: { x: nd.ox + dx / cam.s, y: nd.oy + dy / cam.s }
@@ -816,10 +817,25 @@ export default function Tree() {
     }
     if (camDrag.current) {
       const cd = camDrag.current;
+      const dx = e.clientX - cd.sx;
+      const dy = e.clientY - cd.sy;
+      if (!cd.moved && Math.abs(dx) + Math.abs(dy) > 4) {
+        cd.moved = true;
+        suppressNextClickRef.current = true;
+      }
       setCam(c => ({ ...c, x: cd.ox + e.clientX - cd.sx, y: cd.oy + e.clientY - cd.sy }));
     }
   };
-  const onUp = () => { nodeDrag.current = null; camDrag.current = null; };
+  const onUp = () => {
+    if (nodeDrag.current?.active || camDrag.current?.moved) {
+      suppressNextClickRef.current = true;
+      setTimeout(() => {
+        suppressNextClickRef.current = false;
+      }, 0);
+    }
+    nodeDrag.current = null;
+    camDrag.current = null;
+  };
 
   const edgePaths = useMemo(() => {
     return g.edges.map(e => {
@@ -892,7 +908,7 @@ export default function Tree() {
 
     lpTimer.current = setTimeout(() => {
       lpTimer.current = null;
-      lpSuppressedClickId.current = person.id;
+      suppressNextClickRef.current = true;
       setLpMenu({ x, y, person });
     }, LONGPRESS_MS);
   };
@@ -909,6 +925,7 @@ export default function Tree() {
     const dy = Math.abs(e.clientY - st.y);
     if (dx + dy > 12) {
       // Пользователь начал жест как “перетаскивание/скролл” вместо long-press.
+      suppressNextClickRef.current = true;
       cancelChipLongPress();
     }
   };
@@ -1102,8 +1119,8 @@ export default function Tree() {
                         type="button"
                         className={`tree-chip ${sx(person)}${person.isSelf ? " self" : ""}`}
                         onClick={() => {
-                          if (lpSuppressedClickId.current === person.id) {
-                            lpSuppressedClickId.current = null;
+                          if (suppressNextClickRef.current) {
+                            suppressNextClickRef.current = false;
                             return;
                           }
                           if (nodeDrag.current?.active) return;

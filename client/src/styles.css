@@ -577,8 +577,8 @@
   max-width: calc(100vw - 2rem);
   margin-left: calc(50% - 50vw + 1rem);
   background:
-    radial-gradient(ellipse 90% 50% at 50% -15%, rgba(59, 130, 246, 0.12), transparent 55%),
-    #07080d;
+    radial-gradient(ellipse 90% 50% at 50% -15%, rgba(59, 130, 246, 0.18), transparent 55%),
+    #05060a;
   border-radius: var(--radius-md);
   overflow: hidden;
   border: 1px solid color-mix(in oklab, var(--border) 88%, rgba(96, 165, 250, 0.22));
@@ -595,8 +595,8 @@
   gap: 1rem;
   flex-wrap: wrap;
   padding: 0.75rem 1rem 0.65rem;
-  background: linear-gradient(180deg, rgba(16, 18, 28, 0.98) 0%, rgba(10, 11, 18, 0.96) 100%);
-  border-bottom: 1px solid rgba(96, 165, 250, 0.1);
+  background: linear-gradient(180deg, rgba(16, 18, 28, 0.99) 0%, rgba(8, 10, 18, 0.98) 100%);
+  border-bottom: 1px solid rgba(96, 165, 250, 0.2);
   flex-shrink: 0;
   z-index: 10;
 }
@@ -615,7 +615,7 @@
   margin: 0.2rem 0 0;
   font-size: 0.68rem;
   line-height: 1.4;
-  color: rgba(186, 205, 255, 0.45);
+  color: rgba(186, 205, 255, 0.72);
   max-width: 28rem;
 }
 .gm-filters {
@@ -667,15 +667,15 @@
   font-size: 0.65rem;
   font-weight: 600;
   letter-spacing: 0.02em;
-  color: rgba(191, 219, 254, 0.75);
+  color: rgba(224, 236, 255, 0.96);
   border-radius: 999px;
   border: 1px solid rgba(96, 165, 250, 0.2);
   background: rgba(15, 23, 42, 0.55);
 }
 .gm-err {
   padding: 0.5rem 1rem;
-  background: rgba(251, 113, 133, 0.08);
-  color: #fb7185;
+  background: rgba(251, 113, 133, 0.14);
+  color: #fecdd3;
   font-size: 0.75rem;
   border-bottom: 1px solid rgba(251, 113, 133, 0.12);
 }
@@ -697,8 +697,8 @@
   align-items: center;
   justify-content: center;
   gap: 0.35rem;
-  background: rgba(10, 10, 20, 0.75);
-  color: rgba(234, 241, 255, 0.5);
+  background: rgba(10, 10, 20, 0.82);
+  color: rgba(234, 241, 255, 0.84);
   font-size: 0.875rem;
   z-index: 5;
   pointer-events: none;
@@ -718,7 +718,7 @@
 }
 .gm-hint {
   font-size: 0.7rem;
-  color: rgba(234, 241, 255, 0.35);
+  color: rgba(234, 241, 255, 0.62);
 }
 .gm-box .maplibregl-ctrl-group {
   border-radius: 8px !important;
@@ -760,7 +760,7 @@
   overflow: hidden;
   background: linear-gradient(165deg, rgba(16, 20, 34, 0.94), rgba(8, 10, 18, 0.92));
   backdrop-filter: blur(16px);
-  border: 1px solid rgba(96, 165, 250, 0.18);
+  border: 1px solid rgba(96, 165, 250, 0.28);
   box-shadow: 0 16px 48px rgba(0, 0, 0, 0.45), inset 0 1px 0 rgba(255, 255, 255, 0.06);
 }
 .gm-panel-accent {
@@ -782,7 +782,7 @@
   font-weight: 600;
   letter-spacing: 0.12em;
   text-transform: uppercase;
-  color: rgba(147, 180, 255, 0.45);
+  color: rgba(147, 180, 255, 0.74);
   margin-bottom: 0.15rem;
 }
 .gm-panel-city {
@@ -794,7 +794,7 @@
 }
 .gm-panel-cnt {
   font-size: 0.68rem;
-  color: rgba(186, 205, 255, 0.5);
+  color: rgba(186, 205, 255, 0.78);
   margin-top: 0.2rem;
 }
 .gm-panel-x {
@@ -1899,9 +1899,9 @@ html:not(.dark) .gm-page,
 html:not(.dark) .gm-page--burial {
   background:
     radial-gradient(ellipse 90% 50% at 50% -15%, rgba(59, 130, 246, 0.08), transparent 55%),
-    #f8fafc;
+    #f7f9ff;
   border-color: color-mix(in oklab, var(--border) 90%, rgba(59, 130, 246, 0.18));
-  box-shadow: inset 0 1px 0 rgba(255, 255, 255, 0.72);
+  box-shadow: inset 0 1px 0 rgba(255, 255, 255, 0.9);
 }
 
 html:not(.dark) .gm-top {
@@ -1914,5 +1914,73 @@ html:not(.dark) .gm-title {
 }
 
 html:not(.dark) .gm-sub {
-  color: rgba(71, 85, 105, 0.75);
+  color: rgba(30, 41, 59, 0.9);
+}
+
+html:not(.dark) .gm-stat-pill {
+  color: #0f172a;
+  border-color: rgba(59, 130, 246, 0.32);
+  background: rgba(255, 255, 255, 0.9);
+}
+
+html:not(.dark) .gm-panel {
+  background: linear-gradient(165deg, rgba(255, 255, 255, 0.96), rgba(248, 250, 252, 0.98));
+  border-color: rgba(59, 130, 246, 0.25);
+  box-shadow: 0 16px 48px rgba(2, 6, 23, 0.22), inset 0 1px 0 rgba(255, 255, 255, 0.9);
+}
+
+html:not(.dark) .gm-panel-kicker {
+  color: rgba(30, 41, 59, 0.62);
+}
+
+html:not(.dark) .gm-panel-city {
+  color: #0f172a;
+}
+
+html:not(.dark) .gm-panel-cnt,
+html:not(.dark) .gm-person-sub,
+html:not(.dark) .gm-pop-meta {
+  color: rgba(51, 65, 85, 0.88);
+}
+
+html:not(.dark) .gm-person {
+  background: rgba(255, 255, 255, 0.92);
+  border-color: rgba(15, 23, 42, 0.12);
+  color: #0f172a;
+}
+
+html:not(.dark) .gm-person:hover {
+  background: rgba(59, 130, 246, 0.14);
+  border-color: rgba(59, 130, 246, 0.36);
+}
+
+html:not(.dark) .gm-pop .maplibregl-popup-content {
+  background: linear-gradient(165deg, rgba(255, 255, 255, 0.97), rgba(248, 250, 252, 0.98));
+  color: #0f172a;
+  border: 1px solid rgba(15, 23, 42, 0.14);
+}
+
+@media (forced-colors: active) {
+  .gm-page,
+  .gm-page--burial,
+  .gm-top,
+  .gm-panel,
+  .gm-pop .maplibregl-popup-content,
+  .gm-person,
+  .gm-filters,
+  .gm-stat-pill {
+    forced-color-adjust: none;
+    background: Canvas;
+    color: CanvasText;
+    border-color: ButtonText;
+  }
+
+  .gm-fbtn,
+  .gm-panel-x,
+  .gm-person {
+    forced-color-adjust: none;
+    background: ButtonFace;
+    color: ButtonText;
+    border-color: ButtonText;
+  }
 }

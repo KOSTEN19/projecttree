@@ -2,28 +2,48 @@ import React, { useCallback, useEffect, useRef, useState } from "react";
 import "maplibre-gl/dist/maplibre-gl.css";
 import maplibregl from "../maplibre.js";
 import { apiGet } from "../api.js";
-const MAP_STYLE = {
-  version: 8,
-  glyphs: "https://demotiles.maplibre.org/font/{fontstack}/{range}.pbf",
-  sources: {
-    carto: {
-      type: "raster",
-      tiles: ["https://basemaps.cartocdn.com/dark_all/{z}/{x}/{y}@2x.png"],
-      tileSize: 256,
-      attribution: "&copy; CartoDB &copy; OpenStreetMap",
+const CITY_SOURCE_ID = "city-points";
+const CITY_CIRCLE_LAYER_ID = "city-circles";
+const CITY_LABEL_LAYER_ID = "city-labels";
+const CITY_COUNT_LAYER_ID = "city-count";
+
+function getMapStyle(theme) {
+  const isDark = theme === "dark";
+  return {
+    version: 8,
+    glyphs: "https://demotiles.maplibre.org/font/{fontstack}/{range}.pbf",
+    sources: {
+      carto: {
+        type: "raster",
+        tiles: [
+          isDark
+            ? "https://basemaps.cartocdn.com/dark_all/{z}/{x}/{y}@2x.png"
+            : "https://basemaps.cartocdn.com/light_all/{z}/{x}/{y}@2x.png",
+        ],
+        tileSize: 256,
+        attribution: "&copy; CartoDB &copy; OpenStreetMap",
+      },
     },
-  },
-  layers: [{
-    id: "base",
-    type: "raster",
-    source: "carto",
-    paint: {
-      "raster-brightness-max": 0.58,
-      "raster-saturation": -0.22,
-      "raster-contrast": 0.08,
-    },
-  }],
-};
+    layers: [
+      {
+        id: "base",
+        type: "raster",
+        source: "carto",
+        paint: isDark
+          ? {
+              "raster-brightness-max": 0.74,
+              "raster-saturation": -0.18,
+              "raster-contrast": 0.18,
+            }
+          : {
+              "raster-brightness-max": 1,
+              "raster-saturation": -0.08,
+              "raster-contrast": 0.22,
+            },
+      },
+    ],
+  };
+}
 
 function fmtName(p) { return [p?.lastName, p?.firstName].filter(Boolean).join(" ") || "Без имени"; }
 function fmtFull(p) { return [p?.lastName, p?.firstName, p?.middleName].filter(Boolean).join(" ") || "Без имени"; }
@@ -49,6 +69,18 @@ function shortCity(name) {
   return `${s.slice(0, 14)}…`;
 }
 
+function normalizeLon(lon) {
+  if (!Number.isFinite(lon)) return lon;
+  let normalized = lon;
+  while (normalized < -180) normalized += 360;
+  while (normalized >= 180) normalized -= 360;
+  return normalized;
+}
+
+function getTheme() {
+  return document.documentElement.classList.contains("dark") ? "dark" : "light";
+}
+
 export default function MapPage() {
   const [filter, setFilter] = useState("birth");
   const [markers, setMarkers] = useState([]);
@@ -56,16 +88,14 @@ export default function MapPage() {
   const [error, setError] = useState("");
   const [panel, setPanel] = useState(null);
   const [card, setCard] = useState(null);
+  const [theme, setTheme] = useState(() => getTheme());
 
   const boxRef = useRef(null);
   const mapRef = useRef(null);
   const popRef = useRef(null);
-  const domMarkersRef = useRef([]);
   const groupsRef = useRef(new Map());
-  const mkRef = useRef([]);
   const mapReady = useRef(false);
-  const filterRef = useRef(filter);
-  filterRef.current = filter;
+  const mapHandlersBound = useRef(false);
 
   const fitBoundsIfNeeded = useCallback(() => {
     const mp = mapRef.current;
@@ -100,67 +130,145 @@ export default function MapPage() {
     popRef.current.setLngLat(ll).setHTML(html).addTo(map);
   }
 
-  const clearDomMarkers = useCallback(() => {
-    for (const m of domMarkersRef.current) {
-      try { m.remove(); } catch {}
+  const getCityFeatureCollection = useCallback(() => {
+    const features = [];
+    for (const [city, arr] of groupsRef.current.entries()) {
+      if (!arr?.length) continue;
+      const lat = +arr[0].lat;
+      const lon = normalizeLon(+arr[0].lon);
+      if (!Number.isFinite(lat) || !Number.isFinite(lon)) continue;
+      const p = arr[0]?.person || {};
+      features.push({
+        type: "Feature",
+        geometry: { type: "Point", coordinates: [lon, lat] },
+        properties: {
+          city,
+          count: arr.length,
+          initials: ini(p),
+          personName: fmtName(p),
+          cityShort: shortCity(city),
+        },
+      });
     }
-    domMarkersRef.current = [];
+    return { type: "FeatureCollection", features };
   }, []);
 
-  const renderDomMarkers = useCallback(() => {
+  const ensureLayers = useCallback(() => {
     const mp = mapRef.current;
     if (!mp || !mapReady.current) return;
-
-    clearDomMarkers();
-
-    for (const [city, arr] of groupsRef.current) {
-      const { lat, lon } = arr[0];
-      const ll = [+lon, +lat];
-
-      if (arr.length > 1) {
-        const el = document.createElement("button");
-        el.type = "button";
-        el.className = `gm-pin gm-pin--cluster gm-pin--mode-${filterRef.current}`;
-        el.innerHTML = `
-          <span class="gm-pin-cluster-glow" aria-hidden="true"></span>
-          <span class="gm-pin-cluster-body">
-            <span class="gm-pin-cluster-count">${arr.length}</span>
-            <span class="gm-pin-cluster-city">${shortCity(city)}</span>
-          </span>
-          <span class="gm-pin-point" aria-hidden="true"></span>`;
-        el.title = `${city}: ${arr.length} чел.`;
-        el.addEventListener("mouseenter", () => {
-          showPop(mp, ll, `<div class="gm-pop-inner"><strong>${city}</strong><div class="gm-pop-meta">${arr.length} человек в этой точке</div></div>`);
-        });
-        el.addEventListener("mouseleave", () => killPop());
-        el.addEventListener("click", () => {
-          setPanel({ city, items: arr.map(x => x.person).filter(Boolean) });
-        });
-
-        const marker = new maplibregl.Marker({ element: el, anchor: "bottom" }).setLngLat(ll).addTo(mp);
-        domMarkersRef.current.push(marker);
-      } else {
-        const p = arr[0].person || {};
-        const el = document.createElement("button");
-        el.type = "button";
-        el.className = `gm-pin gm-pin--person gm-pin--${sx(p)} gm-pin--mode-${filterRef.current}`;
-        el.innerHTML = `
-          <span class="gm-pin-ring" aria-hidden="true"></span>
-          <span class="gm-pin-face">${ini(p)}</span>
-          <span class="gm-pin-point" aria-hidden="true"></span>`;
-        el.title = `${fmtName(p)} (${city})`;
-        el.addEventListener("mouseenter", () => {
-          const sub = [p.birthDate ? `р. ${p.birthDate}` : "", city].filter(Boolean).join(" · ");
-          showPop(mp, ll, `<div class="gm-pop-inner"><strong>${fmtName(p)}</strong>${sub ? `<div class="gm-pop-meta">${sub}</div>` : ""}</div>`);
-        });
-        el.addEventListener("mouseleave", () => killPop());
-        el.addEventListener("click", () => setCard(p));
-
-        const marker = new maplibregl.Marker({ element: el, anchor: "bottom" }).setLngLat(ll).addTo(mp);
-        domMarkersRef.current.push(marker);
-      }
+    if (!mp.getSource(CITY_SOURCE_ID)) {
+      mp.addSource(CITY_SOURCE_ID, {
+        type: "geojson",
+        data: getCityFeatureCollection(),
+      });
     }
-  }, [clearDomMarkers]);
+    if (!mp.getLayer(CITY_CIRCLE_LAYER_ID)) {
+      mp.addLayer({
+        id: CITY_CIRCLE_LAYER_ID,
+        type: "circle",
+        source: CITY_SOURCE_ID,
+        paint: {
+          "circle-radius": ["interpolate", ["linear"], ["get", "count"], 1, 8, 2, 12, 5, 18, 10, 22],
+          "circle-color": ["case", [">", ["get", "count"], 1], "#3b82f6", "#f43f5e"],
+          "circle-stroke-width": 2.2,
+          "circle-stroke-color": theme === "dark" ? "#e2e8f0" : "#0f172a",
+          "circle-opacity": 0.95,
+        },
+      });
+    }
+    if (!mp.getLayer(CITY_COUNT_LAYER_ID)) {
+      mp.addLayer({
+        id: CITY_COUNT_LAYER_ID,
+        type: "symbol",
+        source: CITY_SOURCE_ID,
+        layout: {
+          "text-field": ["case", [">", ["get", "count"], 1], ["to-string", ["get", "count"]], ""],
+          "text-font": ["Open Sans Bold"],
+          "text-size": 11,
+          "text-allow-overlap": true,
+        },
+        paint: {
+          "text-color": theme === "dark" ? "#ffffff" : "#0f172a",
+        },
+      });
+    }
+    if (!mp.getLayer(CITY_LABEL_LAYER_ID)) {
+      mp.addLayer({
+        id: CITY_LABEL_LAYER_ID,
+        type: "symbol",
+        source: CITY_SOURCE_ID,
+        layout: {
+          "text-field": ["get", "cityShort"],
+          "text-font": ["Open Sans Semibold"],
+          "text-size": 12,
+          "text-offset": [0, 1.35],
+          "text-anchor": "top",
+          "text-allow-overlap": true,
+        },
+        paint: {
+          "text-color": theme === "dark" ? "#e2e8f0" : "#0f172a",
+          "text-halo-color": theme === "dark" ? "rgba(2, 6, 23, 0.95)" : "rgba(248, 250, 252, 0.98)",
+          "text-halo-width": 1.5,
+        },
+      });
+    }
+    if (!mapHandlersBound.current) {
+      const openByFeature = (f) => {
+        const city = f?.properties?.city;
+        if (!city) return;
+        const arr = groupsRef.current.get(city) || [];
+        if (arr.length > 1) {
+          setPanel({ city, items: arr.map((x) => x.person).filter(Boolean) });
+          return;
+        }
+        const p = arr[0]?.person;
+        if (p) setCard(p);
+      };
+      mp.on("click", CITY_CIRCLE_LAYER_ID, (e) => {
+        const f = e?.features?.[0];
+        openByFeature(f);
+      });
+      mp.on("mouseenter", CITY_CIRCLE_LAYER_ID, (e) => {
+        mp.getCanvas().style.cursor = "pointer";
+        const f = e?.features?.[0];
+        if (!f) return;
+        const city = f.properties?.city;
+        const count = Number(f.properties?.count || 0);
+        const ll = f.geometry?.coordinates;
+        if (!city || !Array.isArray(ll)) return;
+        if (count > 1) {
+          showPop(
+            mp,
+            ll,
+            `<div class="gm-pop-inner"><strong>${city}</strong><div class="gm-pop-meta">${count} человек в этой точке</div></div>`
+          );
+          return;
+        }
+        const arr = groupsRef.current.get(city) || [];
+        const p = arr[0]?.person || {};
+        const sub = [p.birthDate ? `р. ${p.birthDate}` : "", city].filter(Boolean).join(" · ");
+        showPop(
+          mp,
+          ll,
+          `<div class="gm-pop-inner"><strong>${fmtName(p)}</strong>${sub ? `<div class="gm-pop-meta">${sub}</div>` : ""}</div>`
+        );
+      });
+      mp.on("mouseleave", CITY_CIRCLE_LAYER_ID, () => {
+        mp.getCanvas().style.cursor = "";
+        killPop();
+      });
+      mapHandlersBound.current = true;
+    }
+  }, [getCityFeatureCollection, theme]);
+
+  const refreshSourceData = useCallback(() => {
+    const mp = mapRef.current;
+    if (!mp || !mapReady.current) return;
+    const src = mp.getSource(CITY_SOURCE_ID);
+    if (src && typeof src.setData === "function") {
+      src.setData(getCityFeatureCollection());
+    }
+  }, [getCityFeatureCollection]);
 
   async function load(f) {
     setLoading(true); setError(""); setPanel(null);
@@ -174,12 +282,11 @@ export default function MapPage() {
   useEffect(() => { load(filter); }, [filter]);
 
   useEffect(() => {
-    mkRef.current = markers;
     const g = groupByCity(markers);
     groupsRef.current = g;
-    renderDomMarkers();
+    refreshSourceData();
     fitBoundsIfNeeded();
-  }, [markers, renderDomMarkers, fitBoundsIfNeeded]);
+  }, [markers, refreshSourceData, fitBoundsIfNeeded]);
 
   useEffect(() => {
     const el = boxRef.current;
@@ -187,7 +294,7 @@ export default function MapPage() {
 
     const mp = new maplibregl.Map({
       container: el,
-      style: MAP_STYLE,
+      style: getMapStyle(theme),
       center: [50, 55],
       zoom: 3.5,
       attributionControl: false,
@@ -197,18 +304,64 @@ export default function MapPage() {
 
     mp.on("load", () => {
       mapReady.current = true;
-      renderDomMarkers();
+      ensureLayers();
+      refreshSourceData();
       fitBoundsRef.current();
     });
 
     return () => {
       mapReady.current = false;
-      clearDomMarkers();
+      mapHandlersBound.current = false;
       killPop();
       try { mp.remove(); } catch {}
       mapRef.current = null;
     };
-  }, [clearDomMarkers, renderDomMarkers]);
+  }, [ensureLayers, refreshSourceData, theme]);
+
+  useEffect(() => {
+    const observer = new MutationObserver(() => {
+      setTheme(getTheme());
+    });
+    observer.observe(document.documentElement, { attributes: true, attributeFilter: ["class"] });
+    return () => observer.disconnect();
+  }, []);
+
+  useEffect(() => {
+    const mp = mapRef.current;
+    if (!mp) return;
+    mapReady.current = false;
+    mapHandlersBound.current = false;
+    mp.setStyle(getMapStyle(theme));
+    const onLoad = () => {
+      mapReady.current = true;
+      ensureLayers();
+      refreshSourceData();
+      mp.resize();
+    };
+    mp.once("load", onLoad);
+    return () => {
+      mp.off("load", onLoad);
+    };
+  }, [theme, ensureLayers, refreshSourceData]);
+
+  useEffect(() => {
+    const mp = mapRef.current;
+    const el = boxRef.current;
+    if (!mp || !el) return;
+    const ro = new ResizeObserver(() => {
+      requestAnimationFrame(() => {
+        mp.resize();
+      });
+    });
+    ro.observe(el);
+    return () => ro.disconnect();
+  }, [theme]);
+
+  useEffect(() => {
+    const mp = mapRef.current;
+    if (!mp || !mapReady.current) return;
+    mp.resize();
+  }, [panel, filter, theme]);
 
   const cities = new Set((markers || []).map(x => x.label)).size;
 
