@@ -29,6 +29,33 @@ function normalizeHumanName(v) {
     .replace(/(^|[\s-])[a-zA-Zа-яА-ЯёЁ]/g, (m) => m.toUpperCase());
 }
 
+function useAddressSuggestions(query) {
+  const [items, setItems] = useState([]);
+  useEffect(() => {
+    const q = String(query || "").trim();
+    if (q.length < 3) {
+      setItems([]);
+      return;
+    }
+    const id = setTimeout(async () => {
+      try {
+        const res = await fetch(
+          `https://nominatim.openstreetmap.org/search?format=json&addressdetails=1&limit=8&q=${encodeURIComponent(q)}`,
+          { headers: { Accept: "application/json" } },
+        );
+        if (!res.ok) return;
+        const data = await res.json();
+        const next = Array.isArray(data) ? data.map((x) => x.display_name).filter(Boolean) : [];
+        setItems(next);
+      } catch {
+        setItems([]);
+      }
+    }, 260);
+    return () => clearTimeout(id);
+  }, [query]);
+  return items;
+}
+
 function centuryOf(year) {
   return Math.ceil(year / 100);
 }
@@ -246,10 +273,9 @@ export default function Relatives() {
 
 function RelativeCard({ person, onUpdated, onDeleted }) {
   const [p, setP] = useState(person);
-  const [birthMode, setBirthMode] = useState("list");
-  const [birthListValue, setBirthListValue] = useState("");
-  const [birthCustomValue, setBirthCustomValue] = useState("");
+  const [birthSuggestOpen, setBirthSuggestOpen] = useState(false);
   const [burialMode, setBurialMode] = useState("list");
+  const birthAddressSuggestions = useAddressSuggestions(p?.birthCityCustom || "");
 
   useEffect(() => {
     const ext = Array.isArray(person?.externalLinks) ? person.externalLinks : [];
@@ -257,10 +283,7 @@ function RelativeCard({ person, onUpdated, onDeleted }) {
       ...person,
       externalLinks: ext.length ? ext : [{ title: "", url: "" }],
     });
-    const bm = person?.birthCityCustom ? "custom" : "list";
-    setBirthMode(bm);
-    setBirthListValue(person?.birthCity || "");
-    setBirthCustomValue(person?.birthCityCustom || "");
+    setBirthSuggestOpen(false);
 
     const burialText = person?.burialPlace || "";
     const isFromList = CITY_OPTIONS.includes(burialText);
@@ -277,7 +300,7 @@ function RelativeCard({ person, onUpdated, onDeleted }) {
     payload.firstName = normalizeHumanName(payload.firstName);
     payload.middleName = normalizeHumanName(payload.middleName);
     payload.maidenName = normalizeHumanName(payload.maidenName || "");
-    payload.birthCity = trimText(payload.birthCity);
+    payload.birthCity = "";
     payload.birthCityCustom = trimText(payload.birthCityCustom);
     payload.burialPlace = trimText(payload.burialPlace);
     payload.notes = trimText(payload.notes);
@@ -286,14 +309,6 @@ function RelativeCard({ person, onUpdated, onDeleted }) {
     payload.workPath = trimText(payload.workPath);
     payload.militaryPath = trimText(payload.militaryPath);
     delete payload.phone;
-
-    if (birthMode === "list") {
-      payload.birthCity = birthListValue;
-      payload.birthCityCustom = "";
-    } else {
-      payload.birthCity = "";
-      payload.birthCityCustom = birthCustomValue;
-    }
 
     if (payload.alive) {
       payload.deathDate = "";
@@ -382,24 +397,38 @@ function RelativeCard({ person, onUpdated, onDeleted }) {
           <div className="label">Дата рождения</div>
           <input type="date" className="input" value={p.birthDate} onChange={(e) => set("birthDate", e.target.value)} />
 
-          <div className="label">Место рождения (из списка или вручную)</div>
-          <div className="row" style={{ alignItems: "center" }}>
-            <label className="badge" style={{ cursor: "pointer" }}>
-              <input type="radio" checked={birthMode === "list"} onChange={() => setBirthMode("list")} /> Из списка
-            </label>
-            <label className="badge" style={{ cursor: "pointer" }}>
-              <input type="radio" checked={birthMode === "custom"} onChange={() => setBirthMode("custom")} /> Ввести вручную
-            </label>
+          <div className="label">Место рождения (ручной ввод с подсказками)</div>
+          <div className="rel-suggest-wrap">
+            <input
+              className="input"
+              value={p.birthCityCustom || ""}
+              onChange={(e) => {
+                set("birthCityCustom", e.target.value);
+                setBirthSuggestOpen(true);
+              }}
+              onFocus={() => setBirthSuggestOpen(true)}
+              onBlur={() => setTimeout(() => setBirthSuggestOpen(false), 120)}
+              placeholder="Начните вводить адрес или населенный пункт"
+            />
+            {birthSuggestOpen && birthAddressSuggestions.length > 0 ? (
+              <div className="rel-suggest-menu select">
+                {birthAddressSuggestions.map((s) => (
+                  <button
+                    key={s}
+                    type="button"
+                    className="rel-suggest-item"
+                    onMouseDown={(e) => {
+                      e.preventDefault();
+                      set("birthCityCustom", s);
+                      setBirthSuggestOpen(false);
+                    }}
+                  >
+                    {s}
+                  </button>
+                ))}
+              </div>
+            ) : null}
           </div>
-
-          {birthMode === "list" ? (
-            <select className="select" value={birthListValue} onChange={(e) => setBirthListValue(e.target.value)}>
-              <option value="">Не выбрано</option>
-              {CITY_OPTIONS.map((c) => <option key={c} value={c}>{c}</option>)}
-            </select>
-          ) : (
-            <input className="input" value={birthCustomValue} onChange={(e) => setBirthCustomValue(e.target.value)} placeholder="Например: Тула" />
-          )}
 
           <div className="label">Жив/жива</div>
           <label className="badge" style={{ cursor: "pointer" }}>

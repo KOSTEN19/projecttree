@@ -12,25 +12,27 @@ function getMapStyle() {
     version: 8,
     glyphs: "https://demotiles.maplibre.org/font/{fontstack}/{range}.pbf",
     sources: {
-      carto: {
+      osm: {
         type: "raster",
         tiles: [
-          "https://basemaps.cartocdn.com/rastertiles/voyager/{z}/{x}/{y}@2x.png",
+          "https://a.tile.openstreetmap.org/{z}/{x}/{y}.png",
+          "https://b.tile.openstreetmap.org/{z}/{x}/{y}.png",
+          "https://c.tile.openstreetmap.org/{z}/{x}/{y}.png",
         ],
         tileSize: 256,
-        attribution: "&copy; CartoDB &copy; OpenStreetMap",
+        attribution: "&copy; OpenStreetMap contributors",
       },
     },
     layers: [
       {
         id: "base",
         type: "raster",
-        source: "carto",
+        source: "osm",
         paint: {
-          "raster-brightness-min": 0.02,
-          "raster-brightness-max": 1.12,
-          "raster-saturation": 0.3,
-          "raster-contrast": 0.35,
+          "raster-brightness-min": 0.06,
+          "raster-brightness-max": 1.18,
+          "raster-saturation": 0.5,
+          "raster-contrast": 0.42,
         },
       },
     ],
@@ -75,12 +77,13 @@ export default function MapPage() {
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState("");
   const [panel, setPanel] = useState(null);
-  const [card, setCard] = useState(null);
+  const [panelPerson, setPanelPerson] = useState(null);
 
   const boxRef = useRef(null);
   const mapRef = useRef(null);
   const popRef = useRef(null);
   const groupsRef = useRef(new Map());
+  const markersCacheRef = useRef({ birth: null, burial: null });
   const mapReady = useRef(false);
   const mapHandlersBound = useRef(false);
 
@@ -206,10 +209,14 @@ export default function MapPage() {
         const arr = groupsRef.current.get(city) || [];
         if (arr.length > 1) {
           setPanel({ city, items: arr.map((x) => x.person).filter(Boolean) });
+          setPanelPerson(null);
           return;
         }
         const p = arr[0]?.person;
-        if (p) setCard(p);
+        if (p) {
+          setPanel({ city, items: [p] });
+          setPanelPerson(p);
+        }
       };
       mp.on("click", CITY_CIRCLE_LAYER_ID, (e) => {
         const f = e?.features?.[0];
@@ -257,16 +264,37 @@ export default function MapPage() {
     }
   }, [getCityFeatureCollection]);
 
-  async function load(f) {
-    setLoading(true); setError(""); setPanel(null);
+  async function load(f, opts = {}) {
+    const { useCache = true } = opts;
+    setLoading(true); setError(""); setPanel(null); setPanelPerson(null);
+    if (useCache && markersCacheRef.current[f]) {
+      setMarkers(markersCacheRef.current[f]);
+      setLoading(false);
+      return;
+    }
     try {
-      const d = await apiGet(`/api/map?filter=${f}`);
-      setMarkers(d.markers || []);
-    } catch (e) { setError(e.message || "Ошибка"); setMarkers([]); }
+      const timeoutMs = 9000;
+      const d = await Promise.race([
+        apiGet(`/api/map?filter=${f}`),
+        new Promise((_, reject) => setTimeout(() => reject(new Error("timeout")), timeoutMs)),
+      ]);
+      const next = d?.markers || [];
+      markersCacheRef.current[f] = next;
+      setMarkers(next);
+    } catch (e) {
+      const cached = markersCacheRef.current[f];
+      if (cached) {
+        setMarkers(cached);
+        setError("Данные карты обновляются медленно. Показан последний сохраненный слой.");
+      } else {
+        setError(e.message === "timeout" ? "Карта загружается слишком долго. Повторите попытку." : (e.message || "Ошибка"));
+        setMarkers([]);
+      }
+    }
     finally { setLoading(false); }
   }
 
-  useEffect(() => { load(filter); }, [filter]);
+  useEffect(() => { load(filter, { useCache: true }); }, [filter]);
 
   useEffect(() => {
     const g = groupByCity(markers);
@@ -376,11 +404,21 @@ export default function MapPage() {
                   <div className="gm-panel-city">{panel.city}</div>
                   <div className="gm-panel-cnt">{panel.items.length} {panel.items.length === 1 ? "человек" : "человек"}</div>
                 </div>
-                <button type="button" className="gm-panel-x" onClick={() => setPanel(null)} aria-label="Закрыть">✕</button>
+                <button
+                  type="button"
+                  className="gm-panel-x"
+                  onClick={() => {
+                    setPanel(null);
+                    setPanelPerson(null);
+                  }}
+                  aria-label="Закрыть"
+                >
+                  ✕
+                </button>
               </div>
               <div className="gm-panel-list">
                 {panel.items.map((p, i) => (
-                  <button type="button" key={p.id || i} className="gm-person" onClick={() => setCard(p)}>
+                  <button type="button" key={p.id || i} className="gm-person" onClick={() => setPanelPerson(p)}>
                     <div className={`gm-av ${sx(p)}`}>{ini(p)}</div>
                     <div className="gm-person-info">
                       <div className="gm-person-name">{fmtName(p)}</div>
@@ -389,37 +427,30 @@ export default function MapPage() {
                   </button>
                 ))}
               </div>
+              {panelPerson ? (
+                <div className="gm-panel-head" style={{ borderTop: "1px solid var(--border)", marginTop: 8 }}>
+                  <div>
+                    <div className="gm-panel-kicker">Карточка</div>
+                    <div className="gm-panel-city">{fmtFull(panelPerson)}</div>
+                    <div className="gm-panel-cnt">
+                      {(panelPerson.sex === "M" ? "Мужской" : panelPerson.sex === "F" ? "Женский" : "Не указан")}
+                      {panelPerson.birthDate ? ` · р. ${panelPerson.birthDate}` : ""}
+                    </div>
+                    <div className="gm-panel-cnt">Место рождения: {panelPerson.birthCityCustom || panelPerson.birthCity || "—"}</div>
+                    <div className="gm-panel-cnt">Статус: {panelPerson.alive ? "Жив(а)" : "Умер(ла)"}</div>
+                    {!panelPerson.alive ? (
+                      <>
+                        <div className="gm-panel-cnt">Дата смерти: {panelPerson.deathDate || "—"}</div>
+                        <div className="gm-panel-cnt">Место захоронения: {panelPerson.burialPlace || "—"}</div>
+                      </>
+                    ) : null}
+                  </div>
+                </div>
+              ) : null}
             </div>
           )}
         </div>
       </div>
-
-      {card && (
-        <div className="mc-overlay" onClick={() => setCard(null)}>
-          <div className="mc-card" onClick={e => e.stopPropagation()}>
-            <button className="mc-x" onClick={() => setCard(null)}>✕</button>
-            <div className="mc-photo">
-              <div className={`gm-av-lg ${sx(card)}`}>{ini(card)}</div>
-              <div className="mc-name">{fmtFull(card)}</div>
-              <div className="mc-meta">
-                {card.sex === "M" ? "Мужской" : card.sex === "F" ? "Женский" : "Не указан"}
-                {card.birthDate ? ` · р. ${card.birthDate}` : ""}
-              </div>
-            </div>
-            <div className="mc-body">
-              <Rv l="Место рождения" v={card.birthCityCustom || card.birthCity} />
-              <Rv l="Телефон" v={card.phone} />
-              <Rv l="Статус" v={card.alive ? "Жив(а)" : "Умер(ла)"} hl={!card.alive} />
-              {!card.alive && <><Rv l="Дата смерти" v={card.deathDate} /><Rv l="Место захоронения" v={card.burialPlace} /></>}
-              {card.notes && <Rv l="Заметки" v={card.notes} />}
-            </div>
-          </div>
-        </div>
-      )}
     </>
   );
-}
-
-function Rv({ l, v, hl }) {
-  return <div className={`mc-row${hl ? " hl" : ""}`}><div className="mc-label">{l}</div><div className="mc-val">{v || "—"}</div></div>;
 }

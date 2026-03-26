@@ -49,10 +49,10 @@ function useAddressSuggestions(query) {
 }
 
 export default function AddRelativeStepperForm({ persons, self, onCreated }) {
-  const [birthCityMode, setBirthCityMode] = useState("list");
   const [burialMode, setBurialMode] = useState("list");
   const [submitting, setSubmitting] = useState(false);
   const [submitErr, setSubmitErr] = useState("");
+  const [birthSuggestOpen, setBirthSuggestOpen] = useState(false);
 
   const [form, setForm] = useState({
     basePersonId: self?.id || "",
@@ -87,7 +87,7 @@ export default function AddRelativeStepperForm({ persons, self, onCreated }) {
   }
 
   const needsLine = !["дочь", "сын", "брат", "сестра"].includes(form.relationType);
-  const birthAddressQuery = birthCityMode === "custom" ? form.birthCityCustom : form.birthCity;
+  const birthAddressQuery = form.birthCityCustom;
   const burialAddressQuery = burialMode === "custom" ? form.burialPlace : form.burialPlace;
   const birthAddressSuggestions = useAddressSuggestions(birthAddressQuery);
   const burialAddressSuggestions = useAddressSuggestions(burialAddressQuery);
@@ -98,7 +98,7 @@ export default function AddRelativeStepperForm({ persons, self, onCreated }) {
     payload.firstName = normalizeHumanName(payload.firstName);
     payload.middleName = normalizeHumanName(payload.middleName);
     payload.maidenName = normalizeHumanName(payload.maidenName);
-    payload.birthCity = trimText(payload.birthCity);
+    payload.birthCity = "";
     payload.birthCityCustom = trimText(payload.birthCityCustom);
     payload.burialPlace = trimText(payload.burialPlace);
     payload.notes = trimText(payload.notes);
@@ -110,17 +110,12 @@ export default function AddRelativeStepperForm({ persons, self, onCreated }) {
     delete payload.phone;
 
     if (!needsLine) payload.line = "";
-    if (birthCityMode === "custom") {
-      payload.birthCity = "";
-    } else {
-      payload.birthCityCustom = "";
-    }
     if (payload.alive) {
       payload.deathDate = "";
       payload.burialPlace = "";
     }
     return payload;
-  }, [form, needsLine, birthCityMode]);
+  }, [form, needsLine]);
 
   const onBeforeComplete = useCallback(async () => {
     setSubmitErr("");
@@ -145,7 +140,7 @@ export default function AddRelativeStepperForm({ persons, self, onCreated }) {
       setSubmitErr("Дата рождения обязательна.");
       throw new Error("validation");
     }
-    if (!(p.birthCity || p.birthCityCustom)) {
+    if (!p.birthCityCustom) {
       setSubmitErr("Укажите место рождения.");
       throw new Error("validation");
     }
@@ -262,40 +257,38 @@ export default function AddRelativeStepperForm({ persons, self, onCreated }) {
           <div className="label">Дата рождения</div>
           <input type="date" className="input" required value={form.birthDate} onChange={(e) => set("birthDate", e.target.value)} />
           <div className="label">Место рождения</div>
-          <div className="row" style={{ alignItems: "center" }}>
-            <label className="badge" style={{ cursor: "pointer" }}>
-              <input type="radio" checked={birthCityMode === "list"} onChange={() => setBirthCityMode("list")} /> Из списка
-            </label>
-            <label className="badge" style={{ cursor: "pointer" }}>
-              <input type="radio" checked={birthCityMode === "custom"} onChange={() => setBirthCityMode("custom")} /> Вручную
-            </label>
-          </div>
-          {birthCityMode === "list" ? (
-            <select className="select" required value={form.birthCity} onChange={(e) => set("birthCity", e.target.value)}>
-              <option value="">Не выбрано</option>
-              {CITY_OPTIONS.map((c) => (
-                <option key={c} value={c}>
-                  {c}
-                </option>
-              ))}
-            </select>
-          ) : (
-            <>
-              <input
-                className="input"
-                required
-                value={form.birthCityCustom}
-                onChange={(e) => set("birthCityCustom", e.target.value)}
-                placeholder="Начните вводить адрес или населенный пункт"
-                list="birth-address-suggestions"
-              />
-              <datalist id="birth-address-suggestions">
+          <div className="rel-suggest-wrap">
+            <input
+              className="input"
+              required
+              value={form.birthCityCustom}
+              onChange={(e) => {
+                set("birthCityCustom", e.target.value);
+                setBirthSuggestOpen(true);
+              }}
+              onFocus={() => setBirthSuggestOpen(true)}
+              onBlur={() => setTimeout(() => setBirthSuggestOpen(false), 120)}
+              placeholder="Начните вводить адрес или населенный пункт"
+            />
+            {birthSuggestOpen && birthAddressSuggestions.length > 0 ? (
+              <div className="rel-suggest-menu select">
                 {birthAddressSuggestions.map((s) => (
-                  <option key={s} value={s} />
+                  <button
+                    key={s}
+                    type="button"
+                    className="rel-suggest-item"
+                    onMouseDown={(e) => {
+                      e.preventDefault();
+                      set("birthCityCustom", s);
+                      setBirthSuggestOpen(false);
+                    }}
+                  >
+                    {s}
+                  </button>
                 ))}
-              </datalist>
-            </>
-          )}
+              </div>
+            ) : null}
+          </div>
         </Step>
 
         <Step>

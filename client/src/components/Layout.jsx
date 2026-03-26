@@ -1,5 +1,5 @@
 import React from "react";
-import { NavLink, Outlet, useNavigate } from "react-router-dom";
+import { NavLink, Outlet, useLocation, useNavigate } from "react-router-dom";
 import { clearToken } from "../api.js";
 import { Button } from "@/components/ui/button";
 import { Avatar, AvatarFallback } from "@/components/ui/avatar";
@@ -15,6 +15,7 @@ const NAV_ITEMS = [
 
 export default function Layout({ user, onLogout, theme = "dark", onToggleTheme }) {
   const nav = useNavigate();
+  const location = useLocation();
 
   function logout() {
     clearToken();
@@ -70,7 +71,9 @@ export default function Layout({ user, onLogout, theme = "dark", onToggleTheme }
 
       <main className="flex-1">
         <div className="mx-auto max-w-6xl px-4 py-6">
-          <Outlet />
+          <div key={location.pathname} className="app-page-transition">
+            <Outlet />
+          </div>
         </div>
       </main>
 

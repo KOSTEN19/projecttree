@@ -1110,7 +1110,6 @@ export default function Tree() {
               role="menuitem"
               onClick={() => {
                 setLpMenu(null);
-                setCard(lpMenu.person);
                 setBranchFocus({ type: "maternal", anchorId: lpMenu.person.id });
               }}
             >
@@ -1125,7 +1124,6 @@ export default function Tree() {
               role="menuitem"
               onClick={() => {
                 setLpMenu(null);
-                setCard(lpMenu.person);
                 setBranchFocus({ type: "paternal", anchorId: lpMenu.person.id });
               }}
             >
@@ -1140,7 +1138,6 @@ export default function Tree() {
               role="menuitem"
               onClick={() => {
                 setLpMenu(null);
-                setCard(lpMenu.person);
                 setBranchFocus({ type: "lineage", anchorId: lpMenu.person.id });
               }}
             >

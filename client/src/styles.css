@@ -104,6 +104,42 @@
   font-size: 0.75rem;
 }
 
+.rel-suggest-wrap {
+  position: relative;
+}
+
+.rel-suggest-menu {
+  position: absolute;
+  top: calc(100% + 4px);
+  left: 0;
+  right: 0;
+  max-height: 220px;
+  overflow-y: auto;
+  z-index: 40;
+  padding: 0.25rem;
+  border: 1px solid var(--border);
+  border-radius: var(--radius-md);
+  background: var(--card);
+  box-shadow: 0 12px 30px -20px color-mix(in oklab, var(--foreground) 35%, transparent);
+}
+
+.rel-suggest-item {
+  width: 100%;
+  text-align: left;
+  border: 0;
+  background: transparent;
+  color: var(--foreground);
+  border-radius: calc(var(--radius-md) - 4px);
+  padding: 0.45rem 0.55rem;
+  cursor: pointer;
+  font-size: 0.82rem;
+  line-height: 1.35;
+}
+
+.rel-suggest-item:hover {
+  background: var(--muted);
+}
+
 /* Relatives — era grouping */
 .rel-era-wrap {
   display: flex;
@@ -1581,8 +1617,8 @@
 .tree-mc-card {
   position: relative;
   width: 100%;
-  max-width: 520px;
-  max-height: min(90vh, 720px);
+  max-width: 760px;
+  max-height: min(92vh, 860px);
   overflow-y: auto;
   background: var(--card);
   color: var(--card-foreground);
@@ -1604,8 +1640,8 @@
   position: fixed;
   z-index: 121;
   transform: translate(-50%, 0);
-  min-width: 260px;
-  width: min(360px, calc(100vw - 24px));
+  min-width: 320px;
+  width: min(420px, calc(100vw - 20px));
   background: var(--card);
   color: var(--card-foreground);
   border: 1px solid var(--border);
@@ -1625,11 +1661,11 @@
   border: 0;
   background: transparent;
   color: var(--card-foreground);
-  padding: 0.65rem 0.85rem;
+  padding: 0.82rem 1rem;
   border-radius: 0.85rem;
   cursor: pointer;
   font-family: inherit;
-  font-size: 0.9rem;
+  font-size: 1rem;
 }
 
 .tree-lp-item:hover {
