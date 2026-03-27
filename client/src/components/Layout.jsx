@@ -30,19 +30,27 @@ export default function Layout({ user, onLogout, theme = "dark", onToggleTheme }
     : NAV_ITEMS;
 
   return (
-    <div className="flex min-h-screen flex-col bg-background text-foreground">
-      <header className="sticky top-0 z-50 border-b bg-background/95 backdrop-blur supports-[backdrop-filter]:bg-background/80">
-        <div className="mx-auto flex h-14 max-w-6xl flex-wrap items-center justify-between gap-3 px-4">
-          <nav className="flex flex-wrap items-center gap-1">
+    <div className="layout-shell flex min-h-screen flex-col bg-background text-foreground">
+      <header className="layout-header sticky top-0 z-50 border-b">
+        <div className="layout-header-inner mx-auto flex min-h-14 max-w-6xl flex-wrap items-center justify-between gap-3 px-4 py-2">
+          <div className="layout-brand hidden items-center gap-2 md:flex">
+            <img src="/logo.png" alt="" className="size-6 rounded-sm opacity-90" />
+            <div>
+              <div className="layout-brand-title">Память России</div>
+              <div className="layout-brand-sub">Семейная летопись</div>
+            </div>
+          </div>
+
+          <nav className="layout-nav flex flex-wrap items-center gap-1">
             {navItems.map(({ label, to }) => (
               <NavLink
                 key={to}
                 to={to}
                 className={({ isActive }) =>
                   cn(
-                    "inline-flex h-8 items-center rounded-md px-3 text-sm font-medium transition-colors",
+                    "layout-nav-link inline-flex h-8 items-center rounded-md px-3 text-sm font-medium transition-colors",
                     isActive
-                      ? "bg-secondary text-secondary-foreground"
+                      ? "layout-nav-link-active"
                       : "text-muted-foreground hover:bg-muted hover:text-foreground"
                   )
                 }
@@ -51,8 +59,9 @@ export default function Layout({ user, onLogout, theme = "dark", onToggleTheme }
               </NavLink>
             ))}
           </nav>
-          <div className="flex items-center gap-3">
-            <Button variant="ghost" size="sm" onClick={onToggleTheme} aria-label="Переключить тему">
+
+          <div className="layout-user flex items-center gap-3">
+            <Button variant="ghost" size="sm" className="layout-theme-btn" onClick={onToggleTheme} aria-label="Переключить тему">
               {theme === "dark" ? "Светлая" : "Тёмная"}
             </Button>
             <Avatar className="size-8">
@@ -62,7 +71,7 @@ export default function Layout({ user, onLogout, theme = "dark", onToggleTheme }
               <div className="truncate text-sm font-medium">{user?.firstName || "Пользователь"}</div>
               <div className="text-muted-foreground truncate text-xs">Личный кабинет</div>
             </div>
-            <Button variant="outline" size="sm" onClick={logout}>
+            <Button variant="outline" size="sm" className="layout-logout-btn" onClick={logout}>
               Выход
             </Button>
           </div>
@@ -77,13 +86,13 @@ export default function Layout({ user, onLogout, theme = "dark", onToggleTheme }
         </div>
       </main>
 
-      <footer className="border-t py-4">
+      <footer className="layout-footer border-t py-4">
         <div className="mx-auto flex max-w-6xl flex-col items-center justify-between gap-2 px-4 text-center text-xs text-muted-foreground sm:flex-row sm:text-left">
-          <div className="flex items-center gap-2">
+          <div className="layout-footer-brand flex items-center gap-2">
             <img src="/logo.png" alt="" className="size-5 rounded opacity-70" />
             <span>Память России</span>
           </div>
-          <span>ProfIU BMSTU · 2024–2026</span>
+          <span className="layout-footer-note">ProfIU BMSTU · 2024–2026</span>
         </div>
       </footer>
     </div>

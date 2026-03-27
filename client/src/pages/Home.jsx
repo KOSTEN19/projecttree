@@ -6,7 +6,7 @@ import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 
 const HISTORICAL_FALLBACK_IMAGE =
-  "https://images.unsplash.com/photo-1461360228754-6e81c478b882?auto=format&fit=crop&w=1200&q=80";
+  "https://cdn.ruwiki.ru/commonswiki/files/e/ee/WW2_collage.jpg";
 
 function fullName(p) {
   return [p?.lastName, p?.firstName, p?.middleName].filter(Boolean).join(" ").trim() || "Без имени";
@@ -80,40 +80,35 @@ function generateFacts(persons, relationships, mePersonId) {
       title: "Глубина древа",
       value: depth ? `${depth + 1} поколений` : "н/д",
       hint: "Количество уровней от вашего узла.",
-      image:
-        "https://images.unsplash.com/photo-1511497584788-876760111969?auto=format&fit=crop&w=1200&q=80",
+      image: "https://cdn.ruwiki.ru/commonswiki/files/e/ee/WW2_collage.jpg",
     },
     {
       key: "timeline",
       title: "Временной диапазон",
       value: years.length ? `${Math.min(...years)} — ${Math.max(...years)}` : "н/д",
       hint: "Диапазон годов рождения в семейной базе.",
-      image:
-        "https://images.unsplash.com/photo-1461360228754-6e81c478b882?auto=format&fit=crop&w=1200&q=80",
+      image: "https://cdn.ruwiki.ru/commonswiki/files/e/ee/WW2_collage.jpg",
     },
     {
       key: "city",
       title: "Центральный город рода",
       value: topCity ? `${topCity[0]} (${topCity[1]})` : "н/д",
       hint: "Город, который чаще других встречается в карточках.",
-      image:
-        "https://images.unsplash.com/photo-1477959858617-67f85cf4f1df?auto=format&fit=crop&w=1200&q=80",
+      image: "https://cdn.ruwiki.ru/commonswiki/files/e/ee/WW2_collage.jpg",
     },
     {
       key: "branch",
       title: "Самая длинная ветка",
       value: longest ? `${longest + 1} человек` : "н/д",
       hint: "Максимальная длина цепочки родства по графу.",
-      image:
-        "https://images.unsplash.com/photo-1518791841217-8f162f1e1131?auto=format&fit=crop&w=1200&q=80",
+      image: "https://cdn.ruwiki.ru/commonswiki/files/e/ee/WW2_collage.jpg",
     },
     {
       key: "line",
       title: "Отцовская / материнская линия",
       value: `${paternal} / ${maternal}`,
       hint: "Количество явно отмеченных связей «отец» и «мать».",
-      image:
-        "https://images.unsplash.com/photo-1511895426328-dc8714191300?auto=format&fit=crop&w=1200&q=80",
+      image: "https://cdn.ruwiki.ru/commonswiki/files/e/ee/WW2_collage.jpg",
     },
   ];
   return facts;
@@ -140,8 +135,7 @@ function generateHistoricalInsights(persons) {
       years: "1904–1905",
       start: 1904,
       end: 1905,
-      image:
-        "https://cdn.ruwiki.ru/commonswiki/files/8/89/Russian_troops_in_Manchuria_1904.jpg",
+      image: "https://cdn.ruwiki.ru/commonswiki/files/e/ee/WW2_collage.jpg",
       source: "https://ru.ruwiki.ru/wiki/Русско-японская_война",
     },
     {
@@ -150,7 +144,7 @@ function generateHistoricalInsights(persons) {
       years: "1914–1918",
       start: 1914,
       end: 1918,
-      image: "https://cdn.ruwiki.ru/commonswiki/files/1/17/World_War_I_Montage.jpg",
+      image: "https://cdn.ruwiki.ru/commonswiki/files/e/ee/WW2_collage.jpg",
       source: "https://ru.ruwiki.ru/wiki/Первая_мировая_война",
     },
     {
@@ -159,7 +153,7 @@ function generateHistoricalInsights(persons) {
       years: "1917–1922",
       start: 1917,
       end: 1922,
-      image: "https://cdn.ruwiki.ru/commonswiki/files/8/89/Provisional_government_meeting.jpg",
+      image: "https://cdn.ruwiki.ru/commonswiki/files/e/ee/WW2_collage.jpg",
       source: "https://ru.ruwiki.ru/wiki/Революция_1917_года_в_России",
     },
     {
@@ -168,7 +162,7 @@ function generateHistoricalInsights(persons) {
       years: "1928–1937",
       start: 1928,
       end: 1937,
-      image: "https://cdn.ruwiki.ru/commonswiki/files/6/6f/DneproGES_1930.jpg",
+      image: "https://cdn.ruwiki.ru/commonswiki/files/e/ee/WW2_collage.jpg",
       source: "https://ru.ruwiki.ru/wiki/Индустриализация_в_СССР",
     },
     {
@@ -186,7 +180,7 @@ function generateHistoricalInsights(persons) {
       years: "1945–1953",
       start: 1945,
       end: 1953,
-      image: "https://cdn.ruwiki.ru/commonswiki/files/3/35/Moscow_1950s.jpg",
+      image: "https://cdn.ruwiki.ru/commonswiki/files/e/ee/WW2_collage.jpg",
       source: "https://ru.ruwiki.ru/wiki/СССР",
     },
     {
@@ -195,7 +189,7 @@ function generateHistoricalInsights(persons) {
       years: "1957–1969",
       start: 1957,
       end: 1969,
-      image: "https://cdn.ruwiki.ru/commonswiki/files/0/04/Yuri_Gagarin_1961.jpg",
+      image: "https://cdn.ruwiki.ru/commonswiki/files/e/ee/WW2_collage.jpg",
       source: "https://ru.ruwiki.ru/wiki/Космическая_гонка",
     },
     {
@@ -204,7 +198,7 @@ function generateHistoricalInsights(persons) {
       years: "1953–1964",
       start: 1953,
       end: 1964,
-      image: "https://cdn.ruwiki.ru/commonswiki/files/8/80/Nikita_Khrushchev_1963.jpg",
+      image: "https://cdn.ruwiki.ru/commonswiki/files/e/ee/WW2_collage.jpg",
       source: "https://ru.ruwiki.ru/wiki/Хрущёвская_оттепель",
     },
     {
@@ -213,7 +207,7 @@ function generateHistoricalInsights(persons) {
       years: "1964–1982",
       start: 1964,
       end: 1982,
-      image: "https://cdn.ruwiki.ru/commonswiki/files/7/7e/Brezhnev_1973.jpg",
+      image: "https://cdn.ruwiki.ru/commonswiki/files/e/ee/WW2_collage.jpg",
       source: "https://ru.ruwiki.ru/wiki/Эпоха_застоя",
     },
     {
@@ -222,7 +216,7 @@ function generateHistoricalInsights(persons) {
       years: "1979–1989",
       start: 1979,
       end: 1989,
-      image: "https://cdn.ruwiki.ru/commonswiki/files/4/4d/Soviet_troops_in_Afghanistan.jpg",
+      image: "https://cdn.ruwiki.ru/commonswiki/files/e/ee/WW2_collage.jpg",
       source: "https://ru.ruwiki.ru/wiki/Афганская_война_(1979—1989)",
     },
     {
@@ -231,7 +225,7 @@ function generateHistoricalInsights(persons) {
       years: "1985–1991",
       start: 1985,
       end: 1991,
-      image: "https://cdn.ruwiki.ru/commonswiki/files/1/1d/Gorbachev_1987.jpg",
+      image: "https://cdn.ruwiki.ru/commonswiki/files/e/ee/WW2_collage.jpg",
       source: "https://ru.ruwiki.ru/wiki/Перестройка",
     },
     {
@@ -240,7 +234,7 @@ function generateHistoricalInsights(persons) {
       years: "1991–2000",
       start: 1991,
       end: 2000,
-      image: "https://cdn.ruwiki.ru/commonswiki/files/a/a9/Moscow_1990s.jpg",
+      image: "https://cdn.ruwiki.ru/commonswiki/files/e/ee/WW2_collage.jpg",
       source: "https://ru.ruwiki.ru/wiki/История_России_(1991—настоящее_время)",
     },
   ];
@@ -350,45 +344,63 @@ export default function Home({ user }) {
   }, [relativesForTape.length, isTapeHovered]);
 
   return (
-    <div className="home-shell home-memorial -mx-4 space-y-10 md:-mx-6">
-      <section className="home-hero home-memorial-hero px-4 py-9 md:px-6 md:py-12">
-        <div className="space-y-5">
+    <div className="home-shell home-portal -mx-4 space-y-8 md:-mx-6 md:space-y-10">
+      <section className="home-hero home-portal-hero px-4 py-9 md:px-6 md:py-11">
+        <div className="home-portal-grid">
           <div className="space-y-5">
-            <Badge variant="secondary" className="home-pill">
-              Летопись семьи
+            <Badge variant="secondary" className="home-pill home-portal-kicker">
+              Официальная семейная летопись
             </Badge>
-            <h1 className="home-title home-memorial-title">
-              {user?.firstName
-                ? `${user.firstName}, сохраните историю своей семьи`
-                : "Сохраните историю своей семьи"}
+            <h1 className="home-title home-portal-title">
+              {user?.firstName ? `${user.firstName}, запишите историю своей семьи` : "Запишите историю своей семьи"}
             </h1>
-            <p className="home-subtitle">
-              Цифровая семейная летопись: сохраняйте истории, показывайте поколения, собирайте документы и
-              географию жизни ваших родственников.
+            <p className="home-subtitle home-portal-subtitle">
+              Создавайте семейный архив: фиксируйте биографии, связи поколений, документы и города, чтобы память о
+              ваших близких оставалась живой.
             </p>
-            <div className="flex flex-wrap gap-2">
-              <Button asChild>
+            <div className="flex flex-wrap gap-2.5">
+              <Button asChild className="home-portal-cta">
                 <Link to="/app/relatives">Записать историю</Link>
               </Button>
-              <Button asChild variant="outline">
+              <Button asChild variant="outline" className="home-portal-cta-alt">
                 <Link to="/app/tree">Открыть древо</Link>
               </Button>
             </div>
-            <div className="home-memorial-stats">
-              <div><strong>{globalStats.accounts}</strong><span>семей</span></div>
-              <div><strong>{globalStats.relatives}</strong><span>человек в базе</span></div>
-              <div><strong>{relationships.length}</strong><span>связей поколений</span></div>
+          </div>
+
+          <div className="home-portal-summary">
+            <p className="home-portal-summary-title">Сводка летописи</p>
+            <div className="home-portal-summary-grid">
+              <div>
+                <strong>{globalStats.accounts}</strong>
+                <span>семей в системе</span>
+              </div>
+              <div>
+                <strong>{globalStats.relatives}</strong>
+                <span>человек в базе</span>
+              </div>
+              <div>
+                <strong>{relationships.length}</strong>
+                <span>связей поколений</span>
+              </div>
             </div>
+            <p className="home-portal-summary-note">
+              Данные автоматически обновляются по мере добавления новых карточек родственников.
+            </p>
           </div>
         </div>
       </section>
 
       <section className="px-4 md:px-6">
         <div className="mb-3 flex items-center justify-between gap-3">
-          <h2 className="home-section-title">Лента родственников</h2>
+          <h2 className="home-section-title home-portal-section-title">Лента родственников</h2>
           <div className="flex items-center gap-2">
-            <Button variant="outline" size="sm" onClick={() => scrollTape(-1)}>←</Button>
-            <Button variant="outline" size="sm" onClick={() => scrollTape(1)}>→</Button>
+            <Button variant="outline" size="sm" className="home-portal-arrow" onClick={() => scrollTape(-1)}>
+              ←
+            </Button>
+            <Button variant="outline" size="sm" className="home-portal-arrow" onClick={() => scrollTape(1)}>
+              →
+            </Button>
           </div>
         </div>
         <div
@@ -427,7 +439,7 @@ export default function Home({ user }) {
       </section>
 
       <section className="px-4 md:px-6">
-        <h2 className="home-section-title mb-3">Интересные факты о вашем роде</h2>
+        <h2 className="home-section-title home-portal-section-title mb-3">Интересные факты о вашем роде</h2>
         <div className="grid gap-3 md:grid-cols-2 xl:grid-cols-3">
           {facts.map((fact) => (
             <Card key={fact.key} className="home-story-card">
@@ -455,7 +467,7 @@ export default function Home({ user }) {
       </section>
 
       <section className="px-4 md:px-6">
-        <h2 className="home-section-title mb-3">Исторические факты о родственниках</h2>
+        <h2 className="home-section-title home-portal-section-title mb-3">Исторические факты о родственниках</h2>
         <div className="grid gap-3 md:grid-cols-2 xl:grid-cols-3">
           {historicalFacts.map((fact) => (
             <Card key={fact.key} className="home-story-card">
@@ -491,7 +503,7 @@ export default function Home({ user }) {
       </section>
 
       <section className="px-4 md:px-6">
-        <h2 className="home-section-title mb-3">Разделы семейного пространства</h2>
+        <h2 className="home-section-title home-portal-section-title mb-3">Разделы семейного пространства</h2>
         <div className="grid gap-3 sm:grid-cols-2">
           <Link to="/app/relatives">
             <Card className="home-nav-card">
@@ -530,8 +542,10 @@ export default function Home({ user }) {
 
       <section className="px-4 pb-2 md:px-6">
         <div className="mb-3 flex items-center justify-between">
-          <h2 className="home-section-title">Обновления семейной летописи</h2>
-          <Link className="home-section-link" to="/app/relatives">Открыть все профили</Link>
+          <h2 className="home-section-title home-portal-section-title">Обновления семейной летописи</h2>
+          <Link className="home-section-link home-portal-link" to="/app/relatives">
+            Открыть все профили
+          </Link>
         </div>
         {updates.length > 0 ? (
           <div className="home-updates-marquee">
