@@ -86,8 +86,10 @@ export default function HomeFactsMarquee({ items, loading, error, onRetry }) {
             />
             <CardHeader className="gap-2">
               <div className="flex flex-wrap items-center gap-2">
-                <Badge variant={it.kind === "era" ? "default" : "secondary"}>
-                  {it.kind === "era" ? "Эпоха и род" : "Ваш род"}
+                <Badge
+                  variant={it.kind === "era" ? "default" : it.kind === "ai" ? "outline" : "secondary"}
+                >
+                  {it.kind === "era" ? "Эпоха и род" : it.kind === "ai" ? "ИИ" : "Ваш род"}
                 </Badge>
               </div>
               <CardDescription className="text-xs font-medium uppercase tracking-wide">
@@ -100,6 +102,8 @@ export default function HomeFactsMarquee({ items, loading, error, onRetry }) {
                     {it.sourceLabel || "РУВИКИ"}
                   </a>
                 </CardDescription>
+              ) : it.kind === "ai" && it.sourceLabel ? (
+                <CardDescription className="text-muted-foreground pt-1 text-xs">{it.sourceLabel}</CardDescription>
               ) : null}
             </CardHeader>
           </Card>

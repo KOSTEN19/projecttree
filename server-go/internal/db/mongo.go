@@ -20,6 +20,7 @@ var (
 	Relationships *mongo.Collection
 	Positions     *mongo.Collection
 	ManualLinks   *mongo.Collection
+	AIFeedCache   *mongo.Collection
 )
 
 func Connect(uri string) error {
@@ -48,6 +49,7 @@ func Connect(uri string) error {
 	Relationships = db.Collection("relationships")
 	Positions = db.Collection("positions")
 	ManualLinks = db.Collection("manuallinks")
+	AIFeedCache = db.Collection("ai_feed_cache")
 
 	log.Println("[db] connected to MongoDB")
 	return ensureIndexes(ctx)
@@ -64,6 +66,13 @@ func ensureIndexes(ctx context.Context) error {
 
 	_, err = Positions.Indexes().CreateOne(ctx, mongo.IndexModel{
 		Keys:    bson.D{{Key: "userId", Value: 1}, {Key: "personId", Value: 1}},
+		Options: options.Index().SetUnique(true),
+	})
+	if err != nil {
+		return err
+	}
+	_, err = AIFeedCache.Indexes().CreateOne(ctx, mongo.IndexModel{
+		Keys:    bson.D{{Key: "userId", Value: 1}},
 		Options: options.Index().SetUnique(true),
 	})
 	return err

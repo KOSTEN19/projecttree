@@ -18,7 +18,7 @@ export function showApiError(message) {
 /** Для каких HTTP-кодов показываем глобальный диалог (остальное — только throw). */
 export function shouldShowGlobalErrorDialog(status) {
   if (status === 401) return false;
-  if (status === 400 || status === 403 || status === 404 || status === 409) return true;
+  if (status === 400 || status === 403 || status === 404 || status === 409 || status === 429) return true;
   if (status >= 500) return true;
   return false;
 }

@@ -567,7 +567,8 @@ func HomeFeed(c *gin.Context) {
 	}
 	wg.Wait()
 
-	c.JSON(http.StatusOK, gin.H{"items": items})
+	items, aiPending := mergeAIFeedItems(ctx, oid, relatives, rels, items)
+	c.JSON(http.StatusOK, gin.H{"items": items, "aiPending": aiPending})
 }
 
 func centuryWikiTitle(years []int) string {

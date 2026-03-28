@@ -19,6 +19,14 @@ type Config struct {
 	JWTBindProcess    bool
 	JWTAccessTTL      time.Duration
 	ClientOrigin      string
+	AIEnabled         bool
+	AIAPIBaseURL      string
+	AIAPIKey          string
+	AIModel           string
+	AITimeout         time.Duration
+	AIMaxTokens       int
+	AICacheTTL        time.Duration
+	AIRateRefresh     time.Duration
 }
 
 func Load() (*Config, error) {
@@ -42,6 +50,21 @@ func Load() (*Config, error) {
 	// Для нескольких реплик за балансировщиком выставьте JWT_BIND_TO_PROCESS=false.
 	bind := getEnvBoolDefault("JWT_BIND_TO_PROCESS", true)
 
+	aiEnabled := getEnvBoolDefault("AI_ENABLED", false)
+	aiBase := strings.TrimSpace(os.Getenv("AI_API_BASE_URL"))
+	aiModel := strings.TrimSpace(os.Getenv("AI_MODEL"))
+	if aiEnabled && (aiBase == "" || aiModel == "") {
+		return nil, fmt.Errorf("AI_ENABLED=true requires AI_API_BASE_URL and AI_MODEL")
+	}
+
+	aiMaxTok := 384
+	if v := strings.TrimSpace(os.Getenv("AI_MAX_TOKENS")); v != "" {
+		var n int
+		if _, err := fmt.Sscanf(v, "%d", &n); err == nil && n >= 64 && n <= 2048 {
+			aiMaxTok = n
+		}
+	}
+
 	return &Config{
 		Port:           getEnv("PORT", "3001"),
 		MongoURI:       getEnv("MONGO_URI", "mongodb://127.0.0.1:27017/"+DefaultMongoDBName),
@@ -49,6 +72,14 @@ func Load() (*Config, error) {
 		JWTBindProcess: bind,
 		JWTAccessTTL:   ttl,
 		ClientOrigin:   getEnv("CLIENT_ORIGIN", "*"),
+		AIEnabled:      aiEnabled,
+		AIAPIBaseURL:   strings.TrimSuffix(aiBase, "/"),
+		AIAPIKey:       strings.TrimSpace(os.Getenv("AI_API_KEY")),
+		AIModel:        aiModel,
+		AITimeout:      getEnvDuration("AI_TIMEOUT", 90*time.Second),
+		AIMaxTokens:    aiMaxTok,
+		AICacheTTL:     getEnvDuration("AI_CACHE_TTL", 168*time.Hour),
+		AIRateRefresh:  getEnvDuration("AI_RATE_REFRESH", time.Hour),
 	}, nil
 }
 

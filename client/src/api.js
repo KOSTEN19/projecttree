@@ -10,6 +10,8 @@ const ERROR_MESSAGES = {
   bad_id: "Некорректный идентификатор.",
   bad_basePersonId: "Некорректная связь с родственником.",
   cannot_delete_self: "Нельзя удалить свой профиль.",
+  ai_disabled: "ИИ-лента отключена на сервере.",
+  ai_rate_limited: "Слишком частый запрос к ИИ. Подождите.",
   validation_failed: "Проверьте введённые данные.",
   wrong_current_password: "Неверный текущий пароль.",
   password_fields_required: "Укажите текущий и новый пароль.",

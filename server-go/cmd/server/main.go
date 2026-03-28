@@ -31,6 +31,7 @@ func main() {
 	if err := middleware.InitJWT(cfg.JWTSecret, cfg.JWTBindProcess, cfg.JWTAccessTTL); err != nil {
 		log.Fatalf("[fatal] jwt: %v", err)
 	}
+	handlers.InitAIFeed(cfg)
 
 	seed.RunDemoSeed()
 	seed.RunAdminSeed()
@@ -90,6 +91,7 @@ func main() {
 	r.GET("/api/map/all", middleware.RequireAuth(), handlers.GetMapAll)
 	r.GET("/api/geo/suggest", middleware.RequireAuth(), handlers.GeoSuggest)
 	r.GET("/api/home/feed", middleware.RequireAuth(), handlers.HomeFeed)
+	r.POST("/api/ai/feed/refresh", middleware.RequireAuth(), handlers.PostAIFeedRefresh)
 
 	r.GET("/api/relationships", middleware.RequireAuth(), handlers.ListRelationships)
 

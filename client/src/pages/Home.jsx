@@ -1,7 +1,7 @@
 import React, { useEffect, useMemo, useRef, useState } from "react";
 import { Link, useLocation } from "react-router-dom";
 import { TrendingUp } from "lucide-react";
-import { apiGet } from "../api.js";
+import { apiGet, apiPost } from "../api.js";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
@@ -40,6 +40,8 @@ export default function Home({ user }) {
   const [feedLoading, setFeedLoading] = useState(true);
   const [feedError, setFeedError] = useState("");
   const [feedRetry, setFeedRetry] = useState(0);
+  const [feedAiPending, setFeedAiPending] = useState(false);
+  const [feedAiBusy, setFeedAiBusy] = useState(false);
 
   useEffect(() => {
     (async () => {
@@ -66,6 +68,7 @@ export default function Home({ user }) {
         const data = await apiGet("/api/home/feed");
         if (!cancelled) {
           setFeedItems(Array.isArray(data?.items) ? data.items : []);
+          setFeedAiPending(Boolean(data?.aiPending));
         }
       } catch (e) {
         if (!cancelled) {
@@ -80,6 +83,17 @@ export default function Home({ user }) {
       cancelled = true;
     };
   }, [feedRetry]);
+
+  async function refreshAIFeed() {
+    setFeedAiBusy(true);
+    try {
+      await apiPost("/api/ai/feed/refresh", {});
+      setFeedRetry((n) => n + 1);
+    } catch {
+    } finally {
+      setFeedAiBusy(false);
+    }
+  }
 
   const summaryTargets = useMemo(
     () => ({
@@ -302,13 +316,27 @@ export default function Home({ user }) {
       <section className="px-4 md:px-6">
         <div className="home-section-band home-section-band--muted">
           <h2 className="home-section-title home-portal-section-title mb-1">Интересные факты о вашем роде</h2>
-          <p className="text-muted-foreground mb-4 max-w-3xl text-sm leading-relaxed">
+          <p className="text-muted-foreground mb-3 max-w-3xl text-sm leading-relaxed">
             Сводка по вашей летописи, пересечения с эпохами и иллюстрации из статей{" "}
             <a href="https://ru.ruwiki.ru" target="_blank" rel="noreferrer" className="text-primary underline underline-offset-2">
               РУВИКИ
             </a>
-            . Лента медленно прокручивается; наведите курсор, чтобы остановить.
+            . При включённом ИИ на сервере сюда добавляются короткие формулировки по вашим данным (локальная или облачная модель).
           </p>
+          <div className="mb-4 flex flex-wrap items-center gap-2">
+            <Button
+              type="button"
+              variant="outline"
+              size="sm"
+              disabled={feedAiBusy || feedLoading}
+              onClick={() => void refreshAIFeed()}
+            >
+              {feedAiBusy ? "Запрос…" : "Обновить факты (ИИ)"}
+            </Button>
+            {feedAiPending ? (
+              <span className="text-muted-foreground text-xs">Подготовка ИИ-формулировок… Обновите страницу через минуту.</span>
+            ) : null}
+          </div>
           <HomeFactsMarquee
             items={feedItems}
             loading={feedLoading}
