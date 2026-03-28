@@ -6,9 +6,7 @@ import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/com
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { Separator } from "@/components/ui/separator";
-
-const HISTORICAL_FALLBACK_IMAGE =
-  "https://cdn.ruwiki.ru/commonswiki/files/e/ee/WW2_collage.jpg";
+import HomeFactsMarquee from "../components/HomeFactsMarquee.jsx";
 
 function fullName(p) {
   return [p?.lastName, p?.firstName, p?.middleName].filter(Boolean).join(" ").trim() || "Без имени";
@@ -25,243 +23,6 @@ function initials(p) {
   return `${f}${l}`.toUpperCase();
 }
 
-function generateFacts(persons, relationships, mePersonId) {
-  const relatives = (persons || []).filter((p) => !p.isPlaceholder);
-  const years = relatives.map((p) => toYear(p.birthDate)).filter(Boolean);
-  const cityCounter = new Map();
-  for (const p of relatives) {
-    const city = (p.birthCityCustom || p.birthCity || "").trim();
-    if (!city) continue;
-    cityCounter.set(city, (cityCounter.get(city) || 0) + 1);
-  }
-  const topCity = [...cityCounter.entries()].sort((a, b) => b[1] - a[1])[0];
-
-  const adj = new Map();
-  const add = (a, b) => {
-    if (!a || !b || a === b) return;
-    if (!adj.has(a)) adj.set(a, new Set());
-    if (!adj.has(b)) adj.set(b, new Set());
-    adj.get(a).add(b);
-    adj.get(b).add(a);
-  };
-  for (const r of relationships || []) add(r.basePersonId, r.relatedPersonId);
-
-  const bfs = (start) => {
-    const q = [start];
-    const dist = new Map([[start, 0]]);
-    while (q.length) {
-      const cur = q.shift();
-      for (const n of adj.get(cur) || []) {
-        if (dist.has(n)) continue;
-        dist.set(n, (dist.get(cur) || 0) + 1);
-        q.push(n);
-      }
-    }
-    return dist;
-  };
-
-  let depth = 0;
-  if (mePersonId) {
-    const d = bfs(mePersonId);
-    for (const v of d.values()) depth = Math.max(depth, v);
-  }
-
-  let longest = 0;
-  const ids = relatives.map((p) => p.id).filter(Boolean);
-  for (const id of ids) {
-    const d = bfs(id);
-    for (const v of d.values()) longest = Math.max(longest, v);
-  }
-
-  const paternal = (relationships || []).filter((r) => String(r.relationType).toLowerCase() === "отец").length;
-  const maternal = (relationships || []).filter((r) => String(r.relationType).toLowerCase() === "мать").length;
-
-  const facts = [
-    {
-      key: "generations",
-      title: "Глубина древа",
-      value: depth ? `${depth + 1} поколений` : "н/д",
-      hint: "Количество уровней от вашего узла.",
-      image: "https://cdn.ruwiki.ru/commonswiki/files/e/ee/WW2_collage.jpg",
-    },
-    {
-      key: "timeline",
-      title: "Временной диапазон",
-      value: years.length ? `${Math.min(...years)} — ${Math.max(...years)}` : "н/д",
-      hint: "Диапазон годов рождения в семейной базе.",
-      image: "https://cdn.ruwiki.ru/commonswiki/files/e/ee/WW2_collage.jpg",
-    },
-    {
-      key: "city",
-      title: "Центральный город рода",
-      value: topCity ? `${topCity[0]} (${topCity[1]})` : "н/д",
-      hint: "Город, который чаще других встречается в карточках.",
-      image: "https://cdn.ruwiki.ru/commonswiki/files/e/ee/WW2_collage.jpg",
-    },
-    {
-      key: "branch",
-      title: "Самая длинная ветка",
-      value: longest ? `${longest + 1} человек` : "н/д",
-      hint: "Максимальная длина цепочки родства по графу.",
-      image: "https://cdn.ruwiki.ru/commonswiki/files/e/ee/WW2_collage.jpg",
-    },
-    {
-      key: "line",
-      title: "Отцовская / материнская линия",
-      value: `${paternal} / ${maternal}`,
-      hint: "Количество явно отмеченных связей «отец» и «мать».",
-      image: "https://cdn.ruwiki.ru/commonswiki/files/e/ee/WW2_collage.jpg",
-    },
-  ];
-  return facts;
-}
-
-function generateHistoricalInsights(persons) {
-  const relatives = (persons || []).filter((p) => !p.isPlaceholder);
-  const ranges = relatives
-    .map((p) => {
-      const b = toYear(p.birthDate);
-      const d = toYear(p.deathDate);
-      if (!b) return null;
-      return { from: b, to: d || Math.min(new Date().getFullYear(), b + 95) };
-    })
-    .filter(Boolean);
-
-  const overlaps = (start, end) =>
-    ranges.filter((r) => r.from <= end && r.to >= start).length;
-
-  const eventCatalog = [
-    {
-      key: "russo-japanese",
-      title: "Русско-японская война",
-      years: "1904–1905",
-      start: 1904,
-      end: 1905,
-      image: "https://cdn.ruwiki.ru/commonswiki/files/e/ee/WW2_collage.jpg",
-      source: "https://ru.ruwiki.ru/wiki/Русско-японская_война",
-    },
-    {
-      key: "ww1",
-      title: "Первая мировая война",
-      years: "1914–1918",
-      start: 1914,
-      end: 1918,
-      image: "https://cdn.ruwiki.ru/commonswiki/files/e/ee/WW2_collage.jpg",
-      source: "https://ru.ruwiki.ru/wiki/Первая_мировая_война",
-    },
-    {
-      key: "revolution",
-      title: "Революция и Гражданская война",
-      years: "1917–1922",
-      start: 1917,
-      end: 1922,
-      image: "https://cdn.ruwiki.ru/commonswiki/files/e/ee/WW2_collage.jpg",
-      source: "https://ru.ruwiki.ru/wiki/Революция_1917_года_в_России",
-    },
-    {
-      key: "collectivization",
-      title: "Коллективизация и индустриализация",
-      years: "1928–1937",
-      start: 1928,
-      end: 1937,
-      image: "https://cdn.ruwiki.ru/commonswiki/files/e/ee/WW2_collage.jpg",
-      source: "https://ru.ruwiki.ru/wiki/Индустриализация_в_СССР",
-    },
-    {
-      key: "ww2",
-      title: "Великая Отечественная война",
-      years: "1941–1945",
-      start: 1941,
-      end: 1945,
-      image: "https://cdn.ruwiki.ru/commonswiki/files/e/ee/WW2_collage.jpg",
-      source: "https://ru.ruwiki.ru/wiki/Вторая_мировая_война",
-    },
-    {
-      key: "postwar",
-      title: "Послевоенное восстановление",
-      years: "1945–1953",
-      start: 1945,
-      end: 1953,
-      image: "https://cdn.ruwiki.ru/commonswiki/files/e/ee/WW2_collage.jpg",
-      source: "https://ru.ruwiki.ru/wiki/СССР",
-    },
-    {
-      key: "space",
-      title: "Космическая эра",
-      years: "1957–1969",
-      start: 1957,
-      end: 1969,
-      image: "https://cdn.ruwiki.ru/commonswiki/files/e/ee/WW2_collage.jpg",
-      source: "https://ru.ruwiki.ru/wiki/Космическая_гонка",
-    },
-    {
-      key: "thaw",
-      title: "Оттепель",
-      years: "1953–1964",
-      start: 1953,
-      end: 1964,
-      image: "https://cdn.ruwiki.ru/commonswiki/files/e/ee/WW2_collage.jpg",
-      source: "https://ru.ruwiki.ru/wiki/Хрущёвская_оттепель",
-    },
-    {
-      key: "stagnation",
-      title: "Поздний СССР",
-      years: "1964–1982",
-      start: 1964,
-      end: 1982,
-      image: "https://cdn.ruwiki.ru/commonswiki/files/e/ee/WW2_collage.jpg",
-      source: "https://ru.ruwiki.ru/wiki/Эпоха_застоя",
-    },
-    {
-      key: "afghan",
-      title: "Афганская война",
-      years: "1979–1989",
-      start: 1979,
-      end: 1989,
-      image: "https://cdn.ruwiki.ru/commonswiki/files/e/ee/WW2_collage.jpg",
-      source: "https://ru.ruwiki.ru/wiki/Афганская_война_(1979—1989)",
-    },
-    {
-      key: "perestroika",
-      title: "Перестройка",
-      years: "1985–1991",
-      start: 1985,
-      end: 1991,
-      image: "https://cdn.ruwiki.ru/commonswiki/files/e/ee/WW2_collage.jpg",
-      source: "https://ru.ruwiki.ru/wiki/Перестройка",
-    },
-    {
-      key: "new-russia",
-      title: "Становление современной России",
-      years: "1991–2000",
-      start: 1991,
-      end: 2000,
-      image: "https://cdn.ruwiki.ru/commonswiki/files/e/ee/WW2_collage.jpg",
-      source: "https://ru.ruwiki.ru/wiki/История_России_(1991—настоящее_время)",
-    },
-  ];
-
-  const cards = eventCatalog
-    .map((e) => ({
-      ...e,
-      count: overlaps(e.start, e.end),
-    }))
-    .sort((a, b) => a.start - b.start)
-    .slice(0, 12)
-    .map((e) => ({
-      key: e.key,
-      title: `${e.title} (${e.years})`,
-      text:
-        e.count > 0
-          ? `Не менее ${e.count} родственников из вашей летописи жили в этот период.`
-          : "Пока в вашей базе не хватает дат, чтобы подтвердить пересечение с этой эпохой.",
-      image: e.image,
-      source: e.source,
-    }));
-
-  return cards;
-}
-
 function easeOutCubic(t) {
   return 1 - (1 - t) ** 3;
 }
@@ -271,12 +32,15 @@ export default function Home({ user }) {
   const [globalStats, setGlobalStats] = useState({ accounts: 0, relatives: 0 });
   const [people, setPeople] = useState([]);
   const [relationships, setRelationships] = useState([]);
-  const [mePersonId, setMePersonId] = useState("");
   const carouselRef = useRef(null);
   const [isTapeHovered, setIsTapeHovered] = useState(false);
   const [summaryDisplay, setSummaryDisplay] = useState({ accounts: 0, relatives: 0, rels: 0 });
   const [summaryTrend, setSummaryTrend] = useState(false);
   const summaryAnimRef = useRef(0);
+  const [feedItems, setFeedItems] = useState([]);
+  const [feedLoading, setFeedLoading] = useState(true);
+  const [feedError, setFeedError] = useState("");
+  const [feedRetry, setFeedRetry] = useState(0);
 
   useEffect(() => {
     (async () => {
@@ -292,12 +56,35 @@ export default function Home({ user }) {
         });
         setPeople((persons || []).filter((p) => !p.isPlaceholder));
         setRelationships(tree?.relationships || []);
-        setMePersonId(tree?.mePersonId || "");
       } catch {
         /* ignore */
       }
     })();
   }, []);
+
+  useEffect(() => {
+    let cancelled = false;
+    (async () => {
+      setFeedLoading(true);
+      setFeedError("");
+      try {
+        const data = await apiGet("/api/home/feed");
+        if (!cancelled) {
+          setFeedItems(Array.isArray(data?.items) ? data.items : []);
+        }
+      } catch (e) {
+        if (!cancelled) {
+          setFeedError(e?.message || String(e));
+          setFeedItems([]);
+        }
+      } finally {
+        if (!cancelled) setFeedLoading(false);
+      }
+    })();
+    return () => {
+      cancelled = true;
+    };
+  }, [feedRetry]);
 
   const summaryTargets = useMemo(
     () => ({
@@ -349,8 +136,6 @@ export default function Home({ user }) {
     };
   }, [location.pathname, summaryTargets]);
 
-  const facts = useMemo(() => generateFacts(people, relationships, mePersonId), [people, relationships, mePersonId]);
-  const historicalFacts = useMemo(() => generateHistoricalInsights(people), [people]);
   const relativesForTape = useMemo(() => {
     const arr = [...people];
     arr.sort((a, b) => {
@@ -521,71 +306,20 @@ export default function Home({ user }) {
 
       <section className="px-4 md:px-6">
         <div className="home-section-band home-section-band--muted">
-        <h2 className="home-section-title home-portal-section-title mb-3">Интересные факты о вашем роде</h2>
-        <div className="grid gap-3 md:grid-cols-2 xl:grid-cols-3">
-          {facts.map((fact) => (
-            <Card key={fact.key} className="home-story-card">
-              {fact.image ? (
-                <img
-                  src={fact.image}
-                  alt={fact.title}
-                  className="home-historical-image"
-                  loading="lazy"
-                  referrerPolicy="no-referrer"
-                  onError={(e) => {
-                    if (e.currentTarget.src === HISTORICAL_FALLBACK_IMAGE) return;
-                    e.currentTarget.src = HISTORICAL_FALLBACK_IMAGE;
-                  }}
-                />
-              ) : null}
-              <CardHeader>
-                <CardDescription>{fact.title}</CardDescription>
-                <CardTitle className="text-2xl">{fact.value}</CardTitle>
-                <CardDescription>{fact.hint}</CardDescription>
-              </CardHeader>
-            </Card>
-          ))}
-        </div>
-        </div>
-      </section>
-
-      <Separator className="opacity-50" />
-
-      <section className="px-4 md:px-6">
-        <div className="home-section-band home-section-band--surface">
-        <h2 className="home-section-title home-portal-section-title mb-3">Исторические факты о родственниках</h2>
-        <div className="grid gap-3 md:grid-cols-2 xl:grid-cols-3">
-          {historicalFacts.map((fact) => (
-            <Card key={fact.key} className="home-story-card">
-              {fact.image ? (
-                <img
-                  src={fact.image}
-                  alt={fact.title}
-                  className="home-historical-image"
-                  loading="lazy"
-                  referrerPolicy="no-referrer"
-                  onError={(e) => {
-                    if (e.currentTarget.src === HISTORICAL_FALLBACK_IMAGE) return;
-                    e.currentTarget.src = HISTORICAL_FALLBACK_IMAGE;
-                  }}
-                />
-              ) : null}
-              <CardHeader>
-                <CardDescription>{fact.title}</CardDescription>
-                <CardTitle className="text-base">Семейная история и эпоха</CardTitle>
-                <CardDescription>{fact.text}</CardDescription>
-                {fact.source ? (
-                  <CardDescription>
-                    Источник изображения:{" "}
-                    <a href={fact.source} target="_blank" rel="noreferrer" className="underline">
-                      РУВИКИ
-                    </a>
-                  </CardDescription>
-                ) : null}
-              </CardHeader>
-            </Card>
-          ))}
-        </div>
+          <h2 className="home-section-title home-portal-section-title mb-1">Интересные факты о вашем роде</h2>
+          <p className="text-muted-foreground mb-4 max-w-3xl text-sm leading-relaxed">
+            Сводка по вашей летописи, пересечения с эпохами и иллюстрации из статей{" "}
+            <a href="https://ru.ruwiki.ru" target="_blank" rel="noreferrer" className="text-primary underline underline-offset-2">
+              РУВИКИ
+            </a>
+            . Лента медленно прокручивается; наведите курсор, чтобы остановить.
+          </p>
+          <HomeFactsMarquee
+            items={feedItems}
+            loading={feedLoading}
+            error={feedError}
+            onRetry={() => setFeedRetry((n) => n + 1)}
+          />
         </div>
       </section>
 

@@ -12,6 +12,7 @@ import {
   BreadcrumbSeparator,
 } from "@/components/ui/breadcrumb";
 import { cn } from "@/lib/utils";
+import { BRAND_LOGO_SRC } from "@/lib/brandLogo";
 
 const NAV_ITEMS = [
   { label: "Главная", to: "/app/home" },
@@ -59,7 +60,7 @@ export default function Layout({ user, onLogout, theme = "dark", onToggleTheme }
         <div className="layout-header-inner mx-auto flex min-h-14 max-w-6xl flex-wrap items-center justify-between gap-3 px-4 py-2">
           <div className="layout-brand hidden items-center gap-2 md:flex">
             <img
-              src="/logo.png"
+              src={BRAND_LOGO_SRC}
               alt="Память России"
               width={24}
               height={24}
@@ -136,7 +137,7 @@ export default function Layout({ user, onLogout, theme = "dark", onToggleTheme }
         <div className="mx-auto flex max-w-6xl flex-col items-center justify-between gap-2 px-4 text-center text-xs text-muted-foreground sm:flex-row sm:text-left">
           <div className="layout-footer-brand flex items-center gap-2">
             <img
-              src="/logo.png"
+              src={BRAND_LOGO_SRC}
               alt=""
               width={20}
               height={20}

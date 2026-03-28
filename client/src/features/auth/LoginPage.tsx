@@ -2,6 +2,7 @@ import { useState } from "react";
 import { apiPost, saveToken } from "@/shared/api";
 import type { AuthOkResponse } from "@/types/api";
 import { Link, useNavigate } from "react-router-dom";
+import { BRAND_LOGO_SRC } from "@/lib/brandLogo";
 
 export default function LoginPage({ onAuth }: { onAuth?: () => void | Promise<void> }) {
   const nav = useNavigate();
@@ -39,7 +40,7 @@ export default function LoginPage({ onAuth }: { onAuth?: () => void | Promise<vo
         <div className="auth-brand">
           <img
             className="auth-logo app-brand-logo"
-            src="/logo.png"
+            src={BRAND_LOGO_SRC}
             alt="Память России"
             width={44}
             height={44}

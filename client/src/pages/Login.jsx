@@ -1,4 +1,5 @@
 import React, { useState } from "react";
+import { BRAND_LOGO_SRC } from "@/lib/brandLogo";
 import { apiPost, saveToken } from "../api.js";
 import { useNavigate, Link } from "react-router-dom";
 import { Button } from "@/components/ui/button";
@@ -43,7 +44,7 @@ export default function Login({ onAuth }) {
         <CardHeader className="space-y-1">
           <div className="flex items-center gap-3">
             <img
-              src="/logo.png"
+              src={BRAND_LOGO_SRC}
               alt="Память России"
               width={40}
               height={40}

@@ -164,7 +164,7 @@
     }
   }
 
-  /** Растровый /logo.png (квадратный макет): без сплющивания и обрезки в шапке/футере/формах */
+  /** Растровый логотип (src/assets/logo.png → Vite): без сплющивания в шапке/футере/формах */
   .app-brand-logo {
     display: block;
     flex-shrink: 0;
@@ -540,6 +540,65 @@
 
   .home-updates-marquee:hover .home-updates-track {
     animation-play-state: paused;
+  }
+
+  /* Лента «Интересные факты о роде» (Ruwiki + статистика) */
+  .home-facts-marquee {
+    overflow: hidden;
+    position: relative;
+    mask-image: linear-gradient(to right, transparent 0%, black 6%, black 94%, transparent 100%);
+  }
+
+  .home-facts-marquee--static {
+    mask-image: none;
+  }
+
+  .home-facts-track {
+    display: flex;
+    gap: 0.85rem;
+    width: max-content;
+    animation: home-facts-scroll 88s linear infinite;
+  }
+
+  .home-facts-marquee:hover .home-facts-track {
+    animation-play-state: paused;
+  }
+
+  .home-facts-card {
+    width: min(400px, 88vw);
+    flex: 0 0 auto;
+  }
+
+  .home-facts-card .home-facts-card-image {
+    height: 168px;
+    object-fit: cover;
+  }
+
+  @keyframes home-facts-scroll {
+    from {
+      transform: translateX(0);
+    }
+    to {
+      transform: translateX(-50%);
+    }
+  }
+
+  @media (prefers-reduced-motion: reduce) {
+    .home-updates-track {
+      animation: none;
+      flex-wrap: wrap;
+      width: 100%;
+      max-width: 100%;
+      justify-content: flex-start;
+    }
+
+    .home-facts-track {
+      animation: none;
+      flex-wrap: wrap;
+      width: 100%;
+      max-width: 100%;
+      justify-content: center;
+    }
   }
 
   .home-updates-card {

@@ -1,6 +1,7 @@
 import type { UserClient } from "@/types/api";
 import { clearToken } from "@/shared/api";
 import { NavLink, Outlet, useNavigate } from "react-router-dom";
+import { BRAND_LOGO_SRC } from "@/lib/brandLogo";
 
 export default function Layout({
   user,
@@ -26,7 +27,7 @@ export default function Layout({
           <NavLink to="/app/home" className="navbar-brand">
             <img
               className="navbar-logo app-brand-logo"
-              src="/logo.png"
+              src={BRAND_LOGO_SRC}
               alt="Память России"
               width={36}
               height={36}
@@ -95,7 +96,7 @@ export default function Layout({
           <div className="footer-brand">
             <img
               className="app-brand-logo shrink-0 opacity-60"
-              src="/logo.png"
+              src={BRAND_LOGO_SRC}
               alt=""
               width={24}
               height={24}
