@@ -7,7 +7,8 @@ ENV CI=true
 COPY package.json package-lock.json components.json ./
 RUN npm ci --no-audit --fund=false
 COPY . .
-RUN npm run build
+# Обходим `prebuild` → `ui:pull` (нужен внешний реестр); UI уже в git.
+RUN npx vite build
 
 FROM nginx:alpine
 COPY --from=builder /app/dist /usr/share/nginx/html
