@@ -1,7 +1,24 @@
 import React, { useCallback, useEffect, useRef, useState } from "react";
+import { CircleDot, LandPlot, MapPin, X, AlertCircle } from "lucide-react";
 import "maplibre-gl/dist/maplibre-gl.css";
 import maplibregl from "../maplibre.js";
 import { apiGet } from "../api.js";
+import { cn } from "@/lib/utils";
+import { Alert, AlertDescription, AlertTitle } from "@/components/ui/alert";
+import { Avatar, AvatarFallback } from "@/components/ui/avatar";
+import { Badge } from "@/components/ui/badge";
+import { Button } from "@/components/ui/button";
+import {
+  Card,
+  CardContent,
+  CardDescription,
+  CardHeader,
+  CardTitle,
+  CardAction,
+} from "@/components/ui/card";
+import { Separator } from "@/components/ui/separator";
+import { Skeleton } from "@/components/ui/skeleton";
+
 const CITY_SOURCE_ID = "city-points";
 const CITY_CIRCLE_LAYER_ID = "city-circles";
 const CITY_LABEL_LAYER_ID = "city-labels";
@@ -42,7 +59,12 @@ function getMapStyle() {
 function fmtName(p) { return [p?.lastName, p?.firstName].filter(Boolean).join(" ") || "Без имени"; }
 function fmtFull(p) { return [p?.lastName, p?.firstName, p?.middleName].filter(Boolean).join(" ") || "Без имени"; }
 function ini(p) { return ((p?.firstName || "?")[0] + ((p?.lastName || "")[0] || "")).toUpperCase().slice(0, 2); }
-function sx(p) { return p?.sex === "M" ? "m" : p?.sex === "F" ? "f" : "u"; }
+
+function avatarFallbackClass(p) {
+  if (p?.sex === "M") return "bg-blue-600 text-white";
+  if (p?.sex === "F") return "bg-pink-600 text-white";
+  return "bg-violet-600 text-white";
+}
 
 function groupByCity(markers) {
   const m = new Map();
@@ -98,7 +120,7 @@ export default function MapPage() {
     }
     if (bounds.isEmpty()) return;
     try {
-      mp.fitBounds(bounds, { padding: { top: 88, bottom: 72, left: 72, right: 56 }, maxZoom: 11, duration: 700 });
+      mp.fitBounds(bounds, { padding: { top: 140, bottom: 88, left: 72, right: 72 }, maxZoom: 11, duration: 700 });
     } catch { /* ignore */ }
   }, [markers]);
 
@@ -355,102 +377,190 @@ export default function MapPage() {
   const cities = new Set((markers || []).map(x => x.label)).size;
 
   return (
-    <>
-      <div className={`gm-page gm-page--${filter}`}>
-        <div className="gm-top">
-          <div className="gm-head">
-            <h2 className="gm-title">Карта семьи</h2>
-            <p className="gm-sub">Точки по городам из справочника — клик по маркеру открывает список или карточку</p>
+    <div className="home-shell home-portal -mx-4 space-y-0 md:-mx-6">
+      <div className={cn("map-page", filter === "burial" && "map-page--burial")}>
+        <section className="home-portal-hero shrink-0 border-b border-border/60 px-4 py-6 md:px-6 md:py-8">
+          <div className="home-portal-grid flex flex-col gap-6 lg:flex-row lg:items-end lg:justify-between">
+            <div className="min-w-0">
+              <Badge variant="secondary" className="home-pill home-portal-kicker mb-2">
+                География рода
+              </Badge>
+              <h2 className="home-portal-title text-2xl md:text-3xl">Карта семьи</h2>
+              <p className="home-portal-subtitle mt-1 max-w-xl">
+                Точки по городам из справочника — клик по маркеру открывает список или карточку
+              </p>
+            </div>
+            <div className="flex flex-col gap-3 sm:flex-row sm:flex-wrap sm:items-center">
+              <div className="flex flex-wrap gap-2">
+                <Button
+                  type="button"
+                  variant={filter === "birth" ? "default" : "outline"}
+                  size="sm"
+                  className="gap-1.5"
+                  onClick={() => setFilter("birth")}
+                >
+                  <CircleDot className="size-3.5 opacity-80" aria-hidden />
+                  Рождение
+                </Button>
+                <Button
+                  type="button"
+                  variant={filter === "burial" ? "default" : "outline"}
+                  size="sm"
+                  className="gap-1.5"
+                  onClick={() => setFilter("burial")}
+                >
+                  <LandPlot className="size-3.5 opacity-80" aria-hidden />
+                  Захоронение
+                </Button>
+              </div>
+              {!loading && markers.length > 0 && (
+                <div className="flex flex-wrap gap-2">
+                  <Badge variant="secondary" className="tabular-nums">
+                    {markers.length} чел.
+                  </Badge>
+                  <Badge variant="secondary" className="tabular-nums">
+                    {cities} {cities === 1 ? "город" : "городов"}
+                  </Badge>
+                </div>
+              )}
+            </div>
           </div>
-          <div className="gm-filters">
-            <button type="button" className={`gm-fbtn${filter === "birth" ? " on" : ""}`} onClick={() => setFilter("birth")}>
-              <span className="gm-fbtn-ic" aria-hidden>◎</span>
-              Рождение
-            </button>
-            <button type="button" className={`gm-fbtn${filter === "burial" ? " on" : ""}`} onClick={() => setFilter("burial")}>
-              <span className="gm-fbtn-ic" aria-hidden>◇</span>
-              Захоронение
-            </button>
+        </section>
+
+        {error ? (
+          <div className="shrink-0 px-4 pt-3 md:px-6">
+            <Alert>
+              <AlertCircle className="size-4" />
+              <AlertTitle>Карта</AlertTitle>
+              <AlertDescription>{error}</AlertDescription>
+            </Alert>
           </div>
-          {!loading && markers.length > 0 && (
-            <div className="gm-stats">
-              <span className="gm-stat-pill">{markers.length} чел.</span>
-              <span className="gm-stat-pill">{cities} {cities === 1 ? "город" : "городов"}</span>
+        ) : null}
+
+        <div className="map-wrap">
+          <div ref={boxRef} className="map-canvas" />
+
+          {loading && (
+            <div className="pointer-events-none absolute inset-0 z-[5] flex flex-col items-center justify-center gap-3 bg-background/75 backdrop-blur-[2px]">
+              <Skeleton className="absolute inset-0 rounded-none opacity-40" />
+              <span className="relative text-sm text-muted-foreground">Загрузка карты…</span>
             </div>
           )}
-        </div>
-
-        {error && <div className="gm-err">{error}</div>}
-
-        <div className="gm-wrap">
-          <div ref={boxRef} className="gm-box" />
-
-          {loading && <div className="gm-overlay"><div className="gm-spin" />Загрузка...</div>}
 
           {!loading && !error && markers.length === 0 && (
-            <div className="gm-overlay">
-              <div style={{fontSize:28,marginBottom:6}}>📍</div>
-              <div style={{fontWeight:700}}>Нет данных</div>
-              <div className="gm-hint">Добавьте родственников с указанием {filter === "birth" ? "места рождения" : "места захоронения"}</div>
+            <div className="absolute inset-0 z-[5] flex items-center justify-center p-4">
+              <Card className="max-w-sm shadow-md">
+                <CardHeader>
+                  <div className="mb-2 flex size-10 items-center justify-center rounded-lg bg-muted">
+                    <MapPin className="size-5 text-muted-foreground" aria-hidden />
+                  </div>
+                  <CardTitle>Нет данных</CardTitle>
+                  <CardDescription>
+                    Добавьте родственников с указанием{" "}
+                    {filter === "birth" ? "места рождения" : "места захоронения"}.
+                  </CardDescription>
+                </CardHeader>
+              </Card>
             </div>
           )}
 
           {panel && (
-            <div className="gm-panel">
-              <div className="gm-panel-accent" aria-hidden />
-              <div className="gm-panel-head">
-                <div>
-                  <div className="gm-panel-kicker">Город</div>
-                  <div className="gm-panel-city">{panel.city}</div>
-                  <div className="gm-panel-cnt">{panel.items.length} {panel.items.length === 1 ? "человек" : "человек"}</div>
-                </div>
-                <button
-                  type="button"
-                  className="gm-panel-x"
-                  onClick={() => {
-                    setPanel(null);
-                    setPanelPerson(null);
-                  }}
-                  aria-label="Закрыть"
-                >
-                  ✕
-                </button>
-              </div>
-              <div className="gm-panel-list">
-                {panel.items.map((p, i) => (
-                  <button type="button" key={p.id || i} className="gm-person" onClick={() => setPanelPerson(p)}>
-                    <div className={`gm-av ${sx(p)}`}>{ini(p)}</div>
-                    <div className="gm-person-info">
-                      <div className="gm-person-name">{fmtName(p)}</div>
-                      <div className="gm-person-sub">{p.birthDate ? `р. ${p.birthDate}` : ""}</div>
-                    </div>
-                  </button>
-                ))}
-              </div>
+            <Card
+              className={cn(
+                "z-40 gap-0 py-0 shadow-lg ring-1 ring-border/80",
+                "md:absolute md:top-3 md:right-3 md:bottom-auto md:w-[min(300px,calc(100%-1.5rem))] md:max-h-[min(520px,calc(100%-1.5rem))]",
+                "max-md:fixed max-md:inset-x-0 max-md:bottom-0 max-md:max-h-[45vh] max-md:rounded-b-none max-md:rounded-t-xl max-md:border-b-0"
+              )}
+            >
+              <div
+                className={cn(
+                  "h-1 w-full shrink-0 rounded-t-xl",
+                  "bg-gradient-to-r from-chart-2 via-chart-1 to-chart-5",
+                  filter === "burial" && "from-chart-4 via-chart-1 to-chart-5"
+                )}
+                aria-hidden
+              />
+              <CardHeader className="border-b border-border/60 pb-3">
+                <CardDescription className="text-xs font-semibold tracking-widest uppercase">
+                  Город
+                </CardDescription>
+                <CardTitle className="text-lg leading-tight">{panel.city}</CardTitle>
+                <CardDescription>
+                  {panel.items.length} {panel.items.length === 1 ? "человек" : "человек"}
+                </CardDescription>
+                <CardAction>
+                  <Button
+                    type="button"
+                    size="icon"
+                    variant="ghost"
+                    className="shrink-0"
+                    onClick={() => {
+                      setPanel(null);
+                      setPanelPerson(null);
+                    }}
+                    aria-label="Закрыть"
+                  >
+                    <X className="size-4" />
+                  </Button>
+                </CardAction>
+              </CardHeader>
+              <CardContent className="max-h-[min(40vh,280px)] overflow-y-auto pt-0 pb-3 md:max-h-[min(36vh,260px)]">
+                <ul className="flex flex-col gap-1 p-0">
+                  {panel.items.map((p, i) => (
+                    <li key={p.id || i}>
+                      <Button
+                        type="button"
+                        variant="ghost"
+                        className="h-auto w-full justify-start gap-3 py-2.5"
+                        onClick={() => setPanelPerson(p)}
+                      >
+                        <Avatar size="sm" className="size-8">
+                          <AvatarFallback className={cn("text-xs font-semibold", avatarFallbackClass(p))}>
+                            {ini(p)}
+                          </AvatarFallback>
+                        </Avatar>
+                        <span className="min-w-0 flex-1 text-left">
+                          <span className="block truncate font-medium">{fmtName(p)}</span>
+                          {p.birthDate ? (
+                            <span className="block truncate text-xs text-muted-foreground">
+                              р. {p.birthDate}
+                            </span>
+                          ) : null}
+                        </span>
+                      </Button>
+                    </li>
+                  ))}
+                </ul>
+              </CardContent>
               {panelPerson ? (
-                <div className="gm-panel-head" style={{ borderTop: "1px solid var(--border)", marginTop: 8 }}>
-                  <div>
-                    <div className="gm-panel-kicker">Карточка</div>
-                    <div className="gm-panel-city">{fmtFull(panelPerson)}</div>
-                    <div className="gm-panel-cnt">
-                      {(panelPerson.sex === "M" ? "Мужской" : panelPerson.sex === "F" ? "Женский" : "Не указан")}
-                      {panelPerson.birthDate ? ` · р. ${panelPerson.birthDate}` : ""}
+                <>
+                  <Separator />
+                  <CardHeader className="pt-3 pb-4">
+                    <CardDescription className="text-xs font-semibold tracking-widest uppercase">
+                      Карточка
+                    </CardDescription>
+                    <CardTitle className="text-base leading-snug">{fmtFull(panelPerson)}</CardTitle>
+                    <div className="space-y-1 text-sm text-muted-foreground">
+                      <p>
+                        {(panelPerson.sex === "M" ? "Мужской" : panelPerson.sex === "F" ? "Женский" : "Не указан")}
+                        {panelPerson.birthDate ? ` · р. ${panelPerson.birthDate}` : ""}
+                      </p>
+                      <p>Место рождения: {panelPerson.birthCityCustom || panelPerson.birthCity || "—"}</p>
+                      <p>Статус: {panelPerson.alive ? "Жив(а)" : "Умер(ла)"}</p>
+                      {!panelPerson.alive ? (
+                        <>
+                          <p>Дата смерти: {panelPerson.deathDate || "—"}</p>
+                          <p>Место захоронения: {panelPerson.burialPlace || "—"}</p>
+                        </>
+                      ) : null}
                     </div>
-                    <div className="gm-panel-cnt">Место рождения: {panelPerson.birthCityCustom || panelPerson.birthCity || "—"}</div>
-                    <div className="gm-panel-cnt">Статус: {panelPerson.alive ? "Жив(а)" : "Умер(ла)"}</div>
-                    {!panelPerson.alive ? (
-                      <>
-                        <div className="gm-panel-cnt">Дата смерти: {panelPerson.deathDate || "—"}</div>
-                        <div className="gm-panel-cnt">Место захоронения: {panelPerson.burialPlace || "—"}</div>
-                      </>
-                    ) : null}
-                  </div>
-                </div>
+                  </CardHeader>
+                </>
               ) : null}
-            </div>
+            </Card>
           )}
         </div>
       </div>
-    </>
+    </div>
   );
 }
