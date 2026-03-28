@@ -317,6 +317,10 @@ export default function MapPage() {
         scrollWheelZoom: true,
       }).setView([55.75, 37.6], 5);
 
+      if (map.attributionControl?.setPrefix) {
+        map.attributionControl.setPrefix(false);
+      }
+
       L.control.zoom({ position: "bottomright" }).addTo(map);
 
       const dark = getDarkSnapshot();

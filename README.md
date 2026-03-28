@@ -24,7 +24,6 @@
 
 #### Локальный Ollama в Docker Compose
 
-- Поднять стек с Ollama: `docker compose --profile ai up -d` (без профиля `ai` поведение как раньше, контейнер Ollama не создаётся).
-- Один раз загрузить модель, например: `docker compose --profile ai exec ollama ollama pull llama3.2` (имя должно совпадать с `AI_MODEL`).
+- Ollama входит в обычный `docker compose up -d`. Модель один раз: `docker compose exec ollama ollama pull llama3.2` (имя — как в `AI_MODEL`).
 - В `.env` задайте `AI_ENABLED=true`. В [`docker-compose.yml`](docker-compose.yml) для сервиса `server` уже проброшены `AI_API_BASE_URL` (по умолчанию `http://ollama:11434/v1` — имя сервиса в сети compose) и `AI_MODEL`.
 - Порт **11434** слушает только на **127.0.0.1** на хосте (удобно вызывать `ollama` с машины; с других интерфейсов не открыт).

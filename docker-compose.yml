@@ -3,9 +3,8 @@
 # Полный сброс БД: docker compose down && rm -rf mongo-data && docker compose up -d
 # Именованный том docker compose down -v с хоста не удаляет — для bind-mount нужно убрать каталог.
 #
-# Локальный ИИ (Ollama): docker compose --profile ai up -d
-# Модель один раз: docker compose --profile ai exec ollama ollama pull llama3.2
-# В .env: AI_ENABLED=true; для контейнера server по умолчанию AI_API_BASE_URL=http://ollama:11434/v1
+# Ollama поднимается вместе со стеком. Модель один раз: docker compose exec ollama ollama pull llama3.2
+# В .env для ИИ-ленты: AI_ENABLED=true (см. .env.example); server ходит на http://ollama:11434/v1
 services:
   mongodb:
     image: mongo:7
@@ -22,6 +21,7 @@ services:
     build: ./server-go
     depends_on:
       - mongodb
+      - ollama
     environment:
       - PORT=3001
       # БД project_drevo — имя как в server-go/internal/config DefaultMongoDBName
@@ -46,11 +46,8 @@ services:
     ports:
       - "3001:3001"
 
-  # OpenAI-compatible API для ИИ-ленты. Без --profile ai не поднимается (server не зависит от ollama — иначе ошибка compose).
   ollama:
     image: ollama/ollama:latest
-    profiles:
-      - ai
     volumes:
       - ollama-data:/root/.ollama
     ports:
