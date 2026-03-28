@@ -6,7 +6,19 @@ WORKDIR /app
 ENV CI=true
 COPY package.json package-lock.json components.json ./
 RUN npm ci --no-audit --fund=false
-COPY . .
+
+# Явно копируем исходники (не полагаемся на «случайные» исключения в контексте).
+COPY index.html vite.config.ts tsconfig.json ./
+COPY scripts ./scripts
+COPY src ./src
+
+# shadcn UI обязан быть в git; иначе Vite падает с ENOENT на `@/components/ui/card`.
+RUN test -f src/components/ui/card.tsx && test -f src/components/ui/tabs.tsx || ( \
+  echo "ERROR: нет client/src/components/ui/*.tsx в контексте Docker."; \
+  echo "Сделайте git pull и проверьте, что файлы закоммичены (см. client/.gitignore)."; \
+  ls -la src/components/ui 2>/dev/null || echo "(папка ui отсутствует)"; \
+  exit 1 )
+
 # Обходим `prebuild` → `ui:pull` (нужен внешний реестр); UI уже в git.
 RUN npx vite build
 
