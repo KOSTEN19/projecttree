@@ -14,12 +14,6 @@ import {
   DialogTitle,
 } from "@/components/ui/dialog";
 import { Separator } from "@/components/ui/separator";
-import {
-  QUICK_ADD_RELATIONS,
-  getMoreRelationTypes,
-  inferLineForRelation,
-  relationNeedsLine,
-} from "./treeAddRelativePresets.js";
 
 export type TreeAddRelativePayload = { basePersonId: string; relationType: string; line: string };
 
@@ -73,15 +67,16 @@ function ProseBlock({ title, body }: { title: string; body: string }) {
 export function TreePersonCardOverlay({
   card,
   onClose,
-  onBranchFocus,
   onStartAddRelative,
+  onBeginRelationPicker,
   virtualAddPreset,
 }: {
   card: TreeCardPerson;
   onClose: () => void;
-  onBranchFocus?: (f: TreePersonBranchFocus) => void;
   /** Добавление родственника с полотна древа (открывает степпер на странице дерева). */
   onStartAddRelative?: (p: TreeAddRelativePayload) => void;
+  /** Открыть диалог выбора типа связи (родитель закрывает карточку и показывает picker). */
+  onBeginRelationPicker?: (basePersonId: string) => void;
   /** Для заглушки v:… — готовые basePersonId / тип связи (из parseVirtualTreeNodeId). */
   virtualAddPreset?: TreeAddRelativePayload | null;
 }) {
@@ -89,7 +84,6 @@ export function TreePersonCardOverlay({
   const isVirtual = Boolean(card.isVirtual || card.isPlaceholder || pid.startsWith("v:"));
   const city = (card.birthCityCustom || card.birthCity || "").trim();
   const sexLabel = card.sex === "M" ? "Мужской" : card.sex === "F" ? "Женский" : "Не указан";
-  const moreRelationTypes = getMoreRelationTypes();
 
   return (
     <Dialog open onOpenChange={(open) => !open && onClose()}>
@@ -167,62 +161,25 @@ export function TreePersonCardOverlay({
                       Не удалось определить связь для этой заглушки. Добавьте родственника через вкладку «Родственники».
                     </p>
                   )
-                ) : (
+                ) : onBeginRelationPicker ? (
                   <>
                     <p className="text-muted-foreground text-sm">
                       {card.isSelf
-                        ? "Выберите, кого добавляете: родителя, ребёнка, супруга или другого родственника."
-                        : "Новая карточка будет привязана к этому человеку (база задаётся на древе)."}
+                        ? "Откроется список типов связи: родитель, ребёнок, супруг и другие."
+                        : "Новая карточка будет привязана к этому человеку. Линии на древе (материнская, отцовская) включаются из меню по клику на человека на полотне."}
                     </p>
-                    <div className="flex flex-wrap gap-2">
-                      {QUICK_ADD_RELATIONS.map((q) => (
-                        <Button
-                          key={q.relationType}
-                          type="button"
-                          variant="secondary"
-                          size="sm"
-                          onClick={() => {
-                            onStartAddRelative({
-                              basePersonId: pid,
-                              relationType: q.relationType,
-                              line: q.line,
-                            });
-                            onClose();
-                          }}
-                        >
-                          {q.label}
-                        </Button>
-                      ))}
-                    </div>
-                    {moreRelationTypes.length > 0 ? (
-                      <details className="text-sm">
-                        <summary className="text-primary cursor-pointer font-medium underline-offset-4 hover:underline">
-                          Другие типы связи
-                        </summary>
-                        <div className="mt-2 flex max-h-40 flex-wrap gap-2 overflow-y-auto pt-1">
-                          {moreRelationTypes.map((t) => (
-                            <Button
-                              key={t}
-                              type="button"
-                              variant="outline"
-                              size="sm"
-                              className="text-xs"
-                              onClick={() => {
-                                onStartAddRelative({
-                                  basePersonId: pid,
-                                  relationType: t,
-                                  line: relationNeedsLine(t) ? inferLineForRelation(t) : "",
-                                });
-                                onClose();
-                              }}
-                            >
-                              {t}
-                            </Button>
-                          ))}
-                        </div>
-                      </details>
-                    ) : null}
+                    <Button
+                      type="button"
+                      variant="secondary"
+                      size="sm"
+                      className="w-full sm:w-auto"
+                      onClick={() => onBeginRelationPicker(pid)}
+                    >
+                      Выбрать тип связи…
+                    </Button>
                   </>
+                ) : (
+                  <p className="text-muted-foreground text-sm">Добавление с древа недоступно.</p>
                 )}
               </div>
             ) : null}
@@ -257,46 +214,7 @@ export function TreePersonCardOverlay({
           </div>
         </div>
 
-        <DialogFooter className="shrink-0 flex-col gap-3 border-t border-border/60 bg-muted/40 sm:flex-row sm:flex-wrap sm:items-center sm:justify-between">
-          <div className="flex w-full flex-col gap-2 sm:w-auto sm:flex-row sm:flex-wrap">
-            {!isVirtual && onBranchFocus && pid ? (
-              <>
-                <Button
-                  type="button"
-                  variant="secondary"
-                  size="sm"
-                  onClick={() => {
-                    onBranchFocus({ type: "maternal", anchorId: pid });
-                    onClose();
-                  }}
-                >
-                  Линия матери
-                </Button>
-                <Button
-                  type="button"
-                  variant="secondary"
-                  size="sm"
-                  onClick={() => {
-                    onBranchFocus({ type: "paternal", anchorId: pid });
-                    onClose();
-                  }}
-                >
-                  Линия отца
-                </Button>
-                <Button
-                  type="button"
-                  variant="secondary"
-                  size="sm"
-                  onClick={() => {
-                    onBranchFocus({ type: "lineage", anchorId: pid });
-                    onClose();
-                  }}
-                >
-                  Ветка к предку
-                </Button>
-              </>
-            ) : null}
-          </div>
+        <DialogFooter className="shrink-0 flex-col gap-3 border-t border-border/60 bg-muted/40 sm:flex-row sm:flex-wrap sm:items-center sm:justify-end">
           <div className="flex w-full flex-wrap justify-end gap-2 sm:w-auto">
             <Link
               to="/app/relatives"

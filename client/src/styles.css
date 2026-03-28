@@ -862,9 +862,18 @@
   border-bottom: 1px solid rgba(244, 63, 94, 0.15);
 }
 
+/* Диалог выбора связи с древа — выше всплывающего меню узла (z-index 80) */
+[data-slot="dialog-overlay"]:has(+ [data-slot="dialog-content"].tree-add-relative-picker-dialog) {
+  z-index: 99;
+}
+
+.tree-add-relative-picker-dialog[data-slot="dialog-content"] {
+  z-index: 100;
+}
+
 .tree-person-popup {
   width: min(280px, calc(100vw - 1rem));
-  max-height: min(420px, calc(100vh - 1rem));
+  max-height: min(380px, calc(100vh - 1rem));
   overflow-y: auto;
   border-radius: var(--radius-lg, 0.75rem);
   border: 1px solid var(--border);
@@ -911,7 +920,20 @@
 }
 
 .tree-person-popup__actions {
+  margin-bottom: 0.45rem;
+}
+
+.tree-person-popup__focus-row {
+  display: flex;
+  flex-direction: column;
+  gap: 0.35rem;
   margin-bottom: 0.5rem;
+}
+
+.tree-person-popup__focus-btn {
+  width: 100%;
+  justify-content: center;
+  font-size: 0.75rem;
 }
 
 .tree-person-popup__section-label {

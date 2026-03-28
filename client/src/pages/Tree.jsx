@@ -3,6 +3,7 @@ import { CircleHelp } from "lucide-react";
 import { apiGet } from "../api.js";
 import AddRelativeStepperForm from "../components/AddRelativeStepperForm.jsx";
 import { Av, sx } from "../features/tree/TreeAvatars";
+import { TreeAddRelativeRelationPicker } from "../features/tree/TreeAddRelativeRelationPicker.jsx";
 import { TreePersonCardOverlay } from "../features/tree/TreePersonCardOverlay";
 import { TreePersonPopup } from "../features/tree/TreePersonPopup.jsx";
 import { applyTreeFocus, extractParentMapsForTree, focusForClick } from "../lib/treeFocus.js";
@@ -697,6 +698,8 @@ export default function Tree() {
   });
   /** { clientX, clientY, person } — всплывающее меню по клику на узел */
   const [personMenu, setPersonMenu] = useState(null);
+  /** Диалог выбора типа связи (с древа / из карточки) */
+  const [relationPicker, setRelationPicker] = useState(null);
   const vpRef = useRef(null);
   const [pos, setPos] = useState({});
   const [cam, setCam] = useState({ x: 0, y: 0, s: 1 });
@@ -742,6 +745,20 @@ export default function Tree() {
     });
     setAddRelativeOpen(true);
   }, []);
+
+  const beginRelationPicker = useCallback((basePersonId) => {
+    setPersonMenu(null);
+    setCard(null);
+    setRelationPicker({ basePersonId });
+  }, []);
+
+  const onRelationTypePicked = useCallback(
+    (payload) => {
+      setRelationPicker(null);
+      openAddRelativeFromTree(payload);
+    },
+    [openAddRelativeFromTree],
+  );
 
   const parentMaps = useMemo(() => {
     const byId = new Map();
@@ -1126,17 +1143,28 @@ export default function Tree() {
         onClose={() => setPersonMenu(null)}
         onOpenDetails={(p) => setCard(p)}
         onStartAddRelative={openAddRelativeFromTree}
+        onBranchFocus={(f) => setBranchFocus(f)}
+        onBeginRelationPicker={beginRelationPicker}
       />
 
       {card ? (
         <TreePersonCardOverlay
           card={card}
           onClose={() => setCard(null)}
-          onBranchFocus={(f) => setBranchFocus(f)}
           onStartAddRelative={openAddRelativeFromTree}
+          onBeginRelationPicker={beginRelationPicker}
           virtualAddPreset={String(card.id || "").startsWith("v:") ? parseVirtualTreeNodeId(card.id) : null}
         />
       ) : null}
+
+      <TreeAddRelativeRelationPicker
+        open={Boolean(relationPicker?.basePersonId)}
+        onOpenChange={(open) => {
+          if (!open) setRelationPicker(null);
+        }}
+        basePersonId={relationPicker?.basePersonId ?? ""}
+        onSelect={onRelationTypePicked}
+      />
 
       <Dialog open={helpOpen} onOpenChange={setHelpOpen}>
         <DialogContent className="max-h-[min(90vh,720px)] max-w-lg overflow-y-auto">
@@ -1159,11 +1187,11 @@ export default function Tree() {
                   </p>
                 </section>
                 <section className="space-y-1">
-                  <h3 className="text-foreground text-sm font-semibold">Добавление с древа</h3>
+                  <h3 className="text-foreground text-sm font-semibold">Меню по клику на древе</h3>
                   <p>
-                    Клик по человеку на древе открывает меню: «Подробная карточка» или быстрый выбор типа связи для
-                    нового родственника. Базовый человек для мастера берётся с древа и не меняется в форме; линия
-                    родства подставляется автоматически.
+                    Откроется карточка действий: подробная анкета, подсветка материнской или отцовской линии либо ветки к
+                    предку, и добавление родственника через отдельное окно выбора типа связи. Базовый человек для мастера
+                    берётся с древа; линия родства подставляется автоматически.
                   </p>
                 </section>
                 <section className="space-y-1">
