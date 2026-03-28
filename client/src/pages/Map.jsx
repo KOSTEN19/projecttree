@@ -1,7 +1,7 @@
 import React, { useCallback, useEffect, useRef, useState } from "react";
+import L from "leaflet";
+import "leaflet/dist/leaflet.css";
 import { CircleDot, LandPlot, MapPin, X, AlertCircle } from "lucide-react";
-import "maplibre-gl/dist/maplibre-gl.css";
-import maplibregl from "../maplibre.js";
 import { apiGet } from "../api.js";
 import { cn } from "@/lib/utils";
 import { Alert, AlertDescription, AlertTitle } from "@/components/ui/alert";
@@ -18,43 +18,6 @@ import {
 } from "@/components/ui/card";
 import { Separator } from "@/components/ui/separator";
 import { Skeleton } from "@/components/ui/skeleton";
-
-const CITY_SOURCE_ID = "city-points";
-const CITY_CIRCLE_LAYER_ID = "city-circles";
-const CITY_LABEL_LAYER_ID = "city-labels";
-const CITY_COUNT_LAYER_ID = "city-count";
-
-function getMapStyle() {
-  return {
-    version: 8,
-    glyphs: "https://demotiles.maplibre.org/font/{fontstack}/{range}.pbf",
-    sources: {
-      osm: {
-        type: "raster",
-        tiles: [
-          "https://a.tile.openstreetmap.org/{z}/{x}/{y}.png",
-          "https://b.tile.openstreetmap.org/{z}/{x}/{y}.png",
-          "https://c.tile.openstreetmap.org/{z}/{x}/{y}.png",
-        ],
-        tileSize: 256,
-        attribution: "&copy; OpenStreetMap contributors",
-      },
-    },
-    layers: [
-      {
-        id: "base",
-        type: "raster",
-        source: "osm",
-        paint: {
-          "raster-brightness-min": 0.34,
-          "raster-brightness-max": 1.24,
-          "raster-saturation": 0.08,
-          "raster-contrast": 0.16,
-        },
-      },
-    ],
-  };
-}
 
 function fmtName(p) { return [p?.lastName, p?.firstName].filter(Boolean).join(" ") || "Без имени"; }
 function fmtFull(p) { return [p?.lastName, p?.firstName, p?.middleName].filter(Boolean).join(" ") || "Без имени"; }
@@ -93,6 +56,15 @@ function normalizeLon(lon) {
   return normalized;
 }
 
+function markerRadiusForCount(count) {
+  const c = Math.max(1, Number(count) || 1);
+  if (c <= 1) return 9;
+  if (c <= 2) return 12;
+  if (c <= 5) return 16;
+  if (c <= 10) return 20;
+  return 22;
+}
+
 export default function MapPage() {
   const [filter, setFilter] = useState("birth");
   const [markers, setMarkers] = useState([]);
@@ -100,47 +72,13 @@ export default function MapPage() {
   const [error, setError] = useState("");
   const [panel, setPanel] = useState(null);
   const [panelPerson, setPanelPerson] = useState(null);
+  const [leafletMap, setLeafletMap] = useState(null);
 
   const boxRef = useRef(null);
-  const mapRef = useRef(null);
-  const popRef = useRef(null);
+  const geoLayerRef = useRef(null);
   const groupsRef = useRef(new Map());
   const markersCacheRef = useRef({ birth: null, burial: null });
-  const mapReady = useRef(false);
-  const mapHandlersBound = useRef(false);
-
-  const fitBoundsIfNeeded = useCallback(() => {
-    const mp = mapRef.current;
-    if (!mp || !mapReady.current || markers.length === 0) return;
-    const bounds = new maplibregl.LngLatBounds();
-    for (const mk of markers) {
-      const lat = +mk.lat;
-      const lon = +mk.lon;
-      if (Number.isFinite(lat) && Number.isFinite(lon)) bounds.extend([lon, lat]);
-    }
-    if (bounds.isEmpty()) return;
-    try {
-      mp.fitBounds(bounds, { padding: { top: 140, bottom: 88, left: 72, right: 72 }, maxZoom: 11, duration: 700 });
-    } catch { /* ignore */ }
-  }, [markers]);
-
-  const fitBoundsRef = useRef(fitBoundsIfNeeded);
-  fitBoundsRef.current = fitBoundsIfNeeded;
-
-  function killPop() { try { popRef.current?.remove(); } catch {} popRef.current = null; }
-
-  function showPop(map, ll, html) {
-    if (!popRef.current) {
-      popRef.current = new maplibregl.Popup({
-        closeButton: false,
-        closeOnClick: false,
-        offset: 18,
-        maxWidth: "280px",
-        className: "gm-pop",
-      });
-    }
-    popRef.current.setLngLat(ll).setHTML(html).addTo(map);
-  }
+  const hoverPopupRef = useRef(null);
 
   const getCityFeatureCollection = useCallback(() => {
     const features = [];
@@ -165,132 +103,192 @@ export default function MapPage() {
     return { type: "FeatureCollection", features };
   }, []);
 
-  const ensureLayersRef = useRef(() => {});
-  const refreshSourceDataRef = useRef(() => {});
+  const openByFeature = useCallback((feature) => {
+    const city = feature?.properties?.city;
+    if (!city) return;
+    const arr = groupsRef.current.get(city) || [];
+    if (arr.length > 1) {
+      setPanel({ city, items: arr.map((x) => x.person).filter(Boolean) });
+      setPanelPerson(null);
+      return;
+    }
+    const p = arr[0]?.person;
+    if (p) {
+      setPanel({ city, items: [p] });
+      setPanelPerson(p);
+    }
+  }, []);
 
-  const ensureLayers = useCallback(() => {
-    const mp = mapRef.current;
-    if (!mp || !mapReady.current) return;
-    if (!mp.getSource(CITY_SOURCE_ID)) {
-      mp.addSource(CITY_SOURCE_ID, {
-        type: "geojson",
-        data: getCityFeatureCollection(),
-      });
+  const fitBoundsIfNeeded = useCallback((map) => {
+    if (!map || markers.length === 0) return;
+    const b = L.latLngBounds([]);
+    let any = false;
+    for (const mk of markers) {
+      const lat = +mk.lat;
+      const lon = +mk.lon;
+      if (Number.isFinite(lat) && Number.isFinite(lon)) {
+        b.extend([lat, lon]);
+        any = true;
+      }
     }
-    if (!mp.getLayer(CITY_CIRCLE_LAYER_ID)) {
-      mp.addLayer({
-        id: CITY_CIRCLE_LAYER_ID,
-        type: "circle",
-        source: CITY_SOURCE_ID,
-        paint: {
-          "circle-radius": ["interpolate", ["linear"], ["get", "count"], 1, 8, 2, 12, 5, 18, 10, 22],
-          "circle-color": ["case", [">", ["get", "count"], 1], "#8fb2df", "#d59aaa"],
-          "circle-stroke-width": 2.2,
-          "circle-stroke-color": "#6c5a4a",
-          "circle-opacity": 0.9,
-        },
-      });
-    }
-    if (!mp.getLayer(CITY_COUNT_LAYER_ID)) {
-      mp.addLayer({
-        id: CITY_COUNT_LAYER_ID,
-        type: "symbol",
-        source: CITY_SOURCE_ID,
-        layout: {
-          "text-field": ["case", [">", ["get", "count"], 1], ["to-string", ["get", "count"]], ""],
-          "text-font": ["Open Sans Bold"],
-          "text-size": 11,
-          "text-allow-overlap": true,
-        },
-        paint: {
-          "text-color": "#3b2f24",
-        },
-      });
-    }
-    if (!mp.getLayer(CITY_LABEL_LAYER_ID)) {
-      mp.addLayer({
-        id: CITY_LABEL_LAYER_ID,
-        type: "symbol",
-        source: CITY_SOURCE_ID,
-        layout: {
-          "text-field": ["get", "cityShort"],
-          "text-font": ["Open Sans Semibold"],
-          "text-size": 12,
-          "text-offset": [0, 1.35],
-          "text-anchor": "top",
-          "text-allow-overlap": true,
-        },
-        paint: {
-          "text-color": "#3b2f24",
-          "text-halo-color": "rgba(252, 249, 243, 0.98)",
-          "text-halo-width": 1.5,
-        },
-      });
-    }
-    if (!mapHandlersBound.current) {
-      const openByFeature = (f) => {
-        const city = f?.properties?.city;
-        if (!city) return;
-        const arr = groupsRef.current.get(city) || [];
-        if (arr.length > 1) {
-          setPanel({ city, items: arr.map((x) => x.person).filter(Boolean) });
-          setPanelPerson(null);
-          return;
-        }
-        const p = arr[0]?.person;
-        if (p) {
-          setPanel({ city, items: [p] });
-          setPanelPerson(p);
-        }
-      };
-      mp.on("click", CITY_CIRCLE_LAYER_ID, (e) => {
-        const f = e?.features?.[0];
-        openByFeature(f);
-      });
-      mp.on("mouseenter", CITY_CIRCLE_LAYER_ID, (e) => {
-        mp.getCanvas().style.cursor = "pointer";
-        const f = e?.features?.[0];
-        if (!f) return;
-        const city = f.properties?.city;
-        const count = Number(f.properties?.count || 0);
-        const ll = f.geometry?.coordinates;
-        if (!city || !Array.isArray(ll)) return;
-        if (count > 1) {
-          showPop(
-            mp,
-            ll,
-            `<div class="gm-pop-inner"><strong>${city}</strong><div class="gm-pop-meta">${count} человек в этой точке</div></div>`
-          );
-          return;
-        }
-        const arr = groupsRef.current.get(city) || [];
-        const p = arr[0]?.person || {};
-        const sub = [p.birthDate ? `р. ${p.birthDate}` : "", city].filter(Boolean).join(" · ");
-        showPop(
-          mp,
-          ll,
-          `<div class="gm-pop-inner"><strong>${fmtName(p)}</strong>${sub ? `<div class="gm-pop-meta">${sub}</div>` : ""}</div>`
-        );
-      });
-      mp.on("mouseleave", CITY_CIRCLE_LAYER_ID, () => {
-        mp.getCanvas().style.cursor = "";
-        killPop();
-      });
-      mapHandlersBound.current = true;
-    }
-  }, [getCityFeatureCollection]);
+    if (!any || !b.isValid()) return;
+    try {
+      map.fitBounds(b, { padding: [88, 88], maxZoom: 11, animate: true });
+    } catch { /* ignore */ }
+  }, [markers]);
 
-  const refreshSourceData = useCallback(() => {
-    const mp = mapRef.current;
-    if (!mp || !mapReady.current) return;
-    const src = mp.getSource(CITY_SOURCE_ID);
-    if (src && typeof src.setData === "function") {
-      src.setData(getCityFeatureCollection());
-    }
-  }, [getCityFeatureCollection]);
+  const rebuildGeoLayer = useCallback(
+    (map) => {
+      if (!map) return;
+      if (geoLayerRef.current) {
+        map.removeLayer(geoLayerRef.current);
+        geoLayerRef.current = null;
+      }
+      try {
+        map.closePopup();
+      } catch { /* ignore */ }
+      hoverPopupRef.current = null;
 
-  ensureLayersRef.current = ensureLayers;
-  refreshSourceDataRef.current = refreshSourceData;
+      const fc = getCityFeatureCollection();
+      if (!fc.features.length) {
+        if (geoLayerRef.current) {
+          map.removeLayer(geoLayerRef.current);
+          geoLayerRef.current = null;
+        }
+        return;
+      }
+
+      const layer = L.geoJSON(fc, {
+        pointToLayer(feature, latlng) {
+          const count = Number(feature.properties?.count || 1);
+          const r = markerRadiusForCount(count);
+          const fill = count > 1 ? "#8fb2df" : "#d59aaa";
+          return L.circleMarker(latlng, {
+            radius: r,
+            fillColor: fill,
+            color: "#6c5a4a",
+            weight: 2,
+            opacity: 1,
+            fillOpacity: 0.9,
+          });
+        },
+        onEachFeature(feature, lay) {
+          const city = feature.properties?.city;
+          const count = Number(feature.properties?.count || 0);
+          const short = feature.properties?.cityShort || city;
+          const arr = groupsRef.current.get(city) || [];
+          const p = arr[0]?.person || {};
+          const sub = [p.birthDate ? `р. ${p.birthDate}` : "", city].filter(Boolean).join(" · ");
+
+          const tipText = count > 1 ? `${count} · ${short}` : short;
+          lay.bindTooltip(tipText, {
+            permanent: true,
+            direction: "bottom",
+            offset: [0, 6],
+            className: "map-leaflet-city-tip",
+            opacity: 1,
+          });
+
+          lay.on("click", (ev) => {
+            L.DomEvent.stopPropagation(ev);
+            openByFeature(feature);
+          });
+
+          lay.on("mouseover", () => {
+            lay.setStyle({ weight: 3, color: "#4a3c32" });
+            const html =
+              count > 1
+                ? `<div class="gm-pop-inner"><strong>${city}</strong><div class="gm-pop-meta">${count} человек в этой точке</div></div>`
+                : `<div class="gm-pop-inner"><strong>${fmtName(p)}</strong>${sub ? `<div class="gm-pop-meta">${sub}</div>` : ""}</div>`;
+            const ll = lay.getLatLng();
+            const pop = L.popup({
+              className: "map-fam-popup",
+              closeButton: false,
+              autoPan: false,
+              offset: L.point(0, -12),
+            })
+              .setLatLng(ll)
+              .setContent(html);
+            pop.openOn(map);
+            hoverPopupRef.current = pop;
+          });
+
+          lay.on("mouseout", () => {
+            lay.setStyle({ weight: 2, color: "#6c5a4a" });
+            try {
+              map.closePopup();
+            } catch { /* ignore */ }
+            hoverPopupRef.current = null;
+          });
+        },
+      }).addTo(map);
+
+      geoLayerRef.current = layer;
+    },
+    [getCityFeatureCollection, openByFeature]
+  );
+
+  useEffect(() => {
+    const el = boxRef.current;
+    if (!el) return undefined;
+
+    let disposed = false;
+    let map = null;
+    const ro = new ResizeObserver(() => {
+      if (disposed) return;
+      if (!map) tryInit();
+      else map.invalidateSize({ animate: false });
+    });
+
+    function tryInit() {
+      if (disposed || map) return;
+      if (el.clientWidth < 8 || el.clientHeight < 8) return;
+
+      map = L.map(el, {
+        zoomControl: true,
+        attributionControl: true,
+        scrollWheelZoom: true,
+      }).setView([55.75, 37.6], 5);
+
+      L.tileLayer("https://tile.openstreetmap.org/{z}/{x}/{y}.png", {
+        attribution: '&copy; <a href="https://www.openstreetmap.org/copyright">OpenStreetMap</a>',
+        maxZoom: 19,
+      }).addTo(map);
+
+      map.whenReady(() => {
+        if (disposed) return;
+        requestAnimationFrame(() => {
+          map.invalidateSize({ animate: false });
+          setLeafletMap(map);
+        });
+      });
+    }
+
+    ro.observe(el);
+    tryInit();
+
+    return () => {
+      disposed = true;
+      setLeafletMap(null);
+      try {
+        geoLayerRef.current = null;
+        map?.remove();
+      } catch { /* ignore */ }
+      map = null;
+      ro.disconnect();
+    };
+  }, []);
+
+  useEffect(() => {
+    groupsRef.current = groupByCity(markers);
+    if (!leafletMap) return;
+    rebuildGeoLayer(leafletMap);
+    fitBoundsIfNeeded(leafletMap);
+  }, [markers, filter, leafletMap, rebuildGeoLayer, fitBoundsIfNeeded]);
+
+  useEffect(() => {
+    leafletMap?.invalidateSize({ animate: false });
+  }, [panel, filter, leafletMap]);
 
   async function load(f, opts = {}) {
     const { useCache = true } = opts;
@@ -323,94 +321,6 @@ export default function MapPage() {
   }
 
   useEffect(() => { load(filter, { useCache: true }); }, [filter]);
-
-  useEffect(() => {
-    const g = groupByCity(markers);
-    groupsRef.current = g;
-    refreshSourceData();
-    fitBoundsIfNeeded();
-  }, [markers, refreshSourceData, fitBoundsIfNeeded]);
-
-  useEffect(() => {
-    const el = boxRef.current;
-    if (!el) return;
-
-    let disposed = false;
-    let created = null;
-
-    const tryCreate = () => {
-      if (disposed || mapRef.current) return;
-      const w = el.clientWidth;
-      const h = el.clientHeight;
-      if (w < 8 || h < 8) return;
-
-      const mp = new maplibregl.Map({
-        container: el,
-        style: getMapStyle(),
-        center: [37.6, 55.75],
-        zoom: 4,
-        attributionControl: false,
-      });
-      created = mp;
-      mapRef.current = mp;
-      mp.addControl(new maplibregl.NavigationControl({ showCompass: false }), "bottom-right");
-
-      mp.on("load", () => {
-        if (disposed) return;
-        mapReady.current = true;
-        ensureLayersRef.current();
-        refreshSourceDataRef.current();
-        requestAnimationFrame(() => {
-          try {
-            mp.resize();
-            fitBoundsRef.current();
-          } catch {
-            /* ignore */
-          }
-        });
-      });
-    };
-
-    const ro = new ResizeObserver(() => {
-      if (disposed) return;
-      if (!mapRef.current) tryCreate();
-      else {
-        requestAnimationFrame(() => {
-          try {
-            mapRef.current?.resize();
-          } catch {
-            /* ignore */
-          }
-        });
-      }
-    });
-
-    ro.observe(el);
-    tryCreate();
-
-    return () => {
-      disposed = true;
-      mapReady.current = false;
-      mapHandlersBound.current = false;
-      killPop();
-      ro.disconnect();
-      if (created) {
-        try {
-          created.remove();
-        } catch {
-          /* ignore */
-        }
-      }
-      mapRef.current = null;
-      created = null;
-    };
-  }, []);
-
-  useEffect(() => {
-    const mp = mapRef.current;
-    if (!mp || !mapReady.current) return;
-    mp.resize();
-  }, [panel, filter]);
 
   const cities = new Set((markers || []).map(x => x.label)).size;
 
@@ -505,7 +415,7 @@ export default function MapPage() {
           {panel && (
             <Card
               className={cn(
-                "z-40 gap-0 py-0 shadow-lg ring-1 ring-border/80",
+                "z-[400] gap-0 py-0 shadow-lg ring-1 ring-border/80",
                 "md:absolute md:top-3 md:right-3 md:bottom-auto md:w-[min(300px,calc(100%-1.5rem))] md:max-h-[min(520px,calc(100%-1.5rem))]",
                 "max-md:fixed max-md:inset-x-0 max-md:bottom-0 max-md:max-h-[45vh] max-md:rounded-b-none max-md:rounded-t-xl max-md:border-b-0"
               )}

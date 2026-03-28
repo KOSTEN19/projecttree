@@ -676,7 +676,6 @@ export default function Tree() {
   const [branchFocus, setBranchFocus] = useState(null);
   const [err, setErr] = useState("");
   const [card, setCard] = useState(null);
-  const [lpMenu, setLpMenu] = useState(null); // { x, y, person }
   const vpRef = useRef(null);
   const [pos, setPos] = useState({});
   const [cam, setCam] = useState({ x: 0, y: 0, s: 1 });
@@ -693,15 +692,6 @@ export default function Tree() {
     window.addEventListener("keydown", onKey);
     return () => window.removeEventListener("keydown", onKey);
   }, [card]);
-
-  useEffect(() => {
-    if (!lpMenu) return undefined;
-    function onKey(e) {
-      if (e.key === "Escape") setLpMenu(null);
-    }
-    window.addEventListener("keydown", onKey);
-    return () => window.removeEventListener("keydown", onKey);
-  }, [lpMenu]);
 
   async function load() {
     setLoading(true); setErr("");
@@ -1016,13 +1006,13 @@ export default function Tree() {
                         type="button"
                         className={`tree-chip ${sx(person)}${person.isSelf ? " self" : ""}`}
                         onClick={(e) => {
+                          e.stopPropagation();
                           if (suppressNextClickRef.current) {
                             suppressNextClickRef.current = false;
                             return;
                           }
                           if (nodeDrag.current?.active) return;
-                          const r = e.currentTarget.getBoundingClientRect();
-                          setLpMenu({ x: r.left + r.width / 2, y: r.bottom + 8, person });
+                          setCard(person);
                         }}
                       >
                         <Av p={person} size={48} />
@@ -1084,97 +1074,13 @@ export default function Tree() {
         ) : null}
       </div>
 
-      {lpMenu ? (
-        <div
-          className="tree-lp-menu-overlay"
-          role="presentation"
-          onPointerDown={(e) => {
-            if (e.target === e.currentTarget) setLpMenu(null);
-          }}
-        >
-          <div
-            className="tree-lp-menu"
-            role="menu"
-            aria-label="Действия с родственником"
-            style={{
-              left: lpMenu.x,
-              top: lpMenu.y,
-            }}
-            onPointerDown={(e) => e.stopPropagation()}
-          >
-            <Button
-              type="button"
-              className="tree-lp-item"
-              variant="ghost"
-              size="sm"
-              role="menuitem"
-              onClick={(e) => {
-                e.preventDefault();
-                e.stopPropagation();
-                setLpMenu(null);
-                setCard(null);
-                setBranchFocus({ type: "maternal", anchorId: lpMenu.person.id });
-              }}
-            >
-              Подсветить линию матери
-              <span className="tree-lp-item-hint">↟</span>
-            </Button>
-            <Button
-              type="button"
-              className="tree-lp-item"
-              variant="ghost"
-              size="sm"
-              role="menuitem"
-              onClick={(e) => {
-                e.preventDefault();
-                e.stopPropagation();
-                setLpMenu(null);
-                setCard(null);
-                setBranchFocus({ type: "paternal", anchorId: lpMenu.person.id });
-              }}
-            >
-              Подсветить линию отца
-              <span className="tree-lp-item-hint">↟</span>
-            </Button>
-            <Button
-              type="button"
-              className="tree-lp-item"
-              variant="ghost"
-              size="sm"
-              role="menuitem"
-              onClick={(e) => {
-                e.preventDefault();
-                e.stopPropagation();
-                setLpMenu(null);
-                setCard(null);
-                setBranchFocus({ type: "lineage", anchorId: lpMenu.person.id });
-              }}
-            >
-              Ветка к предку
-              <span className="tree-lp-item-hint">↗</span>
-            </Button>
-            <div className="tree-lp-divider" aria-hidden />
-            <Button
-              type="button"
-              className="tree-lp-item"
-              variant="ghost"
-              size="sm"
-              role="menuitem"
-              onClick={(e) => {
-                e.preventDefault();
-                e.stopPropagation();
-                setLpMenu(null);
-                setCard(lpMenu.person);
-              }}
-            >
-              Открыть карточку
-              <span className="tree-lp-item-hint">⤢</span>
-            </Button>
-          </div>
-        </div>
+      {card ? (
+        <TreePersonCardOverlay
+          card={card}
+          onClose={() => setCard(null)}
+          onBranchFocus={(f) => setBranchFocus(f)}
+        />
       ) : null}
-
-      {card ? <TreePersonCardOverlay card={card} onClose={() => setCard(null)} /> : null}
     </>
   );
 }

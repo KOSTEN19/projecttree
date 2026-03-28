@@ -39,7 +39,7 @@ func RunDemoSeed() {
 	var existing models.User
 	err = db.Users.FindOne(ctx, bson.M{"login": demoLogin}).Decode(&existing)
 	if err == nil {
-		// Пользователь demo уже есть — всё равно выравниваем пароль (иначе после смены в БД вход «как в UI» ломается).
+		// Пользователь demo уже есть — пароль и развёрнутые карточки семьи.
 		_, uerr := db.Users.UpdateOne(ctx, bson.M{"login": demoLogin}, bson.M{
 			"$set": bson.M{
 				"passwordHash": hashStr,
@@ -51,6 +51,7 @@ func RunDemoSeed() {
 		} else {
 			log.Printf("[seed] demo user exists (id=%s), password hash refreshed", existing.ID.Hex())
 		}
+		EnrichDemoPersons(ctx, existing.ID)
 		return
 	}
 	if !errors.Is(err, mongo.ErrNoDocuments) {
@@ -176,6 +177,8 @@ func RunDemoSeed() {
 		log.Printf("[seed] failed to insert relationships: %v", err)
 		return
 	}
+
+	EnrichDemoPersons(ctx, userID)
 
 	log.Printf("[seed] done: demo user created, %d persons, %d relationships", len(family)+1, len(rels))
 }

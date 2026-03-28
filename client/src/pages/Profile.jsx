@@ -250,7 +250,7 @@ export default function Profile({ onProfileUpdated }) {
         <p className="text-muted-foreground text-xs">Учитываются имя, контакты, пол, дата и место рождения.</p>
       </div>
 
-      <Tabs defaultValue="personal" className="gap-4">
+      <Tabs defaultValue="personal" className="gap-4 overflow-visible">
         <TabsList variant="line" className="h-auto w-full flex-wrap justify-start gap-0 sm:flex-nowrap">
           <TabsTrigger value="personal" className="flex-none">
             Личные данные
@@ -260,14 +260,14 @@ export default function Profile({ onProfileUpdated }) {
           </TabsTrigger>
         </TabsList>
 
-        <TabsContent value="personal" className="mt-0 space-y-0">
-          <Card>
+        <TabsContent value="personal" className="mt-0 space-y-0 overflow-visible">
+          <Card className="overflow-visible">
             <CardHeader>
               <CardTitle>Личные данные</CardTitle>
               <CardDescription>Имя, пол, дата и город рождения (город вводите вручную; подсказки — из справочника и поиска).</CardDescription>
             </CardHeader>
-            <CardContent>
-              <FieldGroup className="gap-6">
+            <CardContent className="overflow-visible">
+              <FieldGroup className="gap-6 overflow-visible">
                 <Field>
                   <FieldLabel htmlFor="pf-first">Имя</FieldLabel>
                   <FieldContent>
@@ -328,13 +328,13 @@ export default function Profile({ onProfileUpdated }) {
                   </FieldContent>
                 </Field>
                 <Separator />
-                <Field>
+                <Field className="overflow-visible">
                   <FieldLabel htmlFor="pf-city">Город рождения</FieldLabel>
                   <FieldDescription>
                     Введите название; подсказки — города из списка приложения (с первого символа) и результаты поиска (от 3
                     символов).
                   </FieldDescription>
-                  <FieldContent className="relative mt-2" ref={cityWrapRef}>
+                  <FieldContent className="relative z-10 mt-2 overflow-visible" ref={cityWrapRef}>
                     <Input
                       ref={cityInputRef}
                       id="pf-city"
@@ -353,13 +353,13 @@ export default function Profile({ onProfileUpdated }) {
                     {showCityDropdown ? (
                       <ul
                         role="listbox"
-                        className="bg-popover text-popover-foreground absolute z-50 mt-1 max-h-60 w-full overflow-auto rounded-md border py-1 shadow-md"
+                        className="bg-popover text-popover-foreground absolute top-full z-[200] mt-1.5 max-h-[min(70vh,22rem)] w-full min-w-0 overflow-y-auto overscroll-contain rounded-md border py-1 shadow-lg"
                       >
                         {citySuggestions.map((s) => (
                           <li key={s} role="option">
                             <button
                               type="button"
-                              className="hover:bg-accent focus:bg-accent w-full px-3 py-2 text-left text-sm outline-none"
+                              className="hover:bg-accent focus:bg-accent w-full whitespace-normal break-words px-3 py-2.5 text-left text-sm leading-snug outline-none"
                               onMouseDown={(e) => e.preventDefault()}
                               onClick={() => {
                                 setField("birthCityCustom", s);

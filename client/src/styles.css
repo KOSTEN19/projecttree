@@ -622,7 +622,7 @@
   max-width: 12rem;
 }
 
-/* Map page — MapLibre needs a non-zero height; flex chain + explicit min-height */
+/* Map page — Leaflet: non-zero height; flex + explicit min-height */
 .map-page {
   display: flex;
   flex-direction: column;
@@ -661,30 +661,63 @@
   background: color-mix(in oklab, var(--background) 78%, var(--secondary));
 }
 
-.map-canvas .maplibregl-map {
-  width: 100% !important;
-  height: 100% !important;
+.map-canvas.leaflet-container {
+  z-index: 1;
+  font-family: inherit;
 }
 
-.map-canvas .maplibregl-ctrl-group {
+.map-canvas .leaflet-control {
+  z-index: 2;
+}
+
+.map-canvas .leaflet-control-zoom a {
   border-radius: 8px !important;
   border: 1px solid color-mix(in oklab, var(--border) 80%, transparent) !important;
-  background: color-mix(in oklab, var(--card) 82%, var(--background)) !important;
+  background: color-mix(in oklab, var(--card) 88%, var(--background)) !important;
+  color: var(--foreground) !important;
 }
 
-.gm-pop .maplibregl-popup-content {
+.map-canvas .leaflet-control-attribution {
+  background: color-mix(in oklab, var(--card) 85%, transparent) !important;
+  color: var(--muted-foreground) !important;
+  font-size: 0.65rem !important;
+  max-width: 50%;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+.map-leaflet-city-tip {
+  padding: 0.15rem 0.45rem !important;
+  border: 1px solid color-mix(in oklab, var(--border) 70%, transparent) !important;
+  border-radius: 6px !important;
+  background: color-mix(in oklab, var(--card) 92%, var(--background)) !important;
+  color: var(--foreground) !important;
+  font-size: 0.68rem !important;
+  font-weight: 600 !important;
+  box-shadow: 0 2px 8px color-mix(in oklab, var(--foreground) 8%, transparent);
+}
+
+.map-fam-popup .leaflet-popup-content-wrapper {
   background: color-mix(in oklab, var(--card) 94%, var(--background));
   backdrop-filter: blur(12px);
   border: 1px solid var(--border);
   border-radius: var(--radius-md, 12px);
   color: var(--foreground);
-  padding: 0.65rem 0.85rem;
-  font-size: 0.8rem;
   box-shadow: 0 12px 40px color-mix(in oklab, var(--foreground) 12%, transparent);
 }
 
-.gm-pop .maplibregl-popup-tip {
-  border-top-color: color-mix(in oklab, var(--card) 88%, var(--background));
+.map-fam-popup .leaflet-popup-content {
+  margin: 0.65rem 0.85rem;
+  font-size: 0.8rem;
+  line-height: 1.35;
+}
+
+.map-fam-popup .leaflet-popup-tip {
+  background: color-mix(in oklab, var(--card) 94%, var(--background));
+  border: 1px solid var(--border);
+  border-top: none;
+  border-left: none;
 }
 
 .gm-pop-inner strong {
@@ -1443,7 +1476,7 @@ html:not(.dark) .map-page--burial {
   box-shadow: inset 0 1px 0 rgba(255, 255, 255, 0.9);
 }
 
-html:not(.dark) .gm-pop .maplibregl-popup-content {
+html:not(.dark) .map-fam-popup .leaflet-popup-content-wrapper {
   background: linear-gradient(165deg, rgba(255, 255, 255, 0.97), rgba(248, 250, 252, 0.98));
   color: #0f172a;
   border: 1px solid rgba(15, 23, 42, 0.14);
@@ -1452,7 +1485,7 @@ html:not(.dark) .gm-pop .maplibregl-popup-content {
 @media (forced-colors: active) {
   .map-page,
   .map-page--burial,
-  .gm-pop .maplibregl-popup-content {
+  .map-fam-popup .leaflet-popup-content-wrapper {
     forced-color-adjust: none;
     background: Canvas;
     color: CanvasText;
