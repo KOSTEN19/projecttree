@@ -1,8 +1,28 @@
-import React, { useCallback, useEffect, useState } from "react";
+import React, { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { apiGet, apiPost } from "../api.js";
+import { CITY_OPTIONS } from "../data/cities.js";
 import Stepper, { Step } from "../vendor/react-bits/Stepper/Stepper.jsx";
 import "../vendor/react-bits/Stepper/Stepper.css";
 import "./StepperRelatives.css";
+
+function filterLocalCities(query) {
+  const q = String(query || "").trim().toLowerCase();
+  if (!q) return [];
+  return CITY_OPTIONS.filter((c) => c.toLowerCase().includes(q)).slice(0, 8);
+}
+
+function mergeCitySuggestions(localArr, remoteArr, max = 12) {
+  const seen = new Set();
+  const out = [];
+  for (const s of [...localArr, ...remoteArr]) {
+    const t = String(s || "").trim();
+    if (!t || seen.has(t)) continue;
+    seen.add(t);
+    out.push(t);
+    if (out.length >= max) break;
+  }
+  return out;
+}
 
 const RELATION_TYPES = [
   "внук", "внучка", "сын", "дочь", "жена", "муж", "мать", "отец",
@@ -20,33 +40,17 @@ function trimText(v) {
   return String(v || "").trim().replace(/\s+/g, " ");
 }
 
-function useAddressSuggestions(query) {
-  const [items, setItems] = useState([]);
-  useEffect(() => {
-    const q = String(query || "").trim();
-    if (q.length < 3) {
-      setItems([]);
-      return;
-    }
-    const id = setTimeout(async () => {
-      try {
-        const data = await apiGet(`/api/geo/suggest?q=${encodeURIComponent(q)}&limit=8`);
-        const next = Array.isArray(data?.items) ? data.items.filter(Boolean) : [];
-        setItems(next);
-      } catch {
-        setItems([]);
-      }
-    }, 260);
-    return () => clearTimeout(id);
-  }, [query]);
-  return items;
-}
-
 export default function AddRelativeStepperForm({ persons, self, onCreated }) {
   const [submitting, setSubmitting] = useState(false);
   const [submitErr, setSubmitErr] = useState("");
-  const [birthSuggestOpen, setBirthSuggestOpen] = useState(false);
-  const [burialSuggestOpen, setBurialSuggestOpen] = useState(false);
+  const [birthCityListOpen, setBirthCityListOpen] = useState(false);
+  const [burialCityListOpen, setBurialCityListOpen] = useState(false);
+  const [birthRemoteSuggestions, setBirthRemoteSuggestions] = useState([]);
+  const [burialRemoteSuggestions, setBurialRemoteSuggestions] = useState([]);
+  const birthCityWrapRef = useRef(null);
+  const burialCityWrapRef = useRef(null);
+  const birthCityInputRef = useRef(null);
+  const burialCityInputRef = useRef(null);
 
   const [form, setForm] = useState({
     basePersonId: self?.id || "",
@@ -74,6 +78,57 @@ export default function AddRelativeStepperForm({ persons, self, onCreated }) {
     if (self?.id) setForm((p) => ({ ...p, basePersonId: self.id }));
   }, [self?.id]);
 
+  useEffect(() => {
+    const q = String(form.birthCityCustom || "").trim();
+    if (q.length < 3) {
+      setBirthRemoteSuggestions([]);
+      return;
+    }
+    let cancelled = false;
+    const t = setTimeout(async () => {
+      try {
+        const d = await apiGet(`/api/geo/suggest?q=${encodeURIComponent(q)}&limit=8`);
+        if (!cancelled) setBirthRemoteSuggestions(Array.isArray(d?.items) ? d.items : []);
+      } catch {
+        if (!cancelled) setBirthRemoteSuggestions([]);
+      }
+    }, 280);
+    return () => {
+      cancelled = true;
+      clearTimeout(t);
+    };
+  }, [form.birthCityCustom]);
+
+  useEffect(() => {
+    const q = String(form.burialPlace || "").trim();
+    if (q.length < 3) {
+      setBurialRemoteSuggestions([]);
+      return;
+    }
+    let cancelled = false;
+    const t = setTimeout(async () => {
+      try {
+        const d = await apiGet(`/api/geo/suggest?q=${encodeURIComponent(q)}&limit=8`);
+        if (!cancelled) setBurialRemoteSuggestions(Array.isArray(d?.items) ? d.items : []);
+      } catch {
+        if (!cancelled) setBurialRemoteSuggestions([]);
+      }
+    }, 280);
+    return () => {
+      cancelled = true;
+      clearTimeout(t);
+    };
+  }, [form.burialPlace]);
+
+  useEffect(() => {
+    function onDocMouseDown(e) {
+      if (!birthCityWrapRef.current?.contains(e.target)) setBirthCityListOpen(false);
+      if (!burialCityWrapRef.current?.contains(e.target)) setBurialCityListOpen(false);
+    }
+    document.addEventListener("mousedown", onDocMouseDown);
+    return () => document.removeEventListener("mousedown", onDocMouseDown);
+  }, []);
+
   const relativesForSelect = persons.filter((p) => !p.isPlaceholder);
 
   function set(k, v) {
@@ -81,10 +136,33 @@ export default function AddRelativeStepperForm({ persons, self, onCreated }) {
   }
 
   const needsLine = !["дочь", "сын", "брат", "сестра"].includes(form.relationType);
-  const birthAddressQuery = form.birthCityCustom;
-  const burialAddressQuery = form.burialPlace;
-  const birthAddressSuggestions = useAddressSuggestions(birthAddressQuery);
-  const burialAddressSuggestions = useAddressSuggestions(burialAddressQuery);
+
+  const localBirthSuggestions = useMemo(
+    () => filterLocalCities(form.birthCityCustom),
+    [form.birthCityCustom]
+  );
+  const birthCitySuggestions = useMemo(
+    () => mergeCitySuggestions(localBirthSuggestions, birthRemoteSuggestions),
+    [localBirthSuggestions, birthRemoteSuggestions]
+  );
+
+  const localBurialSuggestions = useMemo(() => filterLocalCities(form.burialPlace), [form.burialPlace]);
+  const burialCitySuggestions = useMemo(
+    () => mergeCitySuggestions(localBurialSuggestions, burialRemoteSuggestions),
+    [localBurialSuggestions, burialRemoteSuggestions]
+  );
+
+  const birthQTrim = String(form.birthCityCustom || "").trim();
+  const showBirthCityDropdown =
+    birthCityListOpen &&
+    birthCitySuggestions.length > 0 &&
+    birthCitySuggestions.some((s) => s !== birthQTrim);
+
+  const burialQTrim = String(form.burialPlace || "").trim();
+  const showBurialCityDropdown =
+    burialCityListOpen &&
+    burialCitySuggestions.length > 0 &&
+    burialCitySuggestions.some((s) => s !== burialQTrim);
 
   const buildPayload = useCallback(() => {
     const payload = { ...form };
@@ -134,6 +212,10 @@ export default function AddRelativeStepperForm({ persons, self, onCreated }) {
       setSubmitErr("Пол обязателен.");
       throw new Error("validation");
     }
+    if (p.sex === "F" && !String(p.maidenName || "").trim()) {
+      setSubmitErr("Укажите девичью фамилию.");
+      throw new Error("validation");
+    }
     if (!p.birthDate) {
       setSubmitErr("Дата рождения обязательна.");
       throw new Error("validation");
@@ -146,8 +228,16 @@ export default function AddRelativeStepperForm({ persons, self, onCreated }) {
       setSubmitErr("Для умершего родственника укажите дату смерти и место захоронения.");
       throw new Error("validation");
     }
-    if (!p.biography) {
-      setSubmitErr("На последнем шаге поле «Биография» обязательно.");
+    if (!p.education) {
+      setSubmitErr("Укажите образование.");
+      throw new Error("validation");
+    }
+    if (!p.workPath) {
+      setSubmitErr("Укажите трудовой путь.");
+      throw new Error("validation");
+    }
+    if (!p.militaryPath) {
+      setSubmitErr("Укажите боевой путь / службу (или кратко «не служил», если не применимо).");
       throw new Error("validation");
     }
     setSubmitting(true);
@@ -217,7 +307,7 @@ export default function AddRelativeStepperForm({ persons, self, onCreated }) {
 
         <Step>
           <h3 className="rel-step-title">Личные данные</h3>
-          <p className="rel-step-hint">ФИО и пол можно уточнить позже; имя желательно с самого начала.</p>
+          <p className="rel-step-hint">ФИО, пол и при необходимости девичья фамилия — обязательны для создания карточки.</p>
           <div className="label">Фамилия, имя, отчество</div>
           <div className="row">
             <div className="col">
@@ -245,6 +335,7 @@ export default function AddRelativeStepperForm({ persons, self, onCreated }) {
               <div className="label">Девичья фамилия</div>
               <input
                 className="input"
+                required
                 placeholder="Например: Иванова"
                 value={form.maidenName}
                 onChange={(e) => set("maidenName", e.target.value)}
@@ -258,37 +349,49 @@ export default function AddRelativeStepperForm({ persons, self, onCreated }) {
           <p className="rel-step-hint">Дата и место рождения — опора для века на странице «Семья» и для карты.</p>
           <div className="label">Дата рождения</div>
           <input type="date" className="input" required value={form.birthDate} onChange={(e) => set("birthDate", e.target.value)} />
-          <div className="label">Место рождения</div>
-          <div className="rel-suggest-wrap">
+          <div className="label">Город / место рождения</div>
+          <p className="rel-step-hint" style={{ marginTop: "-0.35rem", marginBottom: "0.5rem" }}>
+            Подсказки — города из списка приложения (с первого символа) и поиск по справочнику (от 3 символов), как в личном кабинете.
+          </p>
+          <div className="rel-suggest-wrap" ref={birthCityWrapRef}>
             <input
+              ref={birthCityInputRef}
               className="input"
               required
+              autoComplete="off"
+              aria-autocomplete="list"
+              aria-expanded={showBirthCityDropdown}
+              maxLength={200}
               value={form.birthCityCustom}
               onChange={(e) => {
                 set("birthCityCustom", e.target.value);
-                setBirthSuggestOpen(true);
+                setBirthCityListOpen(true);
               }}
-              onFocus={() => setBirthSuggestOpen(true)}
-              onBlur={() => setTimeout(() => setBirthSuggestOpen(false), 120)}
-              placeholder="Начните вводить адрес или населенный пункт"
+              onFocus={() => setBirthCityListOpen(true)}
+              placeholder="Начните вводить, например: Тула"
             />
-            {birthSuggestOpen && birthAddressSuggestions.length > 0 ? (
-              <div className="rel-suggest-menu select">
-                {birthAddressSuggestions.map((s) => (
-                  <button
-                    key={s}
-                    type="button"
-                    className="rel-suggest-item"
-                    onMouseDown={(e) => {
-                      e.preventDefault();
-                      set("birthCityCustom", s);
-                      setBirthSuggestOpen(false);
-                    }}
-                  >
-                    {s}
-                  </button>
+            {showBirthCityDropdown ? (
+              <ul
+                role="listbox"
+                className="rel-suggest-menu rel-suggest-menu--popover"
+              >
+                {birthCitySuggestions.map((s) => (
+                  <li key={s} role="option">
+                    <button
+                      type="button"
+                      className="rel-suggest-item"
+                      onMouseDown={(e) => e.preventDefault()}
+                      onClick={() => {
+                        set("birthCityCustom", s);
+                        setBirthCityListOpen(false);
+                        birthCityInputRef.current?.blur();
+                      }}
+                    >
+                      {s}
+                    </button>
+                  </li>
                 ))}
-              </div>
+              </ul>
             ) : null}
           </div>
         </Step>
@@ -305,36 +408,48 @@ export default function AddRelativeStepperForm({ persons, self, onCreated }) {
               <div className="label">Дата смерти</div>
               <input type="date" className="input" required={!form.alive} value={form.deathDate} onChange={(e) => set("deathDate", e.target.value)} />
               <div className="label">Место захоронения</div>
-              <div className="rel-suggest-wrap">
+              <p className="rel-step-hint" style={{ marginTop: "-0.35rem", marginBottom: "0.5rem" }}>
+                Те же подсказки: локальный список городов и поиск (от 3 символов).
+              </p>
+              <div className="rel-suggest-wrap" ref={burialCityWrapRef}>
                 <input
+                  ref={burialCityInputRef}
                   className="input"
                   required={!form.alive}
+                  autoComplete="off"
+                  aria-autocomplete="list"
+                  aria-expanded={showBurialCityDropdown}
+                  maxLength={200}
                   value={form.burialPlace}
                   onChange={(e) => {
                     set("burialPlace", e.target.value);
-                    setBurialSuggestOpen(true);
+                    setBurialCityListOpen(true);
                   }}
-                  onFocus={() => setBurialSuggestOpen(true)}
-                  onBlur={() => setTimeout(() => setBurialSuggestOpen(false), 120)}
-                  placeholder="Начните вводить адрес места захоронения"
+                  onFocus={() => setBurialCityListOpen(true)}
+                  placeholder="Начните вводить населённый пункт или адрес"
                 />
-                {burialSuggestOpen && burialAddressSuggestions.length > 0 ? (
-                  <div className="rel-suggest-menu select">
-                    {burialAddressSuggestions.map((s) => (
-                      <button
-                        key={s}
-                        type="button"
-                        className="rel-suggest-item"
-                        onMouseDown={(e) => {
-                          e.preventDefault();
-                          set("burialPlace", s);
-                          setBurialSuggestOpen(false);
-                        }}
-                      >
-                        {s}
-                      </button>
+                {showBurialCityDropdown ? (
+                  <ul
+                    role="listbox"
+                    className="rel-suggest-menu rel-suggest-menu--popover"
+                  >
+                    {burialCitySuggestions.map((s) => (
+                      <li key={s} role="option">
+                        <button
+                          type="button"
+                          className="rel-suggest-item"
+                          onMouseDown={(e) => e.preventDefault()}
+                          onClick={() => {
+                            set("burialPlace", s);
+                            setBurialCityListOpen(false);
+                            burialCityInputRef.current?.blur();
+                          }}
+                        >
+                          {s}
+                        </button>
+                      </li>
                     ))}
-                  </div>
+                  </ul>
                 ) : null}
               </div>
             </>
@@ -347,15 +462,17 @@ export default function AddRelativeStepperForm({ persons, self, onCreated }) {
 
         <Step>
           <h3 className="rel-step-title">Биография и заметки</h3>
-          <p className="rel-step-hint">На этом шаге обязательна только биография. Остальные поля можно заполнить позже.</p>
+          <p className="rel-step-hint">
+            Обязательны образование, трудовой путь и блок про службу. Биография и заметки можно оставить пустыми или дополнить позже.
+          </p>
           <div className="label">Биография</div>
-          <textarea className="textarea" required rows={3} value={form.biography} onChange={(e) => set("biography", e.target.value)} />
+          <textarea className="textarea" rows={3} value={form.biography} onChange={(e) => set("biography", e.target.value)} />
           <div className="label">Образование</div>
-          <textarea className="textarea" rows={2} value={form.education} onChange={(e) => set("education", e.target.value)} />
+          <textarea className="textarea" required rows={2} value={form.education} onChange={(e) => set("education", e.target.value)} />
           <div className="label">Трудовой путь</div>
-          <textarea className="textarea" rows={2} value={form.workPath} onChange={(e) => set("workPath", e.target.value)} />
+          <textarea className="textarea" required rows={2} value={form.workPath} onChange={(e) => set("workPath", e.target.value)} />
           <div className="label">Боевой путь / служба</div>
-          <textarea className="textarea" rows={2} value={form.militaryPath} onChange={(e) => set("militaryPath", e.target.value)} />
+          <textarea className="textarea" required rows={2} value={form.militaryPath} onChange={(e) => set("militaryPath", e.target.value)} />
           <div className="label">Заметки</div>
           <textarea className="textarea" rows={2} value={form.notes} onChange={(e) => set("notes", e.target.value)} />
         </Step>

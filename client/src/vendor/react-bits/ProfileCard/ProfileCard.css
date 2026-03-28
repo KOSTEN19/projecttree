@@ -656,3 +656,36 @@
 .pc-contact-btn:hover {
   border-color: rgba(98, 72, 41, 0.38);
 }
+
+/* Dark theme: match app card tokens (pastel block above is light-only) */
+.dark .pc-card {
+  background: linear-gradient(
+    160deg,
+    color-mix(in oklab, var(--card) 96%, var(--foreground)),
+    color-mix(in oklab, var(--card) 88%, black)
+  );
+  box-shadow: rgba(0, 0, 0, 0.55) calc((var(--pointer-from-left) * 10px) - 3px)
+    calc((var(--pointer-from-top) * 20px) - 6px) 24px -8px;
+}
+
+.dark .pc-inside {
+  background-color: color-mix(in oklab, var(--card) 92%, transparent);
+}
+
+.dark .pc-handle {
+  color: color-mix(in oklab, var(--foreground) 92%, transparent);
+}
+
+.dark .pc-status {
+  color: color-mix(in oklab, var(--muted-foreground) 88%, transparent);
+}
+
+.dark .pc-contact-btn {
+  border-color: var(--border);
+  color: var(--foreground);
+  background: color-mix(in oklab, var(--secondary) 70%, transparent);
+}
+
+.dark .pc-contact-btn:hover {
+  border-color: color-mix(in oklab, var(--ring) 45%, var(--border));
+}

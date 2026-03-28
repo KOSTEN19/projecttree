@@ -158,6 +158,18 @@
   background: var(--muted);
 }
 
+.rel-suggest-menu--popover {
+  z-index: 200;
+  max-height: min(70vh, 22rem);
+  list-style: none;
+  margin: 0;
+  overscroll-behavior: contain;
+}
+
+.rel-suggest-menu--popover li {
+  margin: 0;
+}
+
 /* Relatives — era grouping */
 .rel-era-wrap {
   display: flex;

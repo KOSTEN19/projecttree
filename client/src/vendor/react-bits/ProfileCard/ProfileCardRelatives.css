@@ -47,10 +47,10 @@
   border-radius: inherit;
   background: linear-gradient(
     180deg,
-    rgba(251, 246, 235, 0.92) 0%,
-    rgba(247, 239, 225, 0.74) 22%,
-    rgba(244, 233, 214, 0.38) 45%,
-    rgba(244, 233, 214, 0.08) 68%,
+    color-mix(in oklab, var(--card) 92%, transparent) 0%,
+    color-mix(in oklab, var(--card) 74%, transparent) 22%,
+    color-mix(in oklab, var(--card) 38%, transparent) 45%,
+    color-mix(in oklab, var(--card) 8%, transparent) 68%,
     transparent 100%
   );
 }
@@ -93,18 +93,18 @@
 /* Спокойный вид: без «неонового» текста и яркого холо при наведении */
 .rel-pc-grid-slot .pc-details h3 {
   background-image: none;
-  -webkit-text-fill-color: rgba(59, 43, 31, 0.94);
+  -webkit-text-fill-color: color-mix(in oklab, var(--foreground) 94%, transparent);
   background-clip: border-box;
   -webkit-background-clip: border-box;
-  color: rgba(59, 43, 31, 0.94);
+  color: color-mix(in oklab, var(--foreground) 94%, transparent);
 }
 
 .rel-pc-grid-slot .pc-details p {
   background-image: none;
-  -webkit-text-fill-color: rgba(92, 74, 60, 0.84);
+  -webkit-text-fill-color: color-mix(in oklab, var(--muted-foreground) 92%, transparent);
   background-clip: border-box;
   -webkit-background-clip: border-box;
-  color: rgba(92, 74, 60, 0.84);
+  color: color-mix(in oklab, var(--muted-foreground) 92%, transparent);
 }
 
 .rel-pc-grid-slot .pc-shine {
