@@ -3,8 +3,9 @@
 # Полный сброс БД: docker compose down && rm -rf mongo-data && docker compose up -d
 # Именованный том docker compose down -v с хоста не удаляет — для bind-mount нужно убрать каталог.
 #
-# Ollama поднимается вместе со стеком. Модель один раз: docker compose exec ollama ollama pull llama3.2
-# В .env для ИИ-ленты: AI_ENABLED=true (см. .env.example); server ходит на http://ollama:11434/v1
+# Ollama в compose: по умолчанию компактный CPU-образ alpine/ollama (см. OLLAMA_IMAGE в .env.example).
+# Полный официальный образ: OLLAMA_IMAGE=ollama/ollama:latest. Модель: docker compose exec ollama ollama pull …
+# ИИ-лента: AI_ENABLED=true; server → http://ollama:11434/v1
 services:
   mongodb:
     image: mongo:7
@@ -47,7 +48,7 @@ services:
       - "3001:3001"
 
   ollama:
-    image: ollama/ollama:latest
+    image: ${OLLAMA_IMAGE:-alpine/ollama:latest}
     volumes:
       - ollama-data:/root/.ollama
     ports:
