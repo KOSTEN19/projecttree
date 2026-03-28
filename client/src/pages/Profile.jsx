@@ -1,4 +1,4 @@
-import React, { useEffect, useMemo, useState } from "react";
+import React, { useEffect, useMemo, useRef, useState } from "react";
 import { apiGet, apiPut } from "../api.js";
 import { CITY_OPTIONS } from "../data/cities.js";
 import { Button } from "@/components/ui/button";
@@ -24,17 +24,13 @@ import {
   PHONE_ALLOWED_PATTERN,
   PHONE_TITLE,
   sanitizePhoneInput,
-  validateEmailOptional,
   validatePhoneClient,
 } from "@/lib/validationFields.js";
 
 const EMPTY = "__none__";
 
-function profileCompletenessPercent(p, birthMode) {
-  const geoOk =
-    birthMode === "list"
-      ? Boolean(String(p?.birthCity || "").trim())
-      : Boolean(String(p?.birthCityCustom || "").trim());
+function profileCompletenessPercent(p) {
+  const geoOk = Boolean(String(p?.birthCityCustom || p?.birthCity || "").trim());
   const bits = [
     String(p?.firstName || "").trim(),
     String(p?.lastName || "").trim(),
@@ -49,23 +45,90 @@ function profileCompletenessPercent(p, birthMode) {
   return Math.round((n / bits.length) * 100);
 }
 
+function filterLocalCities(query) {
+  const q = String(query || "").trim().toLowerCase();
+  if (!q) return [];
+  return CITY_OPTIONS.filter((c) => c.toLowerCase().includes(q)).slice(0, 8);
+}
+
 export default function Profile({ onProfileUpdated }) {
   const [p, setP] = useState(null);
-  const [birthMode, setBirthMode] = useState("list");
   const [ok, setOk] = useState("");
   const [saving, setSaving] = useState(false);
+  const [remoteCitySuggestions, setRemoteCitySuggestions] = useState([]);
+  const [cityListOpen, setCityListOpen] = useState(false);
+  const cityWrapRef = useRef(null);
+  const cityInputRef = useRef(null);
+
+  const [currentPassword, setCurrentPassword] = useState("");
+  const [newPassword, setNewPassword] = useState("");
+  const [confirmPassword, setConfirmPassword] = useState("");
+  const [pwdOk, setPwdOk] = useState("");
+  const [savingPwd, setSavingPwd] = useState(false);
 
   useEffect(() => {
     (async () => {
       const data = await apiGet("/api/profile");
-      setP({ ...data, phone: sanitizePhoneInput(data.phone || "") });
-      setBirthMode(data.birthCityCustom ? "custom" : "list");
+      const merged = {
+        ...data,
+        phone: sanitizePhoneInput(data.phone || ""),
+        birthCityCustom: String(data.birthCityCustom || data.birthCity || "").trim(),
+        birthCity: "",
+      };
+      setP(merged);
     })();
   }, []);
 
-  function set(k, v) {
+  useEffect(() => {
+    const q = String(p?.birthCityCustom || "").trim();
+    if (q.length < 3) {
+      setRemoteCitySuggestions([]);
+      return;
+    }
+    let cancelled = false;
+    const t = setTimeout(async () => {
+      try {
+        const d = await apiGet(`/api/geo/suggest?q=${encodeURIComponent(q)}&limit=8`);
+        if (!cancelled) setRemoteCitySuggestions(Array.isArray(d?.items) ? d.items : []);
+      } catch {
+        if (!cancelled) setRemoteCitySuggestions([]);
+      }
+    }, 280);
+    return () => {
+      cancelled = true;
+      clearTimeout(t);
+    };
+  }, [p?.birthCityCustom]);
+
+  useEffect(() => {
+    function onDocMouseDown(e) {
+      if (!cityWrapRef.current?.contains(e.target)) setCityListOpen(false);
+    }
+    document.addEventListener("mousedown", onDocMouseDown);
+    return () => document.removeEventListener("mousedown", onDocMouseDown);
+  }, []);
+
+  function setField(k, v) {
     setP((x) => ({ ...x, [k]: v }));
   }
+
+  const localCitySuggestions = useMemo(
+    () => filterLocalCities(p?.birthCityCustom),
+    [p?.birthCityCustom]
+  );
+
+  const citySuggestions = useMemo(() => {
+    const seen = new Set();
+    const out = [];
+    for (const s of [...localCitySuggestions, ...remoteCitySuggestions]) {
+      const t = String(s || "").trim();
+      if (!t || seen.has(t)) continue;
+      seen.add(t);
+      out.push(t);
+      if (out.length >= 12) break;
+    }
+    return out;
+  }, [localCitySuggestions, remoteCitySuggestions]);
 
   async function save() {
     setOk("");
@@ -74,32 +137,64 @@ export default function Profile({ onProfileUpdated }) {
       showApiError(phoneErr);
       return;
     }
-    const emailErr = validateEmailOptional(p.email);
-    if (emailErr) {
-      showApiError(emailErr);
-      return;
-    }
     if (!String(p.firstName || "").trim() || !String(p.lastName || "").trim()) {
       showApiError("Имя и фамилия обязательны.");
       return;
     }
     setSaving(true);
     try {
-      const payload = { ...p };
-      if (birthMode === "list") payload.birthCityCustom = "";
-      else payload.birthCity = "";
-      await apiPut("/api/profile", payload);
+      await apiPut("/api/profile", {
+        firstName: p.firstName,
+        lastName: p.lastName,
+        phone: p.phone,
+        sex: p.sex,
+        birthDate: p.birthDate,
+        birthCity: "",
+        birthCityCustom: String(p.birthCityCustom || "").trim(),
+      });
       setOk("Данные сохранены");
       onProfileUpdated?.();
       setTimeout(() => setOk(""), 3000);
     } catch {
-      /* текст ошибки уже в глобальном диалоге из api.js */
+      /* диалог из api.js */
     } finally {
       setSaving(false);
     }
   }
 
-  const pct = useMemo(() => (p ? profileCompletenessPercent(p, birthMode) : 0), [p, birthMode]);
+  async function savePassword() {
+    setPwdOk("");
+    if (!currentPassword || !newPassword) {
+      showApiError("Заполните текущий и новый пароль.");
+      return;
+    }
+    if (newPassword.length < 8) {
+      showApiError("Новый пароль: не менее 8 символов.");
+      return;
+    }
+    if (newPassword !== confirmPassword) {
+      showApiError("Новый пароль и подтверждение не совпадают.");
+      return;
+    }
+    setSavingPwd(true);
+    try {
+      await apiPut("/api/profile/password", {
+        currentPassword,
+        newPassword,
+      });
+      setCurrentPassword("");
+      setNewPassword("");
+      setConfirmPassword("");
+      setPwdOk("Пароль обновлён");
+      setTimeout(() => setPwdOk(""), 4000);
+    } catch {
+      /* диалог */
+    } finally {
+      setSavingPwd(false);
+    }
+  }
+
+  const pct = useMemo(() => (p ? profileCompletenessPercent(p) : 0), [p]);
 
   if (!p) {
     return (
@@ -115,13 +210,16 @@ export default function Profile({ onProfileUpdated }) {
 
   const initials = ((p.firstName || "?")[0] + (p.lastName || "")[0]).toUpperCase();
   const displayName = [p.lastName, p.firstName].filter(Boolean).join(" ").trim() || "Профиль";
+  const qTrim = String(p.birthCityCustom || "").trim();
+  const showCityDropdown =
+    cityListOpen && citySuggestions.length > 0 && citySuggestions.some((s) => s !== qTrim);
 
   return (
     <div className="mx-auto max-w-3xl space-y-6">
-      {ok && (
+      {(ok || pwdOk) && (
         <Alert>
           <AlertTitle>Готово</AlertTitle>
-          <AlertDescription>{ok}</AlertDescription>
+          <AlertDescription>{ok || pwdOk}</AlertDescription>
         </Alert>
       )}
 
@@ -157,9 +255,6 @@ export default function Profile({ onProfileUpdated }) {
           <TabsTrigger value="personal" className="flex-none">
             Личные данные
           </TabsTrigger>
-          <TabsTrigger value="geo" className="flex-none">
-            Родство и география
-          </TabsTrigger>
           <TabsTrigger value="account" className="flex-none">
             Учётная запись
           </TabsTrigger>
@@ -169,7 +264,7 @@ export default function Profile({ onProfileUpdated }) {
           <Card>
             <CardHeader>
               <CardTitle>Личные данные</CardTitle>
-              <CardDescription>Имя и основные сведения, как в семейных карточках.</CardDescription>
+              <CardDescription>Имя, пол, дата и город рождения (город вводите вручную; подсказки — из справочника и поиска).</CardDescription>
             </CardHeader>
             <CardContent>
               <FieldGroup className="gap-6">
@@ -183,7 +278,7 @@ export default function Profile({ onProfileUpdated }) {
                       maxLength={120}
                       autoComplete="given-name"
                       value={p.firstName}
-                      onChange={(e) => set("firstName", e.target.value)}
+                      onChange={(e) => setField("firstName", e.target.value)}
                     />
                   </FieldContent>
                 </Field>
@@ -197,7 +292,7 @@ export default function Profile({ onProfileUpdated }) {
                       maxLength={120}
                       autoComplete="family-name"
                       value={p.lastName}
-                      onChange={(e) => set("lastName", e.target.value)}
+                      onChange={(e) => setField("lastName", e.target.value)}
                     />
                   </FieldContent>
                 </Field>
@@ -207,7 +302,7 @@ export default function Profile({ onProfileUpdated }) {
                   <FieldContent>
                     <Select
                       value={p.sex ? p.sex : EMPTY}
-                      onValueChange={(v) => set("sex", v === EMPTY ? "" : v)}
+                      onValueChange={(v) => setField("sex", v === EMPTY ? "" : v)}
                     >
                       <SelectTrigger id="pf-sex" className="w-full max-w-md">
                         <SelectValue placeholder="Не указан" />
@@ -228,80 +323,58 @@ export default function Profile({ onProfileUpdated }) {
                       type="date"
                       className="max-w-md"
                       value={p.birthDate}
-                      onChange={(e) => set("birthDate", e.target.value)}
+                      onChange={(e) => setField("birthDate", e.target.value)}
                     />
                   </FieldContent>
                 </Field>
-              </FieldGroup>
-            </CardContent>
-          </Card>
-        </TabsContent>
-
-        <TabsContent value="geo" className="mt-0 space-y-0">
-          <Card>
-            <CardHeader>
-              <CardTitle>Родство и география</CardTitle>
-              <CardDescription>Город рождения используется на карте предков и в сводках.</CardDescription>
-            </CardHeader>
-            <CardContent>
-              <FieldGroup className="gap-6">
+                <Separator />
                 <Field>
-                  <FieldLabel>Место рождения</FieldLabel>
-                  <FieldDescription>Выберите город из списка или введите вручную.</FieldDescription>
-                  <FieldContent className="mt-2 flex flex-wrap gap-2">
-                    <Button
-                      type="button"
-                      variant={birthMode === "list" ? "secondary" : "outline"}
-                      size="sm"
-                      onClick={() => setBirthMode("list")}
-                    >
-                      Из списка
-                    </Button>
-                    <Button
-                      type="button"
-                      variant={birthMode === "custom" ? "secondary" : "outline"}
-                      size="sm"
-                      onClick={() => setBirthMode("custom")}
-                    >
-                      Вручную
-                    </Button>
+                  <FieldLabel htmlFor="pf-city">Город рождения</FieldLabel>
+                  <FieldDescription>
+                    Введите название; подсказки — города из списка приложения (с первого символа) и результаты поиска (от 3
+                    символов).
+                  </FieldDescription>
+                  <FieldContent className="relative mt-2" ref={cityWrapRef}>
+                    <Input
+                      ref={cityInputRef}
+                      id="pf-city"
+                      autoComplete="off"
+                      aria-autocomplete="list"
+                      aria-expanded={showCityDropdown}
+                      value={p.birthCityCustom}
+                      onChange={(e) => {
+                        setField("birthCityCustom", e.target.value);
+                        setCityListOpen(true);
+                      }}
+                      onFocus={() => setCityListOpen(true)}
+                      placeholder="Начните вводить, например: Тула"
+                      maxLength={200}
+                    />
+                    {showCityDropdown ? (
+                      <ul
+                        role="listbox"
+                        className="bg-popover text-popover-foreground absolute z-50 mt-1 max-h-60 w-full overflow-auto rounded-md border py-1 shadow-md"
+                      >
+                        {citySuggestions.map((s) => (
+                          <li key={s} role="option">
+                            <button
+                              type="button"
+                              className="hover:bg-accent focus:bg-accent w-full px-3 py-2 text-left text-sm outline-none"
+                              onMouseDown={(e) => e.preventDefault()}
+                              onClick={() => {
+                                setField("birthCityCustom", s);
+                                setCityListOpen(false);
+                                cityInputRef.current?.blur();
+                              }}
+                            >
+                              {s}
+                            </button>
+                          </li>
+                        ))}
+                      </ul>
+                    ) : null}
                   </FieldContent>
                 </Field>
-                {birthMode === "list" ? (
-                  <Field>
-                    <FieldLabel htmlFor="pf-city">Город</FieldLabel>
-                    <FieldContent>
-                      <Select
-                        value={p.birthCity ? p.birthCity : EMPTY}
-                        onValueChange={(v) => set("birthCity", v === EMPTY ? "" : v)}
-                      >
-                        <SelectTrigger id="pf-city" className="w-full">
-                          <SelectValue placeholder="Не выбрано" />
-                        </SelectTrigger>
-                        <SelectContent className="max-h-72">
-                          <SelectItem value={EMPTY}>Не выбрано</SelectItem>
-                          {CITY_OPTIONS.map((c) => (
-                            <SelectItem key={c} value={c}>
-                              {c}
-                            </SelectItem>
-                          ))}
-                        </SelectContent>
-                      </Select>
-                    </FieldContent>
-                  </Field>
-                ) : (
-                  <Field>
-                    <FieldLabel htmlFor="pf-city-custom">Город (вручную)</FieldLabel>
-                    <FieldContent>
-                      <Input
-                        id="pf-city-custom"
-                        value={p.birthCityCustom}
-                        onChange={(e) => set("birthCityCustom", e.target.value)}
-                        placeholder="Например: Тула"
-                      />
-                    </FieldContent>
-                  </Field>
-                )}
               </FieldGroup>
             </CardContent>
           </Card>
@@ -311,24 +384,38 @@ export default function Profile({ onProfileUpdated }) {
           <Card>
             <CardHeader>
               <CardTitle>Учётная запись</CardTitle>
-              <CardDescription>Контакты и имя входа. Почта может использоваться для восстановления доступа.</CardDescription>
+              <CardDescription>Логин и почту изменить нельзя. Телефон и пароль — можно.</CardDescription>
             </CardHeader>
-            <CardContent>
+            <CardContent className="space-y-8">
               <FieldGroup className="gap-6">
                 <Field>
                   <FieldLabel htmlFor="pf-email">Электронная почта</FieldLabel>
+                  <FieldDescription>Нельзя изменить.</FieldDescription>
                   <FieldContent>
                     <Input
                       id="pf-email"
                       type="email"
-                      inputMode="email"
-                      autoComplete="email"
-                      maxLength={254}
+                      readOnly
+                      tabIndex={-1}
+                      className="bg-muted/60 text-muted-foreground"
                       value={p.email}
-                      onChange={(e) => set("email", e.target.value)}
                     />
                   </FieldContent>
                 </Field>
+                <Field>
+                  <FieldLabel htmlFor="pf-login">Логин</FieldLabel>
+                  <FieldDescription>Нельзя изменить.</FieldDescription>
+                  <FieldContent>
+                    <Input
+                      id="pf-login"
+                      readOnly
+                      tabIndex={-1}
+                      className="bg-muted/60 text-muted-foreground"
+                      value={p.login}
+                    />
+                  </FieldContent>
+                </Field>
+                <Separator />
                 <Field>
                   <FieldLabel htmlFor="pf-phone">Телефон</FieldLabel>
                   <FieldContent>
@@ -341,28 +428,63 @@ export default function Profile({ onProfileUpdated }) {
                       title={PHONE_TITLE}
                       maxLength={32}
                       value={p.phone}
-                      onChange={(e) => set("phone", sanitizePhoneInput(e.target.value))}
-                    />
-                  </FieldContent>
-                </Field>
-                <Separator />
-                <Field>
-                  <FieldLabel htmlFor="pf-login">Логин</FieldLabel>
-                  <FieldContent>
-                    <Input
-                      id="pf-login"
-                      required
-                      minLength={3}
-                      maxLength={32}
-                      pattern="[a-zA-Z0-9._-]+"
-                      title="Латиница, цифры, символы _ . - (от 3 до 32 символов)"
-                      autoComplete="username"
-                      value={p.login}
-                      onChange={(e) => set("login", e.target.value)}
+                      onChange={(e) => setField("phone", sanitizePhoneInput(e.target.value))}
                     />
                   </FieldContent>
                 </Field>
               </FieldGroup>
+
+              <Separator />
+
+              <div className="space-y-4">
+                <div>
+                  <h3 className="text-sm font-medium">Смена пароля</h3>
+                  <p className="text-muted-foreground mt-1 text-sm">Минимум 8 символов для нового пароля.</p>
+                </div>
+                <FieldGroup className="gap-4">
+                  <Field>
+                    <FieldLabel htmlFor="pf-cur-pwd">Текущий пароль</FieldLabel>
+                    <FieldContent>
+                      <Input
+                        id="pf-cur-pwd"
+                        type="password"
+                        autoComplete="current-password"
+                        value={currentPassword}
+                        onChange={(e) => setCurrentPassword(e.target.value)}
+                      />
+                    </FieldContent>
+                  </Field>
+                  <Field>
+                    <FieldLabel htmlFor="pf-new-pwd">Новый пароль</FieldLabel>
+                    <FieldContent>
+                      <Input
+                        id="pf-new-pwd"
+                        type="password"
+                        autoComplete="new-password"
+                        value={newPassword}
+                        onChange={(e) => setNewPassword(e.target.value)}
+                      />
+                    </FieldContent>
+                  </Field>
+                  <Field>
+                    <FieldLabel htmlFor="pf-confirm-pwd">Подтверждение</FieldLabel>
+                    <FieldContent>
+                      <Input
+                        id="pf-confirm-pwd"
+                        type="password"
+                        autoComplete="new-password"
+                        value={confirmPassword}
+                        onChange={(e) => setConfirmPassword(e.target.value)}
+                      />
+                    </FieldContent>
+                  </Field>
+                </FieldGroup>
+                <div className="flex justify-end">
+                  <Button type="button" onClick={savePassword} disabled={savingPwd}>
+                    {savingPwd ? "Сохранение…" : "Сменить пароль"}
+                  </Button>
+                </div>
+              </div>
             </CardContent>
           </Card>
         </TabsContent>

@@ -11,6 +11,8 @@ const ERROR_MESSAGES = {
   bad_basePersonId: "Некорректная связь с родственником.",
   cannot_delete_self: "Нельзя удалить свой профиль.",
   validation_failed: "Проверьте введённые данные.",
+  wrong_current_password: "Неверный текущий пароль.",
+  password_fields_required: "Укажите текущий и новый пароль.",
 };
 
 function pickErrorMessage(data, status) {

@@ -66,6 +66,7 @@ func main() {
 	profile := r.Group("/api/profile", middleware.RequireAuth())
 	{
 		profile.GET("", handlers.GetProfile)
+		profile.PUT("/password", handlers.ChangePassword)
 		profile.PUT("", handlers.UpdateProfile)
 	}
 
