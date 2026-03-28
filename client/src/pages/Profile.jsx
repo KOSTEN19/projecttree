@@ -19,6 +19,14 @@ import {
   SelectValue,
 } from "@/components/ui/select";
 import { Field, FieldContent, FieldDescription, FieldGroup, FieldLabel } from "@/components/ui/field";
+import { showApiError } from "@/lib/apiErrorSink.js";
+import {
+  PHONE_ALLOWED_PATTERN,
+  PHONE_TITLE,
+  sanitizePhoneInput,
+  validateEmailOptional,
+  validatePhoneClient,
+} from "@/lib/validationFields.js";
 
 const EMPTY = "__none__";
 
@@ -44,14 +52,13 @@ function profileCompletenessPercent(p, birthMode) {
 export default function Profile({ onProfileUpdated }) {
   const [p, setP] = useState(null);
   const [birthMode, setBirthMode] = useState("list");
-  const [err, setErr] = useState("");
   const [ok, setOk] = useState("");
   const [saving, setSaving] = useState(false);
 
   useEffect(() => {
     (async () => {
       const data = await apiGet("/api/profile");
-      setP(data);
+      setP({ ...data, phone: sanitizePhoneInput(data.phone || "") });
       setBirthMode(data.birthCityCustom ? "custom" : "list");
     })();
   }, []);
@@ -61,8 +68,21 @@ export default function Profile({ onProfileUpdated }) {
   }
 
   async function save() {
-    setErr("");
     setOk("");
+    const phoneErr = validatePhoneClient(p.phone);
+    if (phoneErr) {
+      showApiError(phoneErr);
+      return;
+    }
+    const emailErr = validateEmailOptional(p.email);
+    if (emailErr) {
+      showApiError(emailErr);
+      return;
+    }
+    if (!String(p.firstName || "").trim() || !String(p.lastName || "").trim()) {
+      showApiError("Имя и фамилия обязательны.");
+      return;
+    }
     setSaving(true);
     try {
       const payload = { ...p };
@@ -72,8 +92,8 @@ export default function Profile({ onProfileUpdated }) {
       setOk("Данные сохранены");
       onProfileUpdated?.();
       setTimeout(() => setOk(""), 3000);
-    } catch (e) {
-      setErr(e.message);
+    } catch {
+      /* текст ошибки уже в глобальном диалоге из api.js */
     } finally {
       setSaving(false);
     }
@@ -98,12 +118,6 @@ export default function Profile({ onProfileUpdated }) {
 
   return (
     <div className="mx-auto max-w-3xl space-y-6">
-      {err && (
-        <Alert variant="destructive">
-          <AlertTitle>Ошибка</AlertTitle>
-          <AlertDescription>{err}</AlertDescription>
-        </Alert>
-      )}
       {ok && (
         <Alert>
           <AlertTitle>Готово</AlertTitle>
@@ -162,13 +176,29 @@ export default function Profile({ onProfileUpdated }) {
                 <Field>
                   <FieldLabel htmlFor="pf-first">Имя</FieldLabel>
                   <FieldContent>
-                    <Input id="pf-first" value={p.firstName} onChange={(e) => set("firstName", e.target.value)} />
+                    <Input
+                      id="pf-first"
+                      required
+                      minLength={1}
+                      maxLength={120}
+                      autoComplete="given-name"
+                      value={p.firstName}
+                      onChange={(e) => set("firstName", e.target.value)}
+                    />
                   </FieldContent>
                 </Field>
                 <Field>
                   <FieldLabel htmlFor="pf-last">Фамилия</FieldLabel>
                   <FieldContent>
-                    <Input id="pf-last" value={p.lastName} onChange={(e) => set("lastName", e.target.value)} />
+                    <Input
+                      id="pf-last"
+                      required
+                      minLength={1}
+                      maxLength={120}
+                      autoComplete="family-name"
+                      value={p.lastName}
+                      onChange={(e) => set("lastName", e.target.value)}
+                    />
                   </FieldContent>
                 </Field>
                 <Separator />
@@ -288,20 +318,48 @@ export default function Profile({ onProfileUpdated }) {
                 <Field>
                   <FieldLabel htmlFor="pf-email">Электронная почта</FieldLabel>
                   <FieldContent>
-                    <Input id="pf-email" type="email" value={p.email} onChange={(e) => set("email", e.target.value)} />
+                    <Input
+                      id="pf-email"
+                      type="email"
+                      inputMode="email"
+                      autoComplete="email"
+                      maxLength={254}
+                      value={p.email}
+                      onChange={(e) => set("email", e.target.value)}
+                    />
                   </FieldContent>
                 </Field>
                 <Field>
                   <FieldLabel htmlFor="pf-phone">Телефон</FieldLabel>
                   <FieldContent>
-                    <Input id="pf-phone" value={p.phone} onChange={(e) => set("phone", e.target.value)} />
+                    <Input
+                      id="pf-phone"
+                      type="tel"
+                      inputMode="tel"
+                      autoComplete="tel"
+                      pattern={PHONE_ALLOWED_PATTERN}
+                      title={PHONE_TITLE}
+                      maxLength={32}
+                      value={p.phone}
+                      onChange={(e) => set("phone", sanitizePhoneInput(e.target.value))}
+                    />
                   </FieldContent>
                 </Field>
                 <Separator />
                 <Field>
                   <FieldLabel htmlFor="pf-login">Логин</FieldLabel>
                   <FieldContent>
-                    <Input id="pf-login" value={p.login} onChange={(e) => set("login", e.target.value)} />
+                    <Input
+                      id="pf-login"
+                      required
+                      minLength={3}
+                      maxLength={32}
+                      pattern="[a-zA-Z0-9._-]+"
+                      title="Латиница, цифры, символы _ . - (от 3 до 32 символов)"
+                      autoComplete="username"
+                      value={p.login}
+                      onChange={(e) => set("login", e.target.value)}
+                    />
                   </FieldContent>
                 </Field>
               </FieldGroup>

@@ -15,6 +15,7 @@ import Relatives from "./pages/Relatives.jsx";
 import Tree from "./pages/Tree.jsx";
 import MapPage from "./pages/Map.jsx";
 import AdminPage from "./pages/Admin.jsx";
+import ApiErrorDialog from "./components/ApiErrorDialog.jsx";
 
 function RequireAuth({ user, children }) {
   if (!user) return <Navigate to="/login" replace />;
@@ -70,7 +71,9 @@ export default function App() {
   }
 
   return (
-    <BrowserRouter>
+    <>
+      <ApiErrorDialog />
+      <BrowserRouter>
       <Routes>
         <Route path="/login" element={<Login onAuth={loadMe} />} />
         <Route path="/register" element={<Register onAuth={loadMe} />} />
@@ -105,6 +108,7 @@ export default function App() {
 
         <Route path="*" element={<Navigate to={user ? "/app/home" : "/login"} replace />} />
       </Routes>
-    </BrowserRouter>
+      </BrowserRouter>
+    </>
   );
 }

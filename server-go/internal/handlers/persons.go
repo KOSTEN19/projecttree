@@ -7,6 +7,7 @@ import (
 
 	"project-drevo/internal/db"
 	"project-drevo/internal/models"
+	"project-drevo/internal/validation"
 
 	"github.com/gin-gonic/gin"
 	"go.mongodb.org/mongo-driver/v2/bson"
@@ -67,7 +68,18 @@ func ListPersons(c *gin.Context) {
 func CreatePerson(c *gin.Context) {
 	var req createPersonReq
 	if err := c.ShouldBindJSON(&req); err != nil {
-		c.JSON(http.StatusBadRequest, gin.H{"error": "invalid_json"})
+		c.JSON(http.StatusBadRequest, gin.H{"error": "invalid_json", "message": "Некорректный JSON в запросе."})
+		return
+	}
+	if err := validation.CreatePersonPayload(validation.CreatePersonInput{
+		LastName: req.LastName, MaidenName: req.MaidenName, FirstName: req.FirstName, MiddleName: req.MiddleName,
+		Sex: req.Sex, BirthDate: req.BirthDate, BirthCity: req.BirthCity, BirthCityCustom: req.BirthCityCustom,
+		Phone: req.Phone, DeathDate: req.DeathDate, BurialPlace: req.BurialPlace,
+		Notes: req.Notes, Biography: req.Biography, Education: req.Education,
+		WorkPath: req.WorkPath, MilitaryPath: req.MilitaryPath,
+		RelationType: req.RelationType, Line: req.Line,
+	}); err != nil {
+		respondValidation(c, err)
 		return
 	}
 
@@ -169,7 +181,7 @@ func UpdatePerson(c *gin.Context) {
 
 	var body map[string]any
 	if err := c.ShouldBindJSON(&body); err != nil {
-		c.JSON(http.StatusBadRequest, gin.H{"error": "invalid_json"})
+		c.JSON(http.StatusBadRequest, gin.H{"error": "invalid_json", "message": "Некорректный JSON в запросе."})
 		return
 	}
 
@@ -204,7 +216,12 @@ func UpdatePerson(c *gin.Context) {
 		if v == nil {
 			set["externalLinks"] = []models.ExternalLink{}
 		} else {
-			set["externalLinks"] = parseExternalLinks(v)
+			links := parseExternalLinks(v)
+			if err := validation.ExternalLinks(links); err != nil {
+				respondValidation(c, err)
+				return
+			}
+			set["externalLinks"] = links
 		}
 	}
 
@@ -216,6 +233,39 @@ func UpdatePerson(c *gin.Context) {
 		}
 	} else {
 		set["alive"] = existing.Alive
+	}
+
+	strFromSet := func(key string) string {
+		v, ok := set[key]
+		if !ok {
+			return ""
+		}
+		s, ok := v.(string)
+		if !ok {
+			return ""
+		}
+		return s
+	}
+	if err := validation.ValidatePersonState(validation.PersonState{
+		LastName:        strFromSet("lastName"),
+		MaidenName:      strFromSet("maidenName"),
+		FirstName:       strFromSet("firstName"),
+		MiddleName:      strFromSet("middleName"),
+		Sex:             strFromSet("sex"),
+		BirthDate:       strFromSet("birthDate"),
+		BirthCity:       strFromSet("birthCity"),
+		BirthCityCustom: strFromSet("birthCityCustom"),
+		Phone:           strFromSet("phone"),
+		DeathDate:       strFromSet("deathDate"),
+		BurialPlace:     strFromSet("burialPlace"),
+		Notes:           strFromSet("notes"),
+		Biography:       strFromSet("biography"),
+		Education:       strFromSet("education"),
+		WorkPath:        strFromSet("workPath"),
+		MilitaryPath:    strFromSet("militaryPath"),
+	}); err != nil {
+		respondValidation(c, err)
+		return
 	}
 
 	_, _ = db.Persons.UpdateOne(ctx, bson.M{"_id": personOID, "userId": oid}, bson.M{"$set": set})

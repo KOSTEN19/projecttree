@@ -1,4 +1,32 @@
+import { shouldShowGlobalErrorDialog, showApiError } from "@/lib/apiErrorSink.js";
+
 const API_BASE = import.meta.env.VITE_API_BASE || "";
+
+const ERROR_MESSAGES = {
+  invalid_json: "Некорректный запрос.",
+  not_authorized: "Требуется вход в систему.",
+  not_found: "Данные не найдены.",
+  server_error: "Ошибка сервера. Попробуйте позже.",
+  bad_id: "Некорректный идентификатор.",
+  bad_basePersonId: "Некорректная связь с родственником.",
+  cannot_delete_self: "Нельзя удалить свой профиль.",
+  validation_failed: "Проверьте введённые данные.",
+};
+
+function pickErrorMessage(data, status) {
+  if (data && typeof data === "object" && typeof data.message === "string") {
+    const m = data.message.trim();
+    if (m) return m;
+  }
+  if (data && typeof data === "object" && typeof data.error === "string") {
+    const code = data.error;
+    if (ERROR_MESSAGES[code]) return ERROR_MESSAGES[code];
+    return code;
+  }
+  if (typeof data === "string" && data.trim()) return data.trim();
+  if (status === 404) return "Не найдено.";
+  return `HTTP ${status}`;
+}
 
 export function assetUrl(path) {
   if (!path) return "";
@@ -16,17 +44,22 @@ function getToken() {
   return localStorage.getItem("token") || "";
 }
 
+/**
+ * @param {string} path
+ * @param {RequestInit & { silentGlobalDialog?: boolean }} [options]
+ */
 async function request(path, options = {}) {
+  const { silentGlobalDialog, ...fetchOptions } = options;
   const url = `${API_BASE}${path}`;
   const token = getToken();
 
   const headers = {
     "Content-Type": "application/json",
     ...(token ? { Authorization: `Bearer ${token}` } : {}),
-    ...(options.headers || {}),
+    ...(fetchOptions.headers || {}),
   };
 
-  const res = await fetch(url, { ...options, headers });
+  const res = await fetch(url, { ...fetchOptions, headers });
 
   const text = await res.text();
   let data = null;
@@ -40,30 +73,30 @@ async function request(path, options = {}) {
     if (res.status === 401) {
       clearToken();
     }
-    const msg =
-      (data && data.error) ||
-      (typeof data === "string" && data) ||
-      `HTTP ${res.status}`;
+    const msg = pickErrorMessage(data, res.status);
+    if (!silentGlobalDialog && shouldShowGlobalErrorDialog(res.status)) {
+      showApiError(msg);
+    }
     throw new Error(msg);
   }
 
   return data;
 }
 
-export function apiGet(path) {
-  return request(path, { method: "GET" });
+export function apiGet(path, options) {
+  return request(path, { method: "GET", ...options });
 }
 
-export function apiPost(path, body) {
-  return request(path, { method: "POST", body: JSON.stringify(body || {}) });
+export function apiPost(path, body, options) {
+  return request(path, { method: "POST", body: JSON.stringify(body || {}), ...options });
 }
 
-export function apiPut(path, body) {
-  return request(path, { method: "PUT", body: JSON.stringify(body || {}) });
+export function apiPut(path, body, options) {
+  return request(path, { method: "PUT", body: JSON.stringify(body || {}), ...options });
 }
 
-export function apiDelete(path) {
-  return request(path, { method: "DELETE" });
+export function apiDelete(path, options) {
+  return request(path, { method: "DELETE", ...options });
 }
 
 export async function apiUploadPersonPhoto(personId, file) {
@@ -85,10 +118,10 @@ export async function apiUploadPersonPhoto(personId, file) {
   }
   if (!res.ok) {
     if (res.status === 401) clearToken();
-    const msg =
-      (data && data.error) ||
-      (typeof data === "string" && data) ||
-      `HTTP ${res.status}`;
+    const msg = pickErrorMessage(data, res.status);
+    if (shouldShowGlobalErrorDialog(res.status)) {
+      showApiError(msg);
+    }
     throw new Error(msg);
   }
   return data;

@@ -7,6 +7,7 @@ import (
 	"project-drevo/internal/db"
 	"project-drevo/internal/middleware"
 	"project-drevo/internal/models"
+	"project-drevo/internal/validation"
 
 	"github.com/gin-gonic/gin"
 	"go.mongodb.org/mongo-driver/v2/bson"
@@ -25,11 +26,15 @@ type registerReq struct {
 func Register(c *gin.Context) {
 	var req registerReq
 	if err := c.ShouldBindJSON(&req); err != nil {
-		c.JSON(http.StatusBadRequest, gin.H{"error": "invalid_json"})
+		c.JSON(http.StatusBadRequest, gin.H{"error": "invalid_json", "message": "Некорректный JSON в запросе."})
 		return
 	}
 	if req.Login == "" || req.Password == "" {
-		c.JSON(http.StatusBadRequest, gin.H{"error": "login_and_password_required"})
+		c.JSON(http.StatusBadRequest, gin.H{"error": "login_and_password_required", "message": "Укажите логин и пароль."})
+		return
+	}
+	if err := validation.RegisterPayload(req.FirstName, req.LastName, req.Email, req.Phone, req.Login, req.Password); err != nil {
+		respondValidation(c, err)
 		return
 	}
 
@@ -38,7 +43,7 @@ func Register(c *gin.Context) {
 	var existing models.User
 	err := db.Users.FindOne(ctx, bson.M{"login": req.Login}).Decode(&existing)
 	if err == nil {
-		c.JSON(http.StatusConflict, gin.H{"error": "login_already_exists"})
+		c.JSON(http.StatusConflict, gin.H{"error": "login_already_exists", "message": "Этот логин уже занят. Выберите другой."})
 		return
 	}
 
@@ -95,11 +100,11 @@ type loginReq struct {
 func Login(c *gin.Context) {
 	var req loginReq
 	if err := c.ShouldBindJSON(&req); err != nil {
-		c.JSON(http.StatusBadRequest, gin.H{"error": "invalid_json"})
+		c.JSON(http.StatusBadRequest, gin.H{"error": "invalid_json", "message": "Некорректный JSON в запросе."})
 		return
 	}
 	if req.Login == "" || req.Password == "" {
-		c.JSON(http.StatusBadRequest, gin.H{"error": "login_and_password_required"})
+		c.JSON(http.StatusBadRequest, gin.H{"error": "login_and_password_required", "message": "Укажите логин и пароль."})
 		return
 	}
 
@@ -107,12 +112,12 @@ func Login(c *gin.Context) {
 	var user models.User
 	err := db.Users.FindOne(ctx, bson.M{"login": req.Login}).Decode(&user)
 	if err != nil {
-		c.JSON(http.StatusUnauthorized, gin.H{"error": "bad_credentials"})
+		c.JSON(http.StatusUnauthorized, gin.H{"error": "bad_credentials", "message": "Неверный логин или пароль."})
 		return
 	}
 
 	if err := bcrypt.CompareHashAndPassword([]byte(user.PasswordHash), []byte(req.Password)); err != nil {
-		c.JSON(http.StatusUnauthorized, gin.H{"error": "bad_credentials"})
+		c.JSON(http.StatusUnauthorized, gin.H{"error": "bad_credentials", "message": "Неверный логин или пароль."})
 		return
 	}
 

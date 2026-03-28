@@ -6,6 +6,7 @@ import (
 
 	"project-drevo/internal/db"
 	"project-drevo/internal/models"
+	"project-drevo/internal/validation"
 
 	"github.com/gin-gonic/gin"
 	"go.mongodb.org/mongo-driver/v2/bson"
@@ -40,7 +41,14 @@ func UpdateProfile(c *gin.Context) {
 		BirthCityCustom string `json:"birthCityCustom"`
 	}
 	if err := c.ShouldBindJSON(&payload); err != nil {
-		c.JSON(http.StatusBadRequest, gin.H{"error": "invalid_json"})
+		c.JSON(http.StatusBadRequest, gin.H{"error": "invalid_json", "message": "Некорректный JSON в запросе."})
+		return
+	}
+	if err := validation.ProfilePayload(
+		payload.FirstName, payload.LastName, payload.Email, payload.Phone,
+		payload.Login, payload.Sex, payload.BirthDate, payload.BirthCity, payload.BirthCityCustom,
+	); err != nil {
+		respondValidation(c, err)
 		return
 	}
 

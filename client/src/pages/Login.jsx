@@ -21,7 +21,7 @@ export default function Login({ onAuth }) {
     setErr("");
     setLoading(true);
     try {
-      const data = await apiPost("/api/auth/login", credentials);
+      const data = await apiPost("/api/auth/login", credentials, { silentGlobalDialog: true });
       if (data.token) saveToken(data.token);
       await onAuth?.();
       nav(redirectTo);
