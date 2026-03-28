@@ -5,7 +5,7 @@
 #
 # Ollama: образ alpine/ollama (OLLAMA_IMAGE), модель по умолчанию tinyllama (~0.6 GB) под 1 vCPU / ~2 GB RAM на весь хост.
 # При старте контейнера скрипт scripts/ollama-docker-entry.sh подтягивает модель (OLLAMA_MODEL = AI_MODEL).
-# Лимиты CPU/RAM у сервиса ollama — см. deploy; при нехватке памяти увеличьте хост или задайте AI_MODEL=qwen2:0.5b.
+# Лимиты для Ollama при необходимости задайте вручную в Docker; reservations в compose на слабых VPS мешали старту контейнеров.
 # ИИ-лента: AI_ENABLED=true; server → http://ollama:11434/v1
 services:
   mongodb:
@@ -23,7 +23,7 @@ services:
     build: ./server-go
     depends_on:
       - mongodb
-      - ollama
+    # ollama не в depends_on: API должен подниматься даже если Ollama ещё качает модель или упал
     environment:
       - PORT=3001
       # БД project_drevo — имя как в server-go/internal/config DefaultMongoDBName
@@ -61,14 +61,6 @@ services:
     ports:
       - "127.0.0.1:11434:11434"
     restart: unless-stopped
-    deploy:
-      resources:
-        limits:
-          cpus: "0.45"
-          memory: 1024M
-        reservations:
-          cpus: "0.10"
-          memory: 256M
 
   # Фронт: в образе `npm ci` (client/node_modules не в git) → prebuild/shadcn → Vite → dist в nginx.
   client:

@@ -25,6 +25,6 @@
 #### Локальный Ollama в Docker Compose
 
 - Сервис входит в обычный `docker compose up -d`. По умолчанию образ **`alpine/ollama`**, модель **`tinyllama`** (легче для слабого хоста). При старте контейнера [`scripts/ollama-docker-entry.sh`](scripts/ollama-docker-entry.sh) поднимает `ollama serve` и выполняет **`ollama pull`** для `AI_MODEL` (первый раз может занять несколько минут).
-- Для хоста порядка **1 vCPU и 2 GB RAM** у `ollama` заданы лимиты **~0.45 CPU и 1 GB RAM** (`deploy.resources` в compose; на старых Compose без поддержки — только подсказка, задайте лимиты вручную в Docker). Ещё легче модель: `AI_MODEL=qwen2:0.5b`. Полный официальный образ: `OLLAMA_IMAGE=ollama/ollama:latest`.
+- На слабом VPS **API (`server`) не зависит от Ollama** в `docker-compose`: сайт поднимается, пока модель качается или если Ollama недоступен; ИИ-ленту можно включить позже. При желании ограничьте CPU/RAM контейнера `ollama` вручную в настройках Docker. Ещё легче модель: `AI_MODEL=qwen2:0.5b`. Полный официальный образ: `OLLAMA_IMAGE=ollama/ollama:latest`.
 - В Docker Compose ИИ **включён по умолчанию** (`AI_ENABLED=true`); выключить: `AI_ENABLED=false` в `.env`. У `server`: `AI_API_BASE_URL=http://ollama:11434/v1`, `AI_MODEL` совпадает с подгружаемой в Ollama.
 - Порт **11434** на хосте: **127.0.0.1**.
