@@ -627,3 +627,32 @@
 .pc-mini-avatar .pc-mini-avatar-img {
   display: block;
 }
+
+/* Pastel overrides */
+.pc-card {
+  background: linear-gradient(160deg, rgba(248, 244, 236, 0.95), rgba(238, 232, 220, 0.9));
+  box-shadow: rgba(98, 72, 41, 0.22) calc((var(--pointer-from-left) * 10px) - 3px)
+    calc((var(--pointer-from-top) * 20px) - 6px) 20px -8px;
+}
+
+.pc-inside {
+  background-color: rgba(248, 244, 236, 0.9);
+}
+
+.pc-handle {
+  color: rgba(59, 43, 31, 0.92);
+}
+
+.pc-status {
+  color: rgba(92, 74, 60, 0.8);
+}
+
+.pc-contact-btn {
+  border-color: rgba(98, 72, 41, 0.2);
+  color: rgba(59, 43, 31, 0.92);
+  background: rgba(255, 255, 255, 0.55);
+}
+
+.pc-contact-btn:hover {
+  border-color: rgba(98, 72, 41, 0.38);
+}

@@ -4,6 +4,7 @@ import { apiGet } from "../api.js";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
+import { Separator } from "@/components/ui/separator";
 
 const HISTORICAL_FALLBACK_IMAGE =
   "https://cdn.ruwiki.ru/commonswiki/files/e/ee/WW2_collage.jpg";
@@ -391,7 +392,10 @@ export default function Home({ user }) {
         </div>
       </section>
 
+      <Separator className="opacity-50" />
+
       <section className="px-4 md:px-6">
+        <div className="home-section-band home-section-band--surface">
         <div className="mb-3 flex items-center justify-between gap-3">
           <h2 className="home-section-title home-portal-section-title">Лента родственников</h2>
           <div className="flex items-center gap-2">
@@ -436,9 +440,13 @@ export default function Home({ user }) {
             </Card>
           ) : null}
         </div>
+        </div>
       </section>
 
+      <Separator className="opacity-50" />
+
       <section className="px-4 md:px-6">
+        <div className="home-section-band home-section-band--muted">
         <h2 className="home-section-title home-portal-section-title mb-3">Интересные факты о вашем роде</h2>
         <div className="grid gap-3 md:grid-cols-2 xl:grid-cols-3">
           {facts.map((fact) => (
@@ -464,9 +472,13 @@ export default function Home({ user }) {
             </Card>
           ))}
         </div>
+        </div>
       </section>
 
+      <Separator className="opacity-50" />
+
       <section className="px-4 md:px-6">
+        <div className="home-section-band home-section-band--surface">
         <h2 className="home-section-title home-portal-section-title mb-3">Исторические факты о родственниках</h2>
         <div className="grid gap-3 md:grid-cols-2 xl:grid-cols-3">
           {historicalFacts.map((fact) => (
@@ -500,9 +512,13 @@ export default function Home({ user }) {
             </Card>
           ))}
         </div>
+        </div>
       </section>
 
+      <Separator className="opacity-50" />
+
       <section className="px-4 md:px-6">
+        <div className="home-section-band home-section-band--muted">
         <h2 className="home-section-title home-portal-section-title mb-3">Разделы семейного пространства</h2>
         <div className="grid gap-3 sm:grid-cols-2">
           <Link to="/app/relatives">
@@ -538,9 +554,13 @@ export default function Home({ user }) {
             </Card>
           </Link>
         </div>
+        </div>
       </section>
 
+      <Separator className="opacity-50" />
+
       <section className="px-4 pb-2 md:px-6">
+        <div className="home-section-band home-section-band--surface pb-1">
         <div className="mb-3 flex items-center justify-between">
           <h2 className="home-section-title home-portal-section-title">Обновления семейной летописи</h2>
           <Link className="home-section-link home-portal-link" to="/app/relatives">
@@ -568,6 +588,7 @@ export default function Home({ user }) {
             </CardHeader>
           </Card>
         )}
+        </div>
       </section>
     </div>
   );

@@ -1958,3 +1958,168 @@ html:not(.dark) .gm-pop .maplibregl-popup-content {
     border-color: ButtonText;
   }
 }
+
+/* Map/tree chrome: semantic mixes from theme tokens only (light + dark) */
+:root {
+  --map-chrome-surface-0: color-mix(in oklab, var(--background) 58%, var(--card));
+  --map-chrome-surface-1: color-mix(in oklab, var(--background) 42%, var(--secondary));
+  --map-chrome-surface-2: color-mix(in oklab, var(--card) 72%, var(--secondary));
+  --map-chrome-border-1: color-mix(in oklab, var(--border) 72%, var(--chart-2));
+  --map-chrome-border-2: color-mix(in oklab, var(--border) 58%, var(--foreground));
+  --map-chrome-text-strong: var(--foreground);
+  --map-chrome-text-muted: var(--muted-foreground);
+  --map-chrome-accent-blue: color-mix(in oklab, var(--chart-2) 48%, var(--foreground));
+  --map-chrome-accent-rose: color-mix(in oklab, var(--chart-5) 44%, var(--foreground));
+  --map-chrome-accent-violet: color-mix(in oklab, var(--chart-1) 40%, var(--foreground));
+}
+
+.rel-pixel-add-label {
+  color: var(--foreground);
+  text-shadow: 0 1px 6px color-mix(in oklab, var(--background) 40%, transparent);
+}
+
+.gm-page,
+.gm-page--burial {
+  background:
+    radial-gradient(ellipse 92% 56% at 50% -12%, color-mix(in oklab, var(--chart-2) 24%, transparent), transparent 56%),
+    var(--map-chrome-surface-0);
+  border-color: var(--map-chrome-border-1);
+  box-shadow: inset 0 1px 0 color-mix(in oklab, var(--foreground) 10%, transparent);
+}
+
+.gm-top {
+  background: linear-gradient(
+    180deg,
+    color-mix(in oklab, var(--card) 55%, var(--background)) 0%,
+    var(--map-chrome-surface-1) 100%
+  );
+  border-bottom-color: var(--map-chrome-border-1);
+}
+
+.gm-title,
+.gm-panel-city,
+.gm-person-name {
+  color: var(--map-chrome-text-strong);
+}
+
+.gm-sub,
+.gm-panel-cnt,
+.gm-pop-meta,
+.gm-person-sub {
+  color: var(--map-chrome-text-muted);
+}
+
+.gm-filters,
+.gm-stat-pill,
+.gm-person,
+.gm-panel,
+.gm-pop .maplibregl-popup-content {
+  background: var(--map-chrome-surface-2);
+  border-color: var(--map-chrome-border-1);
+  color: var(--map-chrome-text-strong);
+}
+
+.gm-fbtn {
+  color: var(--map-chrome-text-muted);
+}
+
+.gm-fbtn.on {
+  color: var(--map-chrome-text-strong);
+  background: linear-gradient(
+    180deg,
+    color-mix(in oklab, var(--chart-2) 38%, var(--card)),
+    color-mix(in oklab, var(--chart-2) 22%, var(--background))
+  );
+}
+
+.gm-fbtn:hover:not(.on),
+.gm-person:hover {
+  background: linear-gradient(
+    145deg,
+    color-mix(in oklab, var(--chart-2) 28%, var(--background)),
+    color-mix(in oklab, var(--chart-1) 18%, var(--background))
+  );
+}
+
+.gm-box {
+  background: color-mix(in oklab, var(--background) 78%, var(--secondary));
+}
+
+.gm-overlay {
+  background: color-mix(in oklab, var(--background) 76%, var(--muted));
+  color: var(--map-chrome-text-muted);
+}
+
+.gm-panel-accent {
+  background: linear-gradient(
+    90deg,
+    var(--map-chrome-accent-blue),
+    var(--map-chrome-accent-violet),
+    var(--map-chrome-accent-rose)
+  );
+}
+
+.gm-page--burial .gm-panel-accent {
+  background: linear-gradient(90deg, color-mix(in oklab, var(--chart-4) 70%, var(--chart-1)), color-mix(in oklab, var(--chart-1) 66%, var(--chart-5)));
+}
+
+.gm-panel-x {
+  border-color: var(--map-chrome-border-2);
+  background: color-mix(in oklab, var(--card) 62%, var(--background));
+  color: var(--map-chrome-text-muted);
+}
+
+.gm-panel-x:hover {
+  color: var(--map-chrome-text-strong);
+}
+
+.tree-page {
+  --tree-surface-deep: color-mix(in oklab, var(--background) 58%, var(--card));
+  --tree-surface-mid: color-mix(in oklab, var(--background) 44%, var(--secondary));
+  --tree-surface-low: color-mix(in oklab, var(--background) 36%, var(--secondary));
+  --tree-chrome-border: var(--map-chrome-border-1);
+  --tree-accent-blue: color-mix(in oklab, var(--chart-2) 22%, transparent);
+  --tree-accent-violet: color-mix(in oklab, var(--chart-1) 18%, transparent);
+  --tree-text-title: var(--map-chrome-text-strong);
+  --tree-text-muted: var(--map-chrome-text-muted);
+  --tree-legend-parent: var(--map-chrome-accent-blue);
+  --tree-legend-spouse: var(--map-chrome-accent-rose);
+  --tree-legend-sibling: var(--map-chrome-accent-violet);
+  box-shadow: inset 0 1px 0 color-mix(in oklab, var(--foreground) 9%, transparent);
+}
+
+.tree-viewport {
+  background:
+    radial-gradient(ellipse 120% 80% at 50% 0%, color-mix(in oklab, var(--chart-2) 10%, transparent), transparent 55%),
+    radial-gradient(ellipse 90% 60% at 80% 60%, color-mix(in oklab, var(--chart-1) 8%, transparent), transparent 52%),
+    linear-gradient(180deg, var(--tree-surface-mid) 0%, var(--tree-surface-low) 100%);
+}
+
+.tree-chip {
+  border-color: var(--map-chrome-border-1);
+  background: color-mix(in oklab, var(--card) 78%, var(--secondary));
+  color: var(--map-chrome-text-strong);
+  box-shadow: 0 8px 24px -22px color-mix(in oklab, var(--foreground) 28%, transparent);
+}
+
+.tree-chip-sub {
+  color: var(--map-chrome-text-muted);
+}
+
+.tree-loading {
+  background: color-mix(in oklab, var(--background) 72%, var(--muted));
+  color: var(--map-chrome-text-muted);
+}
+
+.tree-unplaced {
+  background: var(--map-chrome-surface-1);
+  border-top-color: var(--map-chrome-border-1);
+}
+
+.tree-unplaced-item,
+.tree-lp-menu,
+.tree-mc-card {
+  background: var(--map-chrome-surface-2);
+  border-color: var(--map-chrome-border-1);
+  color: var(--map-chrome-text-strong);
+}

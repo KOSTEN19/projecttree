@@ -2,6 +2,7 @@ import React, { useEffect, useMemo, useState } from "react";
 import { apiGet } from "../api.js";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
+import { Separator } from "@/components/ui/separator";
 
 function fmtBytes(v) {
   const n = Number(v || 0);
@@ -50,10 +51,14 @@ export default function AdminPage() {
 
   return (
     <div className="space-y-4">
-      <div>
-        <h2 className="text-2xl font-semibold">Панель администратора</h2>
-        <p className="text-sm text-muted-foreground">Нагрузка сервера, хосты сканеров и все добавленные родственники</p>
+      <div className="space-y-1">
+        <h2 className="text-2xl font-semibold tracking-tight">Панель администратора</h2>
+        <p className="text-sm text-muted-foreground leading-relaxed">
+          Нагрузка сервера, хосты сканеров и все добавленные родственники
+        </p>
       </div>
+
+      <Separator />
 
       <div className="grid gap-3 md:grid-cols-2 xl:grid-cols-4">
         <Card>

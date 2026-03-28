@@ -29,10 +29,10 @@ function getMapStyle() {
         type: "raster",
         source: "osm",
         paint: {
-          "raster-brightness-min": 0.06,
-          "raster-brightness-max": 1.18,
-          "raster-saturation": 0.5,
-          "raster-contrast": 0.42,
+          "raster-brightness-min": 0.34,
+          "raster-brightness-max": 1.24,
+          "raster-saturation": 0.08,
+          "raster-contrast": 0.16,
         },
       },
     ],
@@ -159,10 +159,10 @@ export default function MapPage() {
         source: CITY_SOURCE_ID,
         paint: {
           "circle-radius": ["interpolate", ["linear"], ["get", "count"], 1, 8, 2, 12, 5, 18, 10, 22],
-          "circle-color": ["case", [">", ["get", "count"], 1], "#3b82f6", "#f43f5e"],
+          "circle-color": ["case", [">", ["get", "count"], 1], "#8fb2df", "#d59aaa"],
           "circle-stroke-width": 2.2,
-          "circle-stroke-color": "#0f172a",
-          "circle-opacity": 0.95,
+          "circle-stroke-color": "#6c5a4a",
+          "circle-opacity": 0.9,
         },
       });
     }
@@ -178,7 +178,7 @@ export default function MapPage() {
           "text-allow-overlap": true,
         },
         paint: {
-          "text-color": "#0f172a",
+          "text-color": "#3b2f24",
         },
       });
     }
@@ -196,8 +196,8 @@ export default function MapPage() {
           "text-allow-overlap": true,
         },
         paint: {
-          "text-color": "#111827",
-          "text-halo-color": "rgba(248, 250, 252, 0.98)",
+          "text-color": "#3b2f24",
+          "text-halo-color": "rgba(252, 249, 243, 0.98)",
           "text-halo-width": 1.5,
         },
       });

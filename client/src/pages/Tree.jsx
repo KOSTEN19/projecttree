@@ -954,7 +954,7 @@ export default function Tree() {
                   <feColorMatrix
                     in="blur"
                     type="matrix"
-                    values="0 0 0 0 0.32  0 0 0 0 0.56  0 0 0 0 0.92  0 0 0 0.42 0"
+                    values="0 0 0 0 0.62  0 0 0 0 0.50  0 0 0 0 0.36  0 0 0 0.24 0"
                     result="glow"
                   />
                   <feMerge>
@@ -963,18 +963,18 @@ export default function Tree() {
                   </feMerge>
                 </filter>
                 <linearGradient id="treeStrokeParent" x1="0%" y1="0%" x2="100%" y2="0%">
-                  <stop offset="0%" stopColor="#4f8cc8" stopOpacity="0.95" />
-                  <stop offset="48%" stopColor="#9fd4ff" stopOpacity="0.9" />
-                  <stop offset="100%" stopColor="#5a7ab0" stopOpacity="0.92" />
+                  <stop offset="0%" stopColor="#8eb0d9" stopOpacity="0.86" />
+                  <stop offset="48%" stopColor="#bfd3e7" stopOpacity="0.82" />
+                  <stop offset="100%" stopColor="#9db7d8" stopOpacity="0.84" />
                 </linearGradient>
                 <linearGradient id="treeStrokeSpouse" x1="0%" y1="0%" x2="100%" y2="0%">
-                  <stop offset="0%" stopColor="#9b6bb8" stopOpacity="0.9" />
-                  <stop offset="50%" stopColor="#e8b4ff" stopOpacity="0.85" />
-                  <stop offset="100%" stopColor="#7a5098" stopOpacity="0.88" />
+                  <stop offset="0%" stopColor="#c09ab3" stopOpacity="0.82" />
+                  <stop offset="50%" stopColor="#e1c4d4" stopOpacity="0.8" />
+                  <stop offset="100%" stopColor="#b88ba7" stopOpacity="0.82" />
                 </linearGradient>
                 <linearGradient id="treeStrokeSibling" x1="0%" y1="0%" x2="100%" y2="0%">
-                  <stop offset="0%" stopColor="#6a7fd8" stopOpacity="0.85" />
-                  <stop offset="100%" stopColor="#a5b8f0" stopOpacity="0.8" />
+                  <stop offset="0%" stopColor="#9ca8d8" stopOpacity="0.78" />
+                  <stop offset="100%" stopColor="#c5cfee" stopOpacity="0.74" />
                 </linearGradient>
               </defs>
               {edgePaths.map((e, i) => {

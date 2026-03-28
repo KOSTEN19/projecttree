@@ -7,6 +7,7 @@ import FamilyProfileCard from "../components/FamilyProfileCard.jsx";
 import AddRelativePixelCard from "../components/AddRelativePixelCard.jsx";
 import { Card, CardContent } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
+import { Separator } from "@/components/ui/separator";
 import FamilyRelationStats from "@/components/FamilyRelationStats";
 
 const ROMAN = ["", "I", "II", "III", "IV", "V", "VI", "VII", "VIII", "IX", "X",
@@ -183,11 +184,11 @@ export default function Relatives() {
             <Button onClick={() => setOpenAdd(true)}>Добавить родственника</Button>
           </div>
 
-          <div className="bg-border h-px" />
+          <Separator />
 
           {relationships.length > 0 ? <FamilyRelationStats stats={relationStats} /> : null}
 
-          <div className="bg-border h-px" />
+          <Separator />
 
           <div className="rel-era-wrap">
             {self && (

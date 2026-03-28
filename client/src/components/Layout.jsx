@@ -1,8 +1,16 @@
-import React from "react";
-import { NavLink, Outlet, useLocation, useNavigate } from "react-router-dom";
+import React, { useMemo } from "react";
+import { Link, NavLink, Outlet, useLocation, useNavigate } from "react-router-dom";
 import { clearToken } from "../api.js";
 import { Button } from "@/components/ui/button";
 import { Avatar, AvatarFallback } from "@/components/ui/avatar";
+import {
+  Breadcrumb,
+  BreadcrumbItem,
+  BreadcrumbLink,
+  BreadcrumbList,
+  BreadcrumbPage,
+  BreadcrumbSeparator,
+} from "@/components/ui/breadcrumb";
 import { cn } from "@/lib/utils";
 
 const NAV_ITEMS = [
@@ -12,6 +20,15 @@ const NAV_ITEMS = [
   { label: "Карта", to: "/app/map" },
   { label: "Профиль", to: "/app/profile" },
 ];
+
+const ROUTE_CRUMB_LABEL = {
+  "/app/home": "Главная",
+  "/app/relatives": "Семья",
+  "/app/tree": "Древо",
+  "/app/map": "Карта",
+  "/app/profile": "Профиль",
+  "/app/admin": "Админ",
+};
 
 export default function Layout({ user, onLogout, theme = "dark", onToggleTheme }) {
   const nav = useNavigate();
@@ -29,6 +46,13 @@ export default function Layout({ user, onLogout, theme = "dark", onToggleTheme }
     ? [...NAV_ITEMS, { label: "Админ", to: "/app/admin" }]
     : NAV_ITEMS;
 
+  const crumbLabel = useMemo(() => {
+    const path = location.pathname.replace(/\/$/, "") || "/app/home";
+    return ROUTE_CRUMB_LABEL[path] || "Раздел";
+  }, [location.pathname]);
+
+  const isHome = location.pathname.replace(/\/$/, "") === "/app/home";
+
   return (
     <div className="layout-shell flex min-h-screen flex-col bg-background text-foreground">
       <header className="layout-header sticky top-0 z-50 border-b">
@@ -41,17 +65,17 @@ export default function Layout({ user, onLogout, theme = "dark", onToggleTheme }
             </div>
           </div>
 
-          <nav className="layout-nav flex flex-wrap items-center gap-1">
+          <nav className="layout-nav flex flex-wrap items-center">
             {navItems.map(({ label, to }) => (
               <NavLink
                 key={to}
                 to={to}
                 className={({ isActive }) =>
                   cn(
-                    "layout-nav-link inline-flex h-8 items-center rounded-md px-3 text-sm font-medium transition-colors",
+                    "layout-nav-link inline-flex items-center transition-colors",
                     isActive
                       ? "layout-nav-link-active"
-                      : "text-muted-foreground hover:bg-muted hover:text-foreground"
+                      : "text-muted-foreground hover:text-foreground"
                   )
                 }
               >
@@ -80,6 +104,21 @@ export default function Layout({ user, onLogout, theme = "dark", onToggleTheme }
 
       <main className="flex-1">
         <div className="mx-auto max-w-6xl px-4 py-6">
+          <Breadcrumb className="layout-breadcrumb">
+            <BreadcrumbList>
+              {!isHome ? (
+                <>
+                  <BreadcrumbItem>
+                    <BreadcrumbLink render={(props) => <Link {...props} to="/app/home" />}>Главная</BreadcrumbLink>
+                  </BreadcrumbItem>
+                  <BreadcrumbSeparator />
+                </>
+              ) : null}
+              <BreadcrumbItem>
+                <BreadcrumbPage>{crumbLabel}</BreadcrumbPage>
+              </BreadcrumbItem>
+            </BreadcrumbList>
+          </Breadcrumb>
           <div key={location.pathname} className="app-page-transition">
             <Outlet />
           </div>
