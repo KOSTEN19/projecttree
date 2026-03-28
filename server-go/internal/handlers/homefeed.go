@@ -69,6 +69,7 @@ func fetchRuwikiSummary(ctx context.Context, title string) (outTitle, extract, t
 	q.Set("action", "query")
 	q.Set("format", "json")
 	q.Set("formatversion", "2")
+	q.Set("redirects", "1")
 	q.Set("titles", title)
 	q.Set("prop", "extracts|pageimages|info")
 	q.Set("exintro", "1")
@@ -85,7 +86,7 @@ func fetchRuwikiSummary(ctx context.Context, title string) (outTitle, extract, t
 	req.Header.Set("User-Agent", wikiUserAgent)
 	req.Header.Set("Accept", "application/json")
 
-	client := &http.Client{Timeout: 6 * time.Second}
+	client := &http.Client{Timeout: 15 * time.Second}
 	res, err := client.Do(req)
 	if err != nil {
 		return "", "", "", "", err
@@ -109,6 +110,9 @@ func fetchRuwikiSummary(ctx context.Context, title string) (outTitle, extract, t
 	outTitle = page.Title
 	extract = strings.TrimSpace(page.Extract)
 	pageURL = strings.TrimSpace(page.FullURL)
+	if pageURL == "" && outTitle != "" {
+		pageURL = "https://ru.ruwiki.ru/wiki/" + strings.ReplaceAll(url.PathEscape(outTitle), "+", "%20")
+	}
 	if page.Thumbnail != nil {
 		thumb = strings.TrimSpace(page.Thumbnail.Source)
 	}
@@ -184,14 +188,18 @@ type HomeFeedItem struct {
 	SourceLabel string `json:"sourceLabel"`
 }
 
-func enrichWithWiki(ctx context.Context, item *HomeFeedItem, wikiTitle string) {
+func enrichWithWiki(item *HomeFeedItem, wikiTitle string) {
 	if wikiTitle == "" {
 		if item.ImageURL == "" {
 			item.ImageURL = fallbackWikiImg
 		}
 		return
 	}
-	t, ex, thumb, pURL, err := fetchRuwikiSummary(ctx, wikiTitle)
+	// Не привязываем исходящие запросы к контексту HTTP-клиента: при таймауте прокси / обрыве соединения
+	// request context отменяется, и все обращения к Ruwiki падали бы без sourceUrl и превью.
+	wikiCtx, cancel := context.WithTimeout(context.Background(), 30*time.Second)
+	defer cancel()
+	t, ex, thumb, pURL, err := fetchRuwikiSummary(wikiCtx, wikiTitle)
 	if err != nil {
 		if item.ImageURL == "" {
 			item.ImageURL = fallbackWikiImg
@@ -543,14 +551,18 @@ func HomeFeed(c *gin.Context) {
 
 	sem := semaphore.NewWeighted(5)
 	var wg sync.WaitGroup
+	semCtx := context.Background()
 	for _, j := range jobs {
 		j := j
 		wg.Add(1)
-		_ = sem.Acquire(ctx, 1)
+		if err := sem.Acquire(semCtx, 1); err != nil {
+			wg.Done()
+			continue
+		}
 		go func() {
 			defer sem.Release(1)
 			defer wg.Done()
-			enrichWithWiki(ctx, &items[j.idx], j.title)
+			enrichWithWiki(&items[j.idx], j.title)
 		}()
 	}
 	wg.Wait()
