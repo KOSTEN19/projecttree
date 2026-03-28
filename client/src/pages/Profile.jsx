@@ -1,5 +1,7 @@
 import React, { useEffect, useMemo, useRef, useState } from "react";
-import { apiGet, apiPut } from "../api.js";
+import { useNavigate } from "react-router-dom";
+import { Sparkles } from "lucide-react";
+import { apiGet, apiPost, apiPut } from "../api.js";
 import { CITY_OPTIONS } from "../data/cities.js";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -52,6 +54,7 @@ function filterLocalCities(query) {
 }
 
 export default function Profile({ onProfileUpdated }) {
+  const navigate = useNavigate();
   const [p, setP] = useState(null);
   const [ok, setOk] = useState("");
   const [saving, setSaving] = useState(false);
@@ -65,6 +68,7 @@ export default function Profile({ onProfileUpdated }) {
   const [confirmPassword, setConfirmPassword] = useState("");
   const [pwdOk, setPwdOk] = useState("");
   const [savingPwd, setSavingPwd] = useState(false);
+  const [aiFeedBusy, setAiFeedBusy] = useState(false);
 
   useEffect(() => {
     (async () => {
@@ -194,6 +198,18 @@ export default function Profile({ onProfileUpdated }) {
     }
   }
 
+  async function runAiFeedAnalysis() {
+    setAiFeedBusy(true);
+    try {
+      await apiPost("/api/ai/feed/refresh", {});
+      navigate("/app/home", { state: { refreshHomeFeed: true, aiFeedQueued: true } });
+    } catch {
+      /* глобальный диалог из api.js */
+    } finally {
+      setAiFeedBusy(false);
+    }
+  }
+
   const pct = useMemo(() => (p ? profileCompletenessPercent(p) : 0), [p]);
 
   if (!p) {
@@ -249,6 +265,33 @@ export default function Profile({ onProfileUpdated }) {
         </Progress>
         <p className="text-muted-foreground text-xs">Учитываются имя, контакты, пол, дата и место рождения.</p>
       </div>
+
+      <Card className="border-border/80">
+        <CardHeader>
+          <CardTitle className="text-base">Интересные факты о роде</CardTitle>
+          <CardDescription>
+            На главной в блоке «Интересные факты о вашем роде» могут появляться короткие формулировки по вашим
+            родственникам и связям (если на сервере включён ИИ). Нажмите кнопку — сервер поставит принудительный пересчёт,
+            затем откроется главная; карточки с пометкой «ИИ» подгрузятся через короткое время (при лимите запросов
+            подождите минуту).
+          </CardDescription>
+        </CardHeader>
+        <CardContent className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
+          <Button
+            type="button"
+            variant="secondary"
+            className="w-full gap-2 sm:w-auto"
+            disabled={aiFeedBusy}
+            onClick={() => void runAiFeedAnalysis()}
+          >
+            <Sparkles className="size-4 opacity-80" aria-hidden />
+            {aiFeedBusy ? "Запрос…" : "Запустить анализ ИИ для главной"}
+          </Button>
+          <p className="text-muted-foreground text-xs sm:max-w-xs sm:text-right">
+            Если ИИ отключён на сервере, появится сообщение об ошибке.
+          </p>
+        </CardContent>
+      </Card>
 
       <Tabs defaultValue="personal" className="gap-4 overflow-visible">
         <TabsList variant="line" className="h-auto w-full flex-wrap justify-start gap-0 sm:flex-nowrap">

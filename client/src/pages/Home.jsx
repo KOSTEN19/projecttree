@@ -1,5 +1,5 @@
 import React, { useEffect, useMemo, useRef, useState } from "react";
-import { Link, useLocation } from "react-router-dom";
+import { Link, useLocation, useNavigate } from "react-router-dom";
 import { TrendingUp } from "lucide-react";
 import { apiGet, apiPost } from "../api.js";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
@@ -29,6 +29,7 @@ function easeOutCubic(t) {
 
 export default function Home({ user }) {
   const location = useLocation();
+  const navigate = useNavigate();
   const [globalStats, setGlobalStats] = useState({ accounts: 0, relatives: 0, rels: 0 });
   const [people, setPeople] = useState([]);
   const carouselRef = useRef(null);
@@ -83,6 +84,13 @@ export default function Home({ user }) {
       cancelled = true;
     };
   }, [feedRetry]);
+
+  useEffect(() => {
+    const st = location.state;
+    if (!st?.refreshHomeFeed && !st?.aiFeedQueued) return;
+    setFeedRetry((n) => n + 1);
+    navigate(".", { replace: true, state: {} });
+  }, [location.state, navigate]);
 
   async function refreshAIFeed() {
     setFeedAiBusy(true);

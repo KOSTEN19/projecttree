@@ -18,13 +18,13 @@
 
 - Включение: `AI_ENABLED=true`; обязательны **`AI_API_BASE_URL`** (например `http://127.0.0.1:11434/v1` для Ollama) и **`AI_MODEL`** (имя модели в вашем провайдере).
 - Ключ: для локального Ollama обычно не нужен; для облака — `AI_API_KEY`.
-- Пример для Ollama: `AI_ENABLED=true`, `AI_API_BASE_URL=http://127.0.0.1:11434/v1`, `AI_MODEL=llama3.2` (подставьте установленную у вас модель).
+- Пример для Ollama: `AI_ENABLED=true`, `AI_API_BASE_URL=http://127.0.0.1:11434/v1`, `AI_MODEL=tinyllama` (или другая скачанная модель).
 - Ручное обновление кэша пользователем: `POST /api/ai/feed/refresh` (лимит по времени на сервере).
 
 
 #### Локальный Ollama в Docker Compose
 
-- Сервис входит в обычный `docker compose up -d`. По умолчанию образ **`alpine/ollama`** (небольшой CPU-слой; тот же API на порту 11434). Нужен полный официальный образ с GPU/CUDA — в `.env` задайте `OLLAMA_IMAGE=ollama/ollama:latest`.
-- Модель весит отдельно (том `ollama-data`). Лёгкие варианты для экономии места: `tinyllama`, `qwen2:0.5b` и т.п. Пример: `docker compose exec ollama ollama pull tinyllama` и в `.env` `AI_MODEL=tinyllama`.
-- В `.env` для ленты: `AI_ENABLED=true`. У `server` по умолчанию `AI_API_BASE_URL=http://ollama:11434/v1` и `AI_MODEL` (см. [`docker-compose.yml`](docker-compose.yml)).
-- Порт **11434** на хосте: **127.0.0.1** (доступ только с локальной машины).
+- Сервис входит в обычный `docker compose up -d`. По умолчанию образ **`alpine/ollama`**, модель **`tinyllama`** (легче для слабого хоста). При старте контейнера [`scripts/ollama-docker-entry.sh`](scripts/ollama-docker-entry.sh) поднимает `ollama serve` и выполняет **`ollama pull`** для `AI_MODEL` (первый раз может занять несколько минут).
+- Для хоста порядка **1 vCPU и 2 GB RAM** у `ollama` заданы лимиты **~0.45 CPU и 1 GB RAM** (`deploy.resources` в compose; на старых Compose без поддержки — только подсказка, задайте лимиты вручную в Docker). Ещё легче модель: `AI_MODEL=qwen2:0.5b`. Полный официальный образ: `OLLAMA_IMAGE=ollama/ollama:latest`.
+- В Docker Compose ИИ **включён по умолчанию** (`AI_ENABLED=true`); выключить: `AI_ENABLED=false` в `.env`. У `server`: `AI_API_BASE_URL=http://ollama:11434/v1`, `AI_MODEL` совпадает с подгружаемой в Ollama.
+- Порт **11434** на хосте: **127.0.0.1**.

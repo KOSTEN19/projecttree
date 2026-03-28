@@ -41,6 +41,74 @@ type chatResponse struct {
 	} `json:"error"`
 }
 
+// ollamaChatResponse — ответ POST /api/chat (stream: false).
+type ollamaChatResponse struct {
+	Message *chatMessage `json:"message"`
+	Error   string       `json:"error,omitempty"`
+}
+
+// ollamaAPIRoot убирает суффикс /v1 из BaseURL (как в OpenAI-совместимом Ollama).
+func (c *Client) ollamaAPIRoot() string {
+	base := strings.TrimSuffix(strings.TrimSpace(c.BaseURL), "/")
+	if strings.HasSuffix(strings.ToLower(base), "/v1") {
+		return base[:len(base)-3]
+	}
+	return base
+}
+
+// chatOllamaNative — нативный Ollama API (нужен для образов без маршрута /v1/chat/completions).
+func (c *Client) chatOllamaNative(ctx context.Context, httpClient *http.Client, systemPrompt, userPrompt string, maxTok int) (string, error) {
+	root := c.ollamaAPIRoot()
+	if root == "" {
+		return "", fmt.Errorf("ai: empty base URL for ollama native")
+	}
+	url := strings.TrimSuffix(root, "/") + "/api/chat"
+	payload := map[string]any{
+		"model": c.Model,
+		"messages": []chatMessage{
+			{Role: "system", Content: systemPrompt},
+			{Role: "user", Content: userPrompt},
+		},
+		"stream": false,
+		"options": map[string]any{
+			"num_predict": maxTok,
+			"temperature": 0.35,
+		},
+	}
+	raw, err := json.Marshal(payload)
+	if err != nil {
+		return "", err
+	}
+	req, err := http.NewRequestWithContext(ctx, http.MethodPost, url, bytes.NewReader(raw))
+	if err != nil {
+		return "", err
+	}
+	req.Header.Set("Content-Type", "application/json")
+	res, err := httpClient.Do(req)
+	if err != nil {
+		return "", err
+	}
+	defer res.Body.Close()
+	b, err := io.ReadAll(res.Body)
+	if err != nil {
+		return "", err
+	}
+	if res.StatusCode < 200 || res.StatusCode > 299 {
+		return "", fmt.Errorf("ai: ollama /api/chat HTTP %d: %s", res.StatusCode, string(bytes.TrimSpace(b)))
+	}
+	var out ollamaChatResponse
+	if err := json.Unmarshal(b, &out); err != nil {
+		return "", fmt.Errorf("ai: ollama decode: %w", err)
+	}
+	if strings.TrimSpace(out.Error) != "" {
+		return "", fmt.Errorf("ai: ollama: %s", out.Error)
+	}
+	if out.Message == nil || strings.TrimSpace(out.Message.Content) == "" {
+		return "", fmt.Errorf("ai: ollama empty message")
+	}
+	return strings.TrimSpace(out.Message.Content), nil
+}
+
 // ChatComplete возвращает текст ответа ассистента.
 func (c *Client) ChatComplete(ctx context.Context, systemPrompt, userPrompt string) (string, error) {
 	if strings.TrimSpace(c.BaseURL) == "" || strings.TrimSpace(c.Model) == "" {
@@ -88,6 +156,9 @@ func (c *Client) ChatComplete(ctx context.Context, systemPrompt, userPrompt stri
 	b, err := io.ReadAll(res.Body)
 	if err != nil {
 		return "", err
+	}
+	if res.StatusCode == http.StatusNotFound {
+		return c.chatOllamaNative(ctx, client, systemPrompt, userPrompt, maxTok)
 	}
 	if res.StatusCode < 200 || res.StatusCode > 299 {
 		return "", fmt.Errorf("ai: HTTP %d: %s", res.StatusCode, string(bytes.TrimSpace(b)))
