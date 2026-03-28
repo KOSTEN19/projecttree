@@ -4,6 +4,7 @@ import { apiGet } from "../api.js";
 import AddRelativeStepperForm from "../components/AddRelativeStepperForm.jsx";
 import { Av, sx } from "../features/tree/TreeAvatars";
 import { TreePersonCardOverlay } from "../features/tree/TreePersonCardOverlay";
+import { TreePersonPopup } from "../features/tree/TreePersonPopup.jsx";
 import { applyTreeFocus, extractParentMapsForTree, focusForClick } from "../lib/treeFocus.js";
 import { parseVirtualTreeNodeId } from "../lib/parseVirtualTreeNodeId.js";
 import { Alert, AlertDescription, AlertTitle } from "@/components/ui/alert";
@@ -694,6 +695,8 @@ export default function Tree() {
     relationType: "мать",
     line: "",
   });
+  /** { clientX, clientY, person } — всплывающее меню по клику на узел */
+  const [personMenu, setPersonMenu] = useState(null);
   const vpRef = useRef(null);
   const [pos, setPos] = useState({});
   const [cam, setCam] = useState({ x: 0, y: 0, s: 1 });
@@ -729,11 +732,6 @@ export default function Tree() {
     () => (data.people || []).find((p) => p.isSelf) || (data.mePersonId ? { id: data.mePersonId, isSelf: true } : null),
     [data.people, data.mePersonId],
   );
-
-  const onlySelfInTree = useMemo(() => {
-    const real = (data.people || []).filter((p) => !p.isPlaceholder);
-    return real.length <= 1;
-  }, [data.people]);
 
   const openAddRelativeFromTree = useCallback((payload) => {
     setAddRelSession({
@@ -910,7 +908,7 @@ export default function Tree() {
   }, [loading, g.units.length]);
 
   return (
-    <>
+    <div className="tree-route-shell flex min-h-0 min-w-0 flex-1 flex-col">
       <div className="tree-page">
         <div className="tree-actions tree-actions--overlay">
           <Button
@@ -936,16 +934,6 @@ export default function Tree() {
             {loading ? "…" : "Обновить"}
           </Button>
         </div>
-
-        {onlySelfInTree && !loading ? (
-          <Alert className="tree-solo-hint border-primary/30 bg-primary/5">
-            <AlertTitle className="text-sm">Начните с вас</AlertTitle>
-            <AlertDescription className="text-sm">
-              Нажмите на свою карточку или на серую заглушку (родитель / ребёнок), затем «Добавить» — откроется мастер
-              создания карточки и связи. Подробности — в кнопке «Справка».
-            </AlertDescription>
-          </Alert>
-        ) : null}
 
         {err ? (
           <Alert variant="destructive" className="tree-err">
@@ -1071,7 +1059,7 @@ export default function Tree() {
                             return;
                           }
                           if (nodeDrag.current?.active) return;
-                          setCard(person);
+                          setPersonMenu({ clientX: e.clientX, clientY: e.clientY, person });
                         }}
                       >
                         <Av p={person} size={48} />
@@ -1113,7 +1101,7 @@ export default function Tree() {
                   variant="secondary"
                   size="sm"
                   className="tree-unplaced-item"
-                  onClick={() => {
+                  onClick={(e) => {
                     const f = focusForClick(
                       data.mePersonId,
                       p.id,
@@ -1121,7 +1109,7 @@ export default function Tree() {
                       parentMaps.motherOf,
                     );
                     setBranchFocus(f);
-                    setCard(p);
+                    setPersonMenu({ clientX: e.clientX, clientY: e.clientY, person: p });
                   }}
                 >
                   <Av p={p} size={22} />
@@ -1132,6 +1120,13 @@ export default function Tree() {
           </Card>
         ) : null}
       </div>
+
+      <TreePersonPopup
+        anchor={personMenu}
+        onClose={() => setPersonMenu(null)}
+        onOpenDetails={(p) => setCard(p)}
+        onStartAddRelative={openAddRelativeFromTree}
+      />
 
       {card ? (
         <TreePersonCardOverlay
@@ -1166,9 +1161,9 @@ export default function Tree() {
                 <section className="space-y-1">
                   <h3 className="text-foreground text-sm font-semibold">Добавление с древа</h3>
                   <p>
-                    Откройте карточку (клик по аватарке). Для заглушки нажмите «Добавить этого человека». Для себя или
-                    уже созданного родственника выберите тип связи (отец, мать, сын …) — откроется пошаговый мастер.
-                    На первом шаге при необходимости можно сменить базового человека или линию родства.
+                    Клик по человеку на древе открывает меню: «Подробная карточка» или быстрый выбор типа связи для
+                    нового родственника. Базовый человек для мастера берётся с древа и не меняется в форме; линия
+                    родства подставляется автоматически.
                   </p>
                 </section>
                 <section className="space-y-1">
@@ -1194,7 +1189,8 @@ export default function Tree() {
           <DialogHeader className="shrink-0 border-b border-border/60 px-5 pb-3 pt-5">
             <DialogTitle>Новый родственник</DialogTitle>
             <DialogDescription className="text-left">
-              Заполните шаги мастера — карточка появится в древе после сохранения.
+              Базовый человек задан из древа. Укажите тип связи на первом шаге (при необходимости) и заполните анкету —
+              карточка появится на древе после сохранения.
             </DialogDescription>
           </DialogHeader>
           <div className="min-h-0 flex-1 overflow-y-auto overscroll-contain px-3 py-4 sm:px-5">
@@ -1203,6 +1199,7 @@ export default function Tree() {
                 key={addRelSession.key}
                 persons={data.people || []}
                 self={selfPerson}
+                treeAnchorMode
                 initialBasePersonId={addRelSession.basePersonId}
                 initialRelationType={addRelSession.relationType}
                 initialLine={addRelSession.line}
@@ -1215,6 +1212,6 @@ export default function Tree() {
           </div>
         </DialogContent>
       </Dialog>
-    </>
+    </div>
   );
 }

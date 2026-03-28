@@ -14,23 +14,14 @@ import {
   DialogTitle,
 } from "@/components/ui/dialog";
 import { Separator } from "@/components/ui/separator";
-import { RELATION_TYPES } from "@/lib/relationTypes.js";
+import {
+  QUICK_ADD_RELATIONS,
+  getMoreRelationTypes,
+  inferLineForRelation,
+  relationNeedsLine,
+} from "./treeAddRelativePresets.js";
 
 export type TreeAddRelativePayload = { basePersonId: string; relationType: string; line: string };
-
-const QUICK_ADD_RELATIONS: { label: string; relationType: string; line: string }[] = [
-  { label: "Отец", relationType: "отец", line: "male" },
-  { label: "Мать", relationType: "мать", line: "female" },
-  { label: "Сын", relationType: "сын", line: "" },
-  { label: "Дочь", relationType: "дочь", line: "" },
-  { label: "Муж", relationType: "муж", line: "male" },
-  { label: "Жена", relationType: "жена", line: "female" },
-  { label: "Брат", relationType: "брат", line: "" },
-  { label: "Сестра", relationType: "сестра", line: "" },
-];
-
-const quickRelationSet = new Set(QUICK_ADD_RELATIONS.map((q) => q.relationType));
-const MORE_RELATION_TYPES = RELATION_TYPES.filter((t) => !quickRelationSet.has(t));
 
 export type TreePersonBranchFocus =
   | { type: "maternal"; anchorId: string }
@@ -98,6 +89,7 @@ export function TreePersonCardOverlay({
   const isVirtual = Boolean(card.isVirtual || card.isPlaceholder || pid.startsWith("v:"));
   const city = (card.birthCityCustom || card.birthCity || "").trim();
   const sexLabel = card.sex === "M" ? "Мужской" : card.sex === "F" ? "Женский" : "Не указан";
+  const moreRelationTypes = getMoreRelationTypes();
 
   return (
     <Dialog open onOpenChange={(open) => !open && onClose()}>
@@ -180,7 +172,7 @@ export function TreePersonCardOverlay({
                     <p className="text-muted-foreground text-sm">
                       {card.isSelf
                         ? "Выберите, кого добавляете: родителя, ребёнка, супруга или другого родственника."
-                        : "Новая карточка будет привязана к выбранному человеку. При необходимости смените базу на шаге 1 степпера."}
+                        : "Новая карточка будет привязана к этому человеку (база задаётся на древе)."}
                     </p>
                     <div className="flex flex-wrap gap-2">
                       {QUICK_ADD_RELATIONS.map((q) => (
@@ -202,38 +194,32 @@ export function TreePersonCardOverlay({
                         </Button>
                       ))}
                     </div>
-                    {MORE_RELATION_TYPES.length > 0 ? (
+                    {moreRelationTypes.length > 0 ? (
                       <details className="text-sm">
                         <summary className="text-primary cursor-pointer font-medium underline-offset-4 hover:underline">
                           Другие типы связи
                         </summary>
                         <div className="mt-2 flex max-h-40 flex-wrap gap-2 overflow-y-auto pt-1">
-                          {MORE_RELATION_TYPES.map((t) => {
-                            const needsLine = !["дочь", "сын", "брат", "сестра"].includes(t);
-                            return (
-                              <Button
-                                key={t}
-                                type="button"
-                                variant="outline"
-                                size="sm"
-                                className="text-xs"
-                                onClick={() => {
-                                  onStartAddRelative({
-                                    basePersonId: pid,
-                                    relationType: t,
-                                    line: needsLine ? "male" : "",
-                                  });
-                                  onClose();
-                                }}
-                              >
-                                {t}
-                              </Button>
-                            );
-                          })}
+                          {moreRelationTypes.map((t) => (
+                            <Button
+                              key={t}
+                              type="button"
+                              variant="outline"
+                              size="sm"
+                              className="text-xs"
+                              onClick={() => {
+                                onStartAddRelative({
+                                  basePersonId: pid,
+                                  relationType: t,
+                                  line: relationNeedsLine(t) ? inferLineForRelation(t) : "",
+                                });
+                                onClose();
+                              }}
+                            >
+                              {t}
+                            </Button>
+                          ))}
                         </div>
-                        <p className="text-muted-foreground mt-2 text-xs">
-                          Для типов с линией родства по умолчанию выбрана мужская линия — её можно сменить на первом шаге.
-                        </p>
                       </details>
                     ) : null}
                   </>

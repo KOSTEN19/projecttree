@@ -47,12 +47,15 @@ export default function Layout({ user, onLogout, theme = "dark", onToggleTheme }
     ? [...NAV_ITEMS, { label: "Админ", to: "/app/admin" }]
     : NAV_ITEMS;
 
-  const crumbLabel = useMemo(() => {
-    const path = location.pathname.replace(/\/$/, "") || "/app/home";
-    return ROUTE_CRUMB_LABEL[path] || "Раздел";
-  }, [location.pathname]);
+  const pathNorm = location.pathname.replace(/\/$/, "") || "/app/home";
 
-  const isHome = location.pathname.replace(/\/$/, "") === "/app/home";
+  const crumbLabel = useMemo(() => {
+    return ROUTE_CRUMB_LABEL[pathNorm] || "Раздел";
+  }, [pathNorm]);
+
+  const isHome = pathNorm === "/app/home";
+  /** Древо на всю ширину и высоту между шапкой и подвалом, без крошек (они перекрывали полотно). */
+  const isTreeRoute = pathNorm === "/app/tree";
 
   return (
     <div className="layout-shell flex min-h-screen flex-col bg-background text-foreground">
@@ -110,27 +113,33 @@ export default function Layout({ user, onLogout, theme = "dark", onToggleTheme }
         </div>
       </header>
 
-      <main className="flex-1">
-        <div className="mx-auto max-w-6xl px-4 py-6">
-          <Breadcrumb className="layout-breadcrumb">
-            <BreadcrumbList>
-              {!isHome ? (
-                <>
-                  <BreadcrumbItem>
-                    <BreadcrumbLink render={(props) => <Link {...props} to="/app/home" />}>Главная</BreadcrumbLink>
-                  </BreadcrumbItem>
-                  <BreadcrumbSeparator />
-                </>
-              ) : null}
-              <BreadcrumbItem>
-                <BreadcrumbPage>{crumbLabel}</BreadcrumbPage>
-              </BreadcrumbItem>
-            </BreadcrumbList>
-          </Breadcrumb>
-          <div key={location.pathname} className="app-page-transition">
+      <main className={cn("flex-1", isTreeRoute && "flex min-h-0 flex-col")}>
+        {isTreeRoute ? (
+          <div key={location.pathname} className="app-page-transition flex min-h-0 min-w-0 flex-1 flex-col">
             <Outlet />
           </div>
-        </div>
+        ) : (
+          <div className="mx-auto max-w-6xl px-4 py-6">
+            <Breadcrumb className="layout-breadcrumb">
+              <BreadcrumbList>
+                {!isHome ? (
+                  <>
+                    <BreadcrumbItem>
+                      <BreadcrumbLink render={(props) => <Link {...props} to="/app/home" />}>Главная</BreadcrumbLink>
+                    </BreadcrumbItem>
+                    <BreadcrumbSeparator />
+                  </>
+                ) : null}
+                <BreadcrumbItem>
+                  <BreadcrumbPage>{crumbLabel}</BreadcrumbPage>
+                </BreadcrumbItem>
+              </BreadcrumbList>
+            </Breadcrumb>
+            <div key={location.pathname} className="app-page-transition">
+              <Outlet />
+            </div>
+          </div>
+        )}
       </main>
 
       <footer className="layout-footer border-t py-4">

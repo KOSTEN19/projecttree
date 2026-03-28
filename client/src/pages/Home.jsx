@@ -29,9 +29,8 @@ function easeOutCubic(t) {
 
 export default function Home({ user }) {
   const location = useLocation();
-  const [globalStats, setGlobalStats] = useState({ accounts: 0, relatives: 0 });
+  const [globalStats, setGlobalStats] = useState({ accounts: 0, relatives: 0, rels: 0 });
   const [people, setPeople] = useState([]);
-  const [relationships, setRelationships] = useState([]);
   const carouselRef = useRef(null);
   const [isTapeHovered, setIsTapeHovered] = useState(false);
   const [summaryDisplay, setSummaryDisplay] = useState({ accounts: 0, relatives: 0, rels: 0 });
@@ -45,17 +44,13 @@ export default function Home({ user }) {
   useEffect(() => {
     (async () => {
       try {
-        const [s, persons, tree] = await Promise.all([
-          apiGet("/api/stats"),
-          apiGet("/api/persons"),
-          apiGet("/api/tree"),
-        ]);
+        const [s, persons] = await Promise.all([apiGet("/api/stats"), apiGet("/api/persons")]);
         setGlobalStats({
           accounts: s?.userCount ?? 0,
-          relatives: (persons || []).filter((p) => !p.isPlaceholder).length || s?.personCount || 0,
+          relatives: Number(s?.personCount) || 0,
+          rels: Number(s?.relationshipCount) || 0,
         });
         setPeople((persons || []).filter((p) => !p.isPlaceholder));
-        setRelationships(tree?.relationships || []);
       } catch {
         /* ignore */
       }
@@ -90,9 +85,9 @@ export default function Home({ user }) {
     () => ({
       accounts: globalStats.accounts,
       relatives: globalStats.relatives,
-      rels: relationships.length,
+      rels: globalStats.rels,
     }),
-    [globalStats.accounts, globalStats.relatives, relationships.length],
+    [globalStats.accounts, globalStats.relatives, globalStats.rels],
   );
 
   useEffect(() => {
@@ -245,7 +240,7 @@ export default function Home({ user }) {
               </div>
             </div>
             <p className="home-portal-summary-note">
-              Данные автоматически обновляются по мере добавления новых карточек родственников.
+              Цифры по всей платформе: учётные записи, карточки людей и связи между ними во всех семьях.
             </p>
           </div>
         </div>

@@ -2,6 +2,8 @@ import React, { useCallback, useEffect, useLayoutEffect, useMemo, useRef, useSta
 import { createPortal } from "react-dom";
 import { apiGet, apiPost } from "../api.js";
 import { CITY_OPTIONS } from "../data/cities.js";
+import { fmtName } from "../features/tree/buildGraph";
+import { inferLineForRelation } from "../features/tree/treeAddRelativePresets.js";
 import { RELATION_TYPES } from "../lib/relationTypes.js";
 import Stepper, { Step } from "../vendor/react-bits/Stepper/Stepper.jsx";
 import "../vendor/react-bits/Stepper/Stepper.css";
@@ -66,14 +68,14 @@ function trimText(v) {
 }
 
 /** Ошибка шага 1–5 или null (совпадает с правилами финальной отправки). */
-function getStepValidationError(step, form) {
+function getStepValidationError(step, form, treeAnchorMode) {
   const needsLine = !["дочь", "сын", "брат", "сестра"].includes(form.relationType);
   const t = (v) => String(v || "").trim();
   switch (step) {
     case 1:
       if (!form.basePersonId) return "Выберите базового человека.";
       if (!form.relationType) return "Выберите тип родственной связи.";
-      if (needsLine && !form.line) return "Укажите линию родства.";
+      if (!treeAnchorMode && needsLine && !form.line) return "Укажите линию родства.";
       return null;
     case 2:
       if (!t(form.lastName)) return "Укажите фамилию.";
@@ -174,6 +176,8 @@ export default function AddRelativeStepperForm({
   initialBasePersonId,
   initialRelationType,
   initialLine,
+  /** С древа: база фиксирована, линия не спрашивается (подставляется автоматически). */
+  treeAnchorMode = false,
 }) {
   const hasTreePreset =
     initialBasePersonId !== undefined ||
@@ -254,11 +258,19 @@ export default function AddRelativeStepperForm({
 
   const relativesForSelect = persons.filter((p) => !p.isPlaceholder);
 
+  const basePersonReadonlyLabel = useMemo(() => {
+    const p = relativesForSelect.find((x) => String(x.id) === String(form.basePersonId));
+    if (!p) return form.basePersonId ? `ID ${form.basePersonId}` : "—";
+    if (p.isSelf) return "Вы (профиль)";
+    return fmtName(p);
+  }, [relativesForSelect, form.basePersonId]);
+
   function set(k, v) {
     setForm((p) => ({ ...p, [k]: v }));
   }
 
-  const needsLine = !["дочь", "сын", "брат", "сестра"].includes(form.relationType);
+  const childTypesNoLine = ["дочь", "сын", "брат", "сестра"].includes(form.relationType);
+  const needsLine = !treeAnchorMode && !childTypesNoLine;
 
   const localBirthSuggestions = useMemo(
     () => filterLocalCities(form.birthCityCustom),
@@ -304,30 +316,34 @@ export default function AddRelativeStepperForm({
 
     delete payload.phone;
 
-    if (!needsLine) payload.line = "";
+    if (treeAnchorMode) {
+      payload.line = inferLineForRelation(payload.relationType);
+    } else if (childTypesNoLine) {
+      payload.line = "";
+    }
     if (payload.alive) {
       payload.deathDate = "";
       payload.burialPlace = "";
     }
     return payload;
-  }, [form, needsLine]);
+  }, [form, childTypesNoLine, treeAnchorMode]);
 
   const onBeforeStepChange = useCallback(async (from, to) => {
     if (to <= from) return;
     for (let s = from; s < to; s++) {
-      const err = getStepValidationError(s, form);
+      const err = getStepValidationError(s, form, treeAnchorMode);
       if (err) {
         setSubmitErr(err);
         throw new Error("validation");
       }
     }
     setSubmitErr("");
-  }, [form]);
+  }, [form, treeAnchorMode]);
 
   const onBeforeComplete = useCallback(async () => {
     setSubmitErr("");
     for (let s = 1; s <= 5; s++) {
-      const err = getStepValidationError(s, form);
+      const err = getStepValidationError(s, form, treeAnchorMode);
       if (err) {
         setSubmitErr(err);
         throw new Error("validation");
@@ -344,7 +360,7 @@ export default function AddRelativeStepperForm({
     } finally {
       setSubmitting(false);
     }
-  }, [buildPayload, form, onCreated]);
+  }, [buildPayload, form, onCreated, treeAnchorMode]);
 
   return (
     <div className="rel-stepper-host">
@@ -369,18 +385,28 @@ export default function AddRelativeStepperForm({
       >
         <Step>
           <h3 className="rel-step-title">Связь в древе</h3>
-          <p className="rel-step-hint">Для кого добавляется человек и как он связан с базовой карточкой.</p>
+          <p className="rel-step-hint">
+            {treeAnchorMode
+              ? "Базовый человек выбран на древе. Укажите, кем новая карточка приходится ему или ей."
+              : "Для кого добавляется человек и как он связан с базовой карточкой."}
+          </p>
           <div className="label">Базовый человек</div>
-          <select className="select" value={form.basePersonId} onChange={(e) => set("basePersonId", e.target.value)}>
-            {relativesForSelect.map((p) => {
-              const label = p.isSelf ? "Я (профиль)" : [p.lastName, p.firstName].filter(Boolean).join(" ").trim();
-              return (
-                <option key={p.id} value={p.id}>
-                  {label || `Person ${p.id}`}
-                </option>
-              );
-            })}
-          </select>
+          {treeAnchorMode ? (
+            <div className="rel-stepper-base-readonly" title="Чтобы сменить базу, закройте окно и выберите другого человека на древе">
+              {basePersonReadonlyLabel}
+            </div>
+          ) : (
+            <select className="select" value={form.basePersonId} onChange={(e) => set("basePersonId", e.target.value)}>
+              {relativesForSelect.map((p) => {
+                const label = p.isSelf ? "Я (профиль)" : [p.lastName, p.firstName].filter(Boolean).join(" ").trim();
+                return (
+                  <option key={p.id} value={p.id}>
+                    {label || `Person ${p.id}`}
+                  </option>
+                );
+              })}
+            </select>
+          )}
           <div className="label">Тип родственной связи</div>
           <select className="select" value={form.relationType} onChange={(e) => set("relationType", e.target.value)}>
             <option value="">— Выберите тип связи —</option>
@@ -390,16 +416,20 @@ export default function AddRelativeStepperForm({
               </option>
             ))}
           </select>
-          <div className="label">Линия родства</div>
-          {!needsLine ? (
-            <div className="small">Для «дочь», «сын», «брат», «сестра» линия не указывается.</div>
-          ) : (
-            <select className="select" required={needsLine} value={form.line} onChange={(e) => set("line", e.target.value)}>
-              <option value="">Не указано</option>
-              <option value="male">Мужская линия</option>
-              <option value="female">Женская линия</option>
-            </select>
-          )}
+          {!treeAnchorMode ? (
+            <>
+              <div className="label">Линия родства</div>
+              {!needsLine ? (
+                <div className="small">Для «дочь», «сын», «брат», «сестра» линия не указывается.</div>
+              ) : (
+                <select className="select" required={needsLine} value={form.line} onChange={(e) => set("line", e.target.value)}>
+                  <option value="">Не указано</option>
+                  <option value="male">Мужская линия</option>
+                  <option value="female">Женская линия</option>
+                </select>
+              )}
+            </>
+          ) : null}
         </Step>
 
         <Step>

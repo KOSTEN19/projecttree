@@ -79,3 +79,14 @@
   margin: 0 0 1rem;
   line-height: 1.45;
 }
+
+.rel-stepper-base-readonly {
+  width: 100%;
+  border-radius: var(--radius-md, 0.5rem);
+  border: 1px solid var(--border);
+  background: color-mix(in oklab, var(--muted) 55%, transparent);
+  padding: 0.55rem 0.75rem;
+  font-size: 0.9rem;
+  color: var(--foreground);
+  line-height: 1.4;
+}
