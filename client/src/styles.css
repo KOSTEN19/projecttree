@@ -622,14 +622,13 @@
   max-width: 12rem;
 }
 
-/* Map page — shell geometry + MapLibre controls + hover popup (HTML string) */
+/* Map page — MapLibre needs a non-zero height; flex chain + explicit min-height */
 .map-page {
   display: flex;
   flex-direction: column;
-  height: calc(100vh - 3.5rem - 3rem);
-  width: calc(100vw - 2rem);
-  max-width: calc(100vw - 2rem);
-  margin-left: calc(50% - 50vw + 1rem);
+  width: 100%;
+  max-width: 100%;
+  min-height: min(72vh, 720px);
   border-radius: var(--radius-md);
   overflow: hidden;
   border: 1px solid var(--map-chrome-border-1);
@@ -646,16 +645,25 @@
 }
 
 .map-wrap {
-  flex: 1;
   position: relative;
+  flex: 1 1 auto;
+  min-height: min(52vh, 560px);
+  width: 100%;
   overflow: hidden;
-  min-height: 0;
 }
 
 .map-canvas {
+  position: absolute;
+  inset: 0;
   width: 100%;
   height: 100%;
+  min-height: 200px;
   background: color-mix(in oklab, var(--background) 78%, var(--secondary));
+}
+
+.map-canvas .maplibregl-map {
+  width: 100% !important;
+  height: 100% !important;
 }
 
 .map-canvas .maplibregl-ctrl-group {

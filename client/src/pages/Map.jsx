@@ -165,6 +165,9 @@ export default function MapPage() {
     return { type: "FeatureCollection", features };
   }, []);
 
+  const ensureLayersRef = useRef(() => {});
+  const refreshSourceDataRef = useRef(() => {});
+
   const ensureLayers = useCallback(() => {
     const mp = mapRef.current;
     if (!mp || !mapReady.current) return;
@@ -286,6 +289,9 @@ export default function MapPage() {
     }
   }, [getCityFeatureCollection]);
 
+  ensureLayersRef.current = ensureLayers;
+  refreshSourceDataRef.current = refreshSourceData;
+
   async function load(f, opts = {}) {
     const { useCache = true } = opts;
     setLoading(true); setError(""); setPanel(null); setPanelPerson(null);
@@ -327,45 +333,77 @@ export default function MapPage() {
 
   useEffect(() => {
     const el = boxRef.current;
-    if (!el || mapRef.current) return;
+    if (!el) return;
 
-    const mp = new maplibregl.Map({
-      container: el,
-      style: getMapStyle(),
-      center: [50, 55],
-      zoom: 3.5,
-      attributionControl: false,
-    });
-    mapRef.current = mp;
-    mp.addControl(new maplibregl.NavigationControl({ showCompass: false }), "bottom-right");
+    let disposed = false;
+    let created = null;
 
-    mp.on("load", () => {
-      mapReady.current = true;
-      ensureLayers();
-      refreshSourceData();
-      fitBoundsRef.current();
+    const tryCreate = () => {
+      if (disposed || mapRef.current) return;
+      const w = el.clientWidth;
+      const h = el.clientHeight;
+      if (w < 8 || h < 8) return;
+
+      const mp = new maplibregl.Map({
+        container: el,
+        style: getMapStyle(),
+        center: [37.6, 55.75],
+        zoom: 4,
+        attributionControl: false,
+      });
+      created = mp;
+      mapRef.current = mp;
+      mp.addControl(new maplibregl.NavigationControl({ showCompass: false }), "bottom-right");
+
+      mp.on("load", () => {
+        if (disposed) return;
+        mapReady.current = true;
+        ensureLayersRef.current();
+        refreshSourceDataRef.current();
+        requestAnimationFrame(() => {
+          try {
+            mp.resize();
+            fitBoundsRef.current();
+          } catch {
+            /* ignore */
+          }
+        });
+      });
+    };
+
+    const ro = new ResizeObserver(() => {
+      if (disposed) return;
+      if (!mapRef.current) tryCreate();
+      else {
+        requestAnimationFrame(() => {
+          try {
+            mapRef.current?.resize();
+          } catch {
+            /* ignore */
+          }
+        });
+      }
     });
+
+    ro.observe(el);
+    tryCreate();
 
     return () => {
+      disposed = true;
       mapReady.current = false;
       mapHandlersBound.current = false;
       killPop();
-      try { mp.remove(); } catch {}
+      ro.disconnect();
+      if (created) {
+        try {
+          created.remove();
+        } catch {
+          /* ignore */
+        }
+      }
       mapRef.current = null;
+      created = null;
     };
-  }, [ensureLayers, refreshSourceData]);
-
-  useEffect(() => {
-    const mp = mapRef.current;
-    const el = boxRef.current;
-    if (!mp || !el) return;
-    const ro = new ResizeObserver(() => {
-      requestAnimationFrame(() => {
-        mp.resize();
-      });
-    });
-    ro.observe(el);
-    return () => ro.disconnect();
   }, []);
 
   useEffect(() => {
@@ -438,7 +476,7 @@ export default function MapPage() {
         ) : null}
 
         <div className="map-wrap">
-          <div ref={boxRef} className="map-canvas" />
+          <div ref={boxRef} className="map-canvas" role="presentation" />
 
           {loading && (
             <div className="pointer-events-none absolute inset-0 z-[5] flex flex-col items-center justify-center gap-3 bg-background/75 backdrop-blur-[2px]">
