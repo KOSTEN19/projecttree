@@ -1,11 +1,21 @@
 import React, { useCallback, useEffect, useMemo, useRef, useState } from "react";
+import { CircleHelp } from "lucide-react";
 import { apiGet } from "../api.js";
+import AddRelativeStepperForm from "../components/AddRelativeStepperForm.jsx";
 import { Av, sx } from "../features/tree/TreeAvatars";
 import { TreePersonCardOverlay } from "../features/tree/TreePersonCardOverlay";
 import { applyTreeFocus, extractParentMapsForTree, focusForClick } from "../lib/treeFocus.js";
+import { parseVirtualTreeNodeId } from "../lib/parseVirtualTreeNodeId.js";
 import { Alert, AlertDescription, AlertTitle } from "@/components/ui/alert";
 import { Button } from "@/components/ui/button";
 import { Card, CardHeader, CardTitle } from "@/components/ui/card";
+import {
+  Dialog,
+  DialogContent,
+  DialogDescription,
+  DialogHeader,
+  DialogTitle,
+} from "@/components/ui/dialog";
 import { Skeleton } from "@/components/ui/skeleton";
 function strId(v) {
   if (!v) return "";
@@ -676,6 +686,14 @@ export default function Tree() {
   const [branchFocus, setBranchFocus] = useState(null);
   const [err, setErr] = useState("");
   const [card, setCard] = useState(null);
+  const [helpOpen, setHelpOpen] = useState(false);
+  const [addRelativeOpen, setAddRelativeOpen] = useState(false);
+  const [addRelSession, setAddRelSession] = useState({
+    key: 0,
+    basePersonId: "",
+    relationType: "мать",
+    line: "",
+  });
   const vpRef = useRef(null);
   const [pos, setPos] = useState({});
   const [cam, setCam] = useState({ x: 0, y: 0, s: 1 });
@@ -706,6 +724,26 @@ export default function Tree() {
     finally { setLoading(false); }
   }
   useEffect(() => { load(); }, []);
+
+  const selfPerson = useMemo(
+    () => (data.people || []).find((p) => p.isSelf) || (data.mePersonId ? { id: data.mePersonId, isSelf: true } : null),
+    [data.people, data.mePersonId],
+  );
+
+  const onlySelfInTree = useMemo(() => {
+    const real = (data.people || []).filter((p) => !p.isPlaceholder);
+    return real.length <= 1;
+  }, [data.people]);
+
+  const openAddRelativeFromTree = useCallback((payload) => {
+    setAddRelSession({
+      key: Date.now(),
+      basePersonId: payload.basePersonId,
+      relationType: payload.relationType,
+      line: payload.line ?? "",
+    });
+    setAddRelativeOpen(true);
+  }, []);
 
   const parentMaps = useMemo(() => {
     const byId = new Map();
@@ -875,6 +913,17 @@ export default function Tree() {
     <>
       <div className="tree-page">
         <div className="tree-actions tree-actions--overlay">
+          <Button
+            type="button"
+            variant="outline"
+            size="sm"
+            onClick={() => setHelpOpen(true)}
+            className="gap-1.5"
+            title="Как пользоваться древом"
+          >
+            <CircleHelp className="size-4 shrink-0" aria-hidden />
+            Справка
+          </Button>
           <Button type="button" variant="outline" size="sm" onClick={resetCameraToFit}>
             В экран
           </Button>
@@ -887,6 +936,16 @@ export default function Tree() {
             {loading ? "…" : "Обновить"}
           </Button>
         </div>
+
+        {onlySelfInTree && !loading ? (
+          <Alert className="tree-solo-hint border-primary/30 bg-primary/5">
+            <AlertTitle className="text-sm">Начните с вас</AlertTitle>
+            <AlertDescription className="text-sm">
+              Нажмите на свою карточку или на серую заглушку (родитель / ребёнок), затем «Добавить» — откроется мастер
+              создания карточки и связи. Подробности — в кнопке «Справка».
+            </AlertDescription>
+          </Alert>
+        ) : null}
 
         {err ? (
           <Alert variant="destructive" className="tree-err">
@@ -1079,8 +1138,83 @@ export default function Tree() {
           card={card}
           onClose={() => setCard(null)}
           onBranchFocus={(f) => setBranchFocus(f)}
+          onStartAddRelative={openAddRelativeFromTree}
+          virtualAddPreset={String(card.id || "").startsWith("v:") ? parseVirtualTreeNodeId(card.id) : null}
         />
       ) : null}
+
+      <Dialog open={helpOpen} onOpenChange={setHelpOpen}>
+        <DialogContent className="max-h-[min(90vh,720px)] max-w-lg overflow-y-auto">
+          <DialogHeader>
+            <DialogTitle>Как работать с древом</DialogTitle>
+            <DialogDescription asChild>
+              <div className="text-muted-foreground space-y-4 pt-2 text-left text-sm">
+                <section className="space-y-1">
+                  <h3 className="text-foreground text-sm font-semibold">Полотно</h3>
+                  <p>
+                    Зажмите левую кнопку мыши на пустом месте и перетащите — сдвиг вида. Колёсико мыши — масштаб. Узлы
+                    можно перетаскивать, чтобы развести карточки.
+                  </p>
+                </section>
+                <section className="space-y-1">
+                  <h3 className="text-foreground text-sm font-semibold">Заглушки</h3>
+                  <p>
+                    Серые карточки «Отец (не заполнен)» и т.п. — это подсказки: здесь в древе может быть человек.
+                    После того как вы добавите реального родственника с этой связью, заглушка исчезнет.
+                  </p>
+                </section>
+                <section className="space-y-1">
+                  <h3 className="text-foreground text-sm font-semibold">Добавление с древа</h3>
+                  <p>
+                    Откройте карточку (клик по аватарке). Для заглушки нажмите «Добавить этого человека». Для себя или
+                    уже созданного родственника выберите тип связи (отец, мать, сын …) — откроется пошаговый мастер.
+                    На первом шаге при необходимости можно сменить базового человека или линию родства.
+                  </p>
+                </section>
+                <section className="space-y-1">
+                  <h3 className="text-foreground text-sm font-semibold">Родственники и правки</h3>
+                  <p>
+                    Полный список карточек, фото и редактирование анкет — во вкладке «Родственники». Кнопка «К списку
+                    родственников» в карточке на древе ведёт туда же.
+                  </p>
+                </section>
+              </div>
+            </DialogDescription>
+          </DialogHeader>
+        </DialogContent>
+      </Dialog>
+
+      <Dialog
+        open={addRelativeOpen}
+        onOpenChange={(o) => {
+          setAddRelativeOpen(o);
+        }}
+      >
+        <DialogContent className="flex max-h-[min(92vh,900px)] w-[calc(100%-1.5rem)] max-w-2xl flex-col gap-0 overflow-hidden p-0 sm:max-w-2xl">
+          <DialogHeader className="shrink-0 border-b border-border/60 px-5 pb-3 pt-5">
+            <DialogTitle>Новый родственник</DialogTitle>
+            <DialogDescription className="text-left">
+              Заполните шаги мастера — карточка появится в древе после сохранения.
+            </DialogDescription>
+          </DialogHeader>
+          <div className="min-h-0 flex-1 overflow-y-auto overscroll-contain px-3 py-4 sm:px-5">
+            {addRelativeOpen ? (
+              <AddRelativeStepperForm
+                key={addRelSession.key}
+                persons={data.people || []}
+                self={selfPerson}
+                initialBasePersonId={addRelSession.basePersonId}
+                initialRelationType={addRelSession.relationType}
+                initialLine={addRelSession.line}
+                onCreated={() => {
+                  setAddRelativeOpen(false);
+                  void load();
+                }}
+              />
+            ) : null}
+          </div>
+        </DialogContent>
+      </Dialog>
     </>
   );
 }

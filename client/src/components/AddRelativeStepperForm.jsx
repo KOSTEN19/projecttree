@@ -2,6 +2,7 @@ import React, { useCallback, useEffect, useLayoutEffect, useMemo, useRef, useSta
 import { createPortal } from "react-dom";
 import { apiGet, apiPost } from "../api.js";
 import { CITY_OPTIONS } from "../data/cities.js";
+import { RELATION_TYPES } from "../lib/relationTypes.js";
 import Stepper, { Step } from "../vendor/react-bits/Stepper/Stepper.jsx";
 import "../vendor/react-bits/Stepper/Stepper.css";
 import "./StepperRelatives.css";
@@ -25,10 +26,33 @@ function mergeCitySuggestions(localArr, remoteArr, max = 12) {
   return out;
 }
 
-const RELATION_TYPES = [
-  "внук", "внучка", "сын", "дочь", "жена", "муж", "мать", "отец",
-  "бабушка", "дедушка", "дядя", "тётя", "сестра", "брат",
-];
+function createDefaultForm({ self, initialBasePersonId, initialRelationType, initialLine }) {
+  const base = initialBasePersonId ?? self?.id ?? "";
+  const rel =
+    initialRelationType !== undefined && initialRelationType !== null ? initialRelationType : "мать";
+  const line = initialLine ?? "";
+  return {
+    basePersonId: base,
+    relationType: rel,
+    line,
+    lastName: "",
+    maidenName: "",
+    firstName: "",
+    middleName: "",
+    sex: "",
+    birthDate: "",
+    birthCity: "",
+    birthCityCustom: "",
+    alive: true,
+    deathDate: "",
+    burialPlace: "",
+    notes: "",
+    biography: "",
+    education: "",
+    workPath: "",
+    militaryPath: "",
+  };
+}
 
 function normalizeHumanName(v) {
   return String(v || "")
@@ -142,7 +166,20 @@ function FixedCitySuggestPortal({ open, anchorRef, suggestions, onPick }) {
   );
 }
 
-export default function AddRelativeStepperForm({ persons, self, onCreated }) {
+export default function AddRelativeStepperForm({
+  persons,
+  self,
+  onCreated,
+  /** Явные начальные значения (страница «Дерево» задаёт и меняет key у компонента). */
+  initialBasePersonId,
+  initialRelationType,
+  initialLine,
+}) {
+  const hasTreePreset =
+    initialBasePersonId !== undefined ||
+    initialRelationType !== undefined ||
+    initialLine !== undefined;
+
   const [submitting, setSubmitting] = useState(false);
   const [submitErr, setSubmitErr] = useState("");
   const [birthCityListOpen, setBirthCityListOpen] = useState(false);
@@ -154,31 +191,14 @@ export default function AddRelativeStepperForm({ persons, self, onCreated }) {
   const birthCityInputRef = useRef(null);
   const burialCityInputRef = useRef(null);
 
-  const [form, setForm] = useState({
-    basePersonId: self?.id || "",
-    relationType: "мать",
-    line: "",
-    lastName: "",
-    maidenName: "",
-    firstName: "",
-    middleName: "",
-    sex: "",
-    birthDate: "",
-    birthCity: "",
-    birthCityCustom: "",
-    alive: true,
-    deathDate: "",
-    burialPlace: "",
-    notes: "",
-    biography: "",
-    education: "",
-    workPath: "",
-    militaryPath: "",
-  });
+  const [form, setForm] = useState(() =>
+    createDefaultForm({ self, initialBasePersonId, initialRelationType, initialLine }),
+  );
 
   useEffect(() => {
+    if (hasTreePreset) return;
     if (self?.id) setForm((p) => ({ ...p, basePersonId: self.id }));
-  }, [self?.id]);
+  }, [self?.id, hasTreePreset]);
 
   useEffect(() => {
     const q = String(form.birthCityCustom || "").trim();
@@ -363,6 +383,7 @@ export default function AddRelativeStepperForm({ persons, self, onCreated }) {
           </select>
           <div className="label">Тип родственной связи</div>
           <select className="select" value={form.relationType} onChange={(e) => set("relationType", e.target.value)}>
+            <option value="">— Выберите тип связи —</option>
             {RELATION_TYPES.map((t) => (
               <option key={t} value={t}>
                 {t}

@@ -861,6 +861,11 @@
   border-bottom: 1px solid rgba(244, 63, 94, 0.15);
 }
 
+.tree-solo-hint {
+  margin: 2.75rem 0.75rem 0.5rem;
+  flex-shrink: 0;
+}
+
 .tree-viewport {
   flex: 1;
   position: relative;
