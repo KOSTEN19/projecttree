@@ -19,6 +19,7 @@ import {
   DialogTitle,
 } from "@/components/ui/dialog";
 import { Skeleton } from "@/components/ui/skeleton";
+import { cn } from "@/lib/utils";
 function strId(v) {
   if (!v) return "";
   if (typeof v === "string") return v;
@@ -669,7 +670,9 @@ function buildGraphSmart({ mePersonId, people, relationships }) {
     stage: { w: Math.max(1600, stageW), h: Math.max(900, stageH) },
     units: drawUnits,
     edges,
-    unplaced
+    unplaced,
+    /** Рёбра родства на уровне person id (для подсветки ветки с учётом заглушек v:…) */
+    personParentLinks: parentEdgesUnique.map((e) => ({ child: e.child, parent: e.parent })),
   };
 }
 
@@ -770,19 +773,71 @@ export default function Tree() {
   }, [data]);
 
   const focusData = useMemo(() => applyTreeFocus(data, branchFocus), [data, branchFocus]);
-  const focusedPeopleIds = useMemo(() => {
+  const focusPersonSet = useMemo(() => {
     const s = new Set();
     for (const p of focusData.people || []) s.add(pId(p));
     return s;
   }, [focusData.people]);
   const g = useMemo(() => buildGraphSmart(data), [data]);
+
+  /** Заглушки v:… не в API — расширяем множество фокуса, чтобы линии и узлы ветки подсвечивались. */
+  const bridgedFocusPersonSet = useMemo(() => {
+    const K = new Set(focusPersonSet);
+    const links = g.personParentLinks;
+    if (!branchFocus || !links?.length) return K;
+    const t = branchFocus.type;
+    const fMap = parentMaps.fatherOf;
+    const mMap = parentMaps.motherOf;
+
+    function isFatherStub(childId, parentId) {
+      const c = String(childId);
+      const p = String(parentId);
+      return p.startsWith("v:") && (p === `v:${c}:father` || p.endsWith(":father"));
+    }
+    function isMotherStub(childId, parentId) {
+      const c = String(childId);
+      const p = String(parentId);
+      return p.startsWith("v:") && (p === `v:${c}:mother` || p.endsWith(":mother"));
+    }
+
+    let changed = true;
+    while (changed) {
+      changed = false;
+      for (const { child, parent } of links) {
+        const pid = String(parent);
+        const cid = String(child);
+        const pv = pid.startsWith("v:");
+        const cv = cid.startsWith("v:");
+
+        if (K.has(child) && pv && !K.has(parent)) {
+          if (t === "paternal" && isMotherStub(child, parent)) continue;
+          if (t === "maternal" && isFatherStub(child, parent)) continue;
+          if (t === "lineage") {
+            const mr = mMap.get(child);
+            const fr = fMap.get(child);
+            if (mr && !K.has(mr) && isMotherStub(child, parent)) continue;
+            if (fr && !K.has(fr) && isFatherStub(child, parent)) continue;
+          }
+          K.add(parent);
+          changed = true;
+        }
+        if (t === "lineage" && K.has(parent) && cv && !K.has(child)) {
+          K.add(child);
+          changed = true;
+        }
+      }
+    }
+    return K;
+  }, [branchFocus, focusPersonSet, g.personParentLinks, parentMaps.fatherOf, parentMaps.motherOf]);
+
   const activeUnitIds = useMemo(() => {
+    if (!branchFocus) return null;
     const s = new Set();
     for (const u of g.units) {
-      if ((u.persons || []).some((p) => focusedPeopleIds.has(pId(p)))) s.add(u.unitId);
+      if ((u.persons || []).some((p) => bridgedFocusPersonSet.has(pId(p)))) s.add(u.unitId);
     }
     return s;
-  }, [g.units, focusedPeopleIds]);
+  }, [branchFocus, g.units, bridgedFocusPersonSet]);
 
   const resetCameraToFit = useCallback(() => {
     const el = vpRef.current;
@@ -1038,8 +1093,12 @@ export default function Tree() {
                     : e.kind === "spouse"
                       ? "url(#treeStrokeSpouse)"
                       : "url(#treeStrokeSibling)";
+                const au = activeUnitIds;
+                const endActive = au && au.has(e.from) && au.has(e.to);
+                const dimEdge = Boolean(branchFocus && au && !endActive);
+                const hotEdge = Boolean(branchFocus && au && endActive);
                 return (
-                  <g key={i} className={branchFocus && (!activeUnitIds.has(e.from) || !activeUnitIds.has(e.to)) ? "tree-dim" : ""}>
+                  <g key={i} className={cn(dimEdge && "tree-dim", hotEdge && "tree-edge--focus")}>
                     <path d={e.d} className={`tree-edge-bg tree-ebg-${e.kind}`} filter="url(#treeSvgGlow)" />
                     <path d={e.d} className={`tree-edge tree-e-${e.kind}`} stroke={grad} />
                   </g>

@@ -54,8 +54,10 @@ export default function Layout({ user, onLogout, theme = "dark", onToggleTheme }
   }, [pathNorm]);
 
   const isHome = pathNorm === "/app/home";
-  /** Древо на всю ширину и высоту между шапкой и подвалом, без крошек (они перекрывали полотно). */
+  /** Древо и карта на всю ширину и высоту между шапкой и подвалом, без крошек у полотна. */
   const isTreeRoute = pathNorm === "/app/tree";
+  const isMapRoute = pathNorm === "/app/map";
+  const isFullBleedCanvas = isTreeRoute || isMapRoute;
 
   return (
     <div className="layout-shell flex min-h-screen flex-col bg-background text-foreground">
@@ -113,8 +115,8 @@ export default function Layout({ user, onLogout, theme = "dark", onToggleTheme }
         </div>
       </header>
 
-      <main className={cn("flex-1", isTreeRoute && "flex min-h-0 flex-col")}>
-        {isTreeRoute ? (
+      <main className={cn("flex-1", isFullBleedCanvas && "flex min-h-0 flex-col")}>
+        {isFullBleedCanvas ? (
           <div key={location.pathname} className="app-page-transition flex min-h-0 min-w-0 flex-1 flex-col">
             <Outlet />
           </div>

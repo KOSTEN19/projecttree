@@ -639,80 +639,239 @@
   max-width: 12rem;
 }
 
-/* Map page — Leaflet: non-zero height; flex + explicit min-height */
-.map-page {
-  display: flex;
-  flex-direction: column;
+/* ——— Карта семьи (Leaflet): полноэкранный stage, тема светлая/тёмная, кастомные маркеры ——— */
+.fam-map-page {
   width: 100%;
   max-width: 100%;
-  min-height: min(72vh, 720px);
-  border-radius: var(--radius-md);
-  overflow: hidden;
-  border: 1px solid var(--map-chrome-border-1);
-  box-shadow: inset 0 1px 0 color-mix(in oklab, var(--foreground) 10%, transparent);
-  background:
-    radial-gradient(ellipse 92% 56% at 50% -12%, color-mix(in oklab, var(--chart-2) 24%, transparent), transparent 56%),
-    var(--map-chrome-surface-0);
 }
 
-.map-page--burial {
-  background:
-    radial-gradient(ellipse 92% 56% at 50% -12%, color-mix(in oklab, var(--chart-4) 18%, transparent), transparent 56%),
-    var(--map-chrome-surface-0);
+.fam-map-stage {
+  min-height: min(60vh, 640px);
+  background: var(--background);
 }
 
-.map-wrap {
-  position: relative;
-  flex: 1 1 auto;
-  min-height: min(52vh, 560px);
-  width: 100%;
-  overflow: hidden;
+.fam-map-stage--burial {
+  box-shadow: inset 0 0 80px color-mix(in oklab, var(--chart-4) 8%, transparent);
 }
 
-.map-canvas {
-  position: absolute;
-  inset: 0;
-  width: 100%;
-  height: 100%;
-  min-height: 200px;
-  background: color-mix(in oklab, var(--background) 78%, var(--secondary));
+.fam-map-canvas {
+  min-height: 240px;
+  background: color-mix(in oklab, var(--muted) 35%, var(--background));
 }
 
-.map-canvas.leaflet-container {
-  z-index: 1;
+.fam-map-canvas.leaflet-container {
   font-family: inherit;
 }
 
-.map-canvas .leaflet-control {
+.fam-map-canvas .leaflet-control {
   z-index: 2;
 }
 
-.map-canvas .leaflet-control-zoom a {
-  border-radius: 8px !important;
-  border: 1px solid color-mix(in oklab, var(--border) 80%, transparent) !important;
-  background: color-mix(in oklab, var(--card) 88%, var(--background)) !important;
-  color: var(--foreground) !important;
+.fam-map-canvas .leaflet-control-zoom {
+  border: none !important;
+  margin-bottom: 0.75rem !important;
+  margin-right: 0.75rem !important;
 }
 
-.map-canvas .leaflet-control-attribution {
-  background: color-mix(in oklab, var(--card) 85%, transparent) !important;
+.fam-map-canvas .leaflet-control-zoom a {
+  width: 34px !important;
+  height: 34px !important;
+  line-height: 32px !important;
+  border-radius: 10px !important;
+  border: 1px solid color-mix(in oklab, var(--border) 75%, transparent) !important;
+  background: color-mix(in oklab, var(--card) 92%, var(--background)) !important;
+  color: var(--foreground) !important;
+  box-shadow: 0 4px 14px color-mix(in oklab, var(--foreground) 10%, transparent);
+}
+
+.fam-map-canvas .leaflet-control-zoom a:hover {
+  background: color-mix(in oklab, var(--accent) 55%, var(--card)) !important;
+}
+
+.fam-map-canvas .leaflet-control-attribution {
+  background: color-mix(in oklab, var(--card) 88%, transparent) !important;
   color: var(--muted-foreground) !important;
-  font-size: 0.65rem !important;
-  max-width: 50%;
+  font-size: 0.62rem !important;
+  max-width: min(55%, 14rem);
   white-space: nowrap;
   overflow: hidden;
   text-overflow: ellipsis;
+  border-radius: 8px 0 0 0 !important;
+  padding: 2px 6px !important;
 }
 
-.map-leaflet-city-tip {
-  padding: 0.15rem 0.45rem !important;
-  border: 1px solid color-mix(in oklab, var(--border) 70%, transparent) !important;
-  border-radius: 6px !important;
-  background: color-mix(in oklab, var(--card) 92%, var(--background)) !important;
+.fam-map-tooltip {
+  padding: 0.2rem 0.5rem !important;
+  border: 1px solid color-mix(in oklab, var(--border) 72%, transparent) !important;
+  border-radius: 8px !important;
+  background: color-mix(in oklab, var(--card) 94%, var(--background)) !important;
   color: var(--foreground) !important;
-  font-size: 0.68rem !important;
+  font-size: 0.7rem !important;
   font-weight: 600 !important;
-  box-shadow: 0 2px 8px color-mix(in oklab, var(--foreground) 8%, transparent);
+  box-shadow: 0 4px 16px color-mix(in oklab, var(--foreground) 12%, transparent);
+}
+
+/* DivIcon: сброс дефолта Leaflet */
+.fam-pin-leaflet {
+  background: transparent !important;
+  border: none !important;
+}
+
+.fam-pin-marker--hover .fam-pin__ring {
+  transform: scale(1.08);
+  opacity: 1;
+}
+
+.fam-pin-marker--hover .fam-pin__pulse {
+  animation-duration: 1.2s;
+}
+
+@keyframes fam-pin-pulse {
+  0% {
+    transform: translate(-50%, -50%) scale(0.65);
+    opacity: 0.55;
+  }
+  100% {
+    transform: translate(-50%, -50%) scale(1.45);
+    opacity: 0;
+  }
+}
+
+.fam-pin {
+  position: relative;
+  width: 100%;
+  height: 100%;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  pointer-events: none;
+}
+
+.fam-pin__pulse {
+  position: absolute;
+  left: 50%;
+  top: 50%;
+  width: 70%;
+  height: 70%;
+  border-radius: 50%;
+  transform: translate(-50%, -50%);
+  background: color-mix(in oklab, var(--primary) 45%, transparent);
+  animation: fam-pin-pulse 2.4s ease-out infinite;
+  z-index: 0;
+}
+
+.fam-pin__ring {
+  position: absolute;
+  left: 50%;
+  top: 50%;
+  width: 78%;
+  height: 78%;
+  border-radius: 50%;
+  transform: translate(-50%, -50%);
+  border: 2px solid color-mix(in oklab, var(--card) 40%, var(--foreground));
+  background: color-mix(in oklab, var(--card) 55%, transparent);
+  box-shadow:
+    0 0 0 1px color-mix(in oklab, var(--foreground) 12%, transparent),
+    0 6px 18px color-mix(in oklab, var(--foreground) 18%, transparent);
+  z-index: 1;
+  transition: transform 0.2s ease, opacity 0.2s ease;
+}
+
+.fam-pin[data-kind="birth"] .fam-pin__ring {
+  border-color: color-mix(in oklab, var(--chart-2) 55%, var(--border));
+}
+
+.fam-pin[data-kind="burial"] .fam-pin__ring {
+  border-color: color-mix(in oklab, var(--chart-4) 50%, var(--border));
+}
+
+.fam-pin__core {
+  position: absolute;
+  left: 50%;
+  top: 50%;
+  width: 52%;
+  height: 52%;
+  border-radius: 50%;
+  transform: translate(-50%, -50%);
+  z-index: 2;
+  background: color-mix(in oklab, var(--chart-2) 72%, var(--primary));
+  box-shadow: inset 0 -2px 6px color-mix(in oklab, var(--foreground) 22%, transparent);
+}
+
+.fam-pin[data-kind="burial"] .fam-pin__core {
+  background: color-mix(in oklab, var(--chart-4) 68%, var(--chart-1));
+}
+
+.fam-pin__glyph {
+  position: relative;
+  z-index: 3;
+  font-size: 0.68rem;
+  font-weight: 750;
+  letter-spacing: -0.03em;
+  color: var(--primary-foreground);
+  text-shadow: 0 1px 2px color-mix(in oklab, var(--foreground) 35%, transparent);
+}
+
+.fam-pin--solo[data-kind="birth"] .fam-pin__glyph {
+  color: oklch(0.98 0.02 95);
+}
+
+.fam-pin--solo[data-kind="burial"] .fam-pin__glyph {
+  color: oklch(0.97 0.02 95);
+}
+
+.fam-pin__count {
+  position: relative;
+  z-index: 3;
+  font-size: 0.8rem;
+  font-weight: 800;
+  font-variant-numeric: tabular-nums;
+  color: var(--primary-foreground);
+  text-shadow: 0 1px 3px color-mix(in oklab, var(--foreground) 40%, transparent);
+}
+
+.fam-map-legend-sample {
+  display: inline-block;
+  width: 1.35rem;
+  height: 1.35rem;
+  border-radius: 50%;
+  flex-shrink: 0;
+  position: relative;
+  box-shadow: 0 2px 8px color-mix(in oklab, var(--foreground) 12%, transparent);
+}
+
+.fam-map-legend-sample--solo::after {
+  content: "Я";
+  position: absolute;
+  inset: 0;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-size: 0.45rem;
+  font-weight: 800;
+  color: var(--primary-foreground);
+}
+
+.fam-map-legend-sample--cluster::after {
+  content: "3";
+  position: absolute;
+  inset: 0;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-size: 0.55rem;
+  font-weight: 800;
+  color: var(--primary-foreground);
+}
+
+.fam-map-legend-sample[data-kind="birth"] {
+  background: color-mix(in oklab, var(--chart-2) 72%, var(--primary));
+  border: 2px solid color-mix(in oklab, var(--chart-2) 40%, var(--card));
+}
+
+.fam-map-legend-sample[data-kind="burial"] {
+  background: color-mix(in oklab, var(--chart-4) 68%, var(--chart-1));
+  border: 2px solid color-mix(in oklab, var(--chart-4) 38%, var(--card));
 }
 
 .map-fam-popup .leaflet-popup-content-wrapper {
@@ -1115,8 +1274,30 @@
 }
 
 .tree-dim {
-  opacity: 0.2 !important;
-  filter: saturate(0.35);
+  opacity: 0.22 !important;
+  filter: saturate(0.32) brightness(0.92);
+}
+
+/* Ветка в фокусе: связи ярче поверх затемнённого фона */
+.tree-edge--focus .tree-edge {
+  stroke-width: 3.1;
+  opacity: 1;
+}
+
+.tree-edge--focus .tree-edge-bg {
+  opacity: 1;
+}
+
+.tree-edge--focus .tree-e-parent {
+  filter: drop-shadow(0 0 6px color-mix(in oklab, var(--chart-2) 45%, transparent));
+}
+
+.tree-edge--focus .tree-e-spouse {
+  filter: drop-shadow(0 0 5px color-mix(in oklab, var(--chart-5) 40%, transparent));
+}
+
+.tree-edge--focus .tree-e-sibling {
+  filter: drop-shadow(0 0 5px color-mix(in oklab, var(--chart-1) 38%, transparent));
 }
 
 .tree-node--enter {
@@ -1599,13 +1780,8 @@ html:not(.dark) .tree-chip-sub {
   color: rgba(71, 85, 105, 0.75);
 }
 
-html:not(.dark) .map-page,
-html:not(.dark) .map-page--burial {
-  background:
-    radial-gradient(ellipse 90% 50% at 50% -15%, rgba(59, 130, 246, 0.08), transparent 55%),
-    #f7f9ff;
-  border-color: color-mix(in oklab, var(--border) 90%, rgba(59, 130, 246, 0.18));
-  box-shadow: inset 0 1px 0 rgba(255, 255, 255, 0.9);
+html:not(.dark) .fam-map-stage {
+  box-shadow: inset 0 1px 0 rgba(255, 255, 255, 0.85);
 }
 
 html:not(.dark) .map-fam-popup .leaflet-popup-content-wrapper {
@@ -1615,8 +1791,7 @@ html:not(.dark) .map-fam-popup .leaflet-popup-content-wrapper {
 }
 
 @media (forced-colors: active) {
-  .map-page,
-  .map-page--burial,
+  .fam-map-stage,
   .map-fam-popup .leaflet-popup-content-wrapper {
     forced-color-adjust: none;
     background: Canvas;
