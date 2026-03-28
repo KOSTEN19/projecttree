@@ -170,6 +170,11 @@
   margin: 0;
 }
 
+/* Портал в body: не тянуть на всю ширину от right:0 у .rel-suggest-menu */
+.rel-suggest-portal.rel-suggest-menu {
+  right: auto;
+}
+
 /* Relatives — era grouping */
 .rel-era-wrap {
   display: flex;

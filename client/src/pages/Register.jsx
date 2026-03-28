@@ -73,7 +73,14 @@ export default function Register({ onAuth }) {
       <Card className="w-full max-w-2xl">
         <CardHeader>
           <div className="flex items-center gap-3">
-            <img src="/logo.svg" alt="" className="size-10 rounded-md border" />
+            <img
+              src="/logo.png"
+              alt="Память России"
+              width={40}
+              height={40}
+              className="app-brand-logo size-10 shrink-0 rounded-md border"
+              decoding="async"
+            />
             <div>
               <CardTitle className="text-xl">Регистрация</CardTitle>
               <CardDescription>Аккаунт для генеалогического портала</CardDescription>

@@ -164,6 +164,27 @@
     }
   }
 
+  /** Растровый /logo.png (квадратный макет): без сплющивания и обрезки в шапке/футере/формах */
+  .app-brand-logo {
+    display: block;
+    flex-shrink: 0;
+    object-fit: contain;
+    object-position: center;
+  }
+
+  .auth-brand .auth-logo {
+    width: 2.75rem;
+    height: 2.75rem;
+    border-radius: var(--radius-md);
+    border: 1px solid color-mix(in oklab, var(--border) 82%, transparent);
+  }
+
+  .navbar-brand .navbar-logo {
+    width: 2.25rem;
+    height: 2.25rem;
+    border-radius: 0.375rem;
+  }
+
   .home-shell {
     @apply min-h-[78vh];
     background:

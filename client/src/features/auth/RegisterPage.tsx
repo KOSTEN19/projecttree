@@ -49,7 +49,14 @@ export default function RegisterPage({ onAuth }: { onAuth?: () => void | Promise
     <div className="auth-page">
       <div className="auth-card" style={{ maxWidth: 560 }}>
         <div className="auth-brand">
-          <img className="auth-logo" src="/logo.svg" alt="" />
+          <img
+            className="auth-logo app-brand-logo"
+            src="/logo.png"
+            alt="Память России"
+            width={44}
+            height={44}
+            decoding="async"
+          />
           <div className="auth-brand-text">Память России</div>
         </div>
 

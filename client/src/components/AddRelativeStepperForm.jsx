@@ -1,4 +1,5 @@
-import React, { useCallback, useEffect, useMemo, useRef, useState } from "react";
+import React, { useCallback, useEffect, useLayoutEffect, useMemo, useRef, useState } from "react";
+import { createPortal } from "react-dom";
 import { apiGet, apiPost } from "../api.js";
 import { CITY_OPTIONS } from "../data/cities.js";
 import Stepper, { Step } from "../vendor/react-bits/Stepper/Stepper.jsx";
@@ -38,6 +39,107 @@ function normalizeHumanName(v) {
 
 function trimText(v) {
   return String(v || "").trim().replace(/\s+/g, " ");
+}
+
+/** Ошибка шага 1–5 или null (совпадает с правилами финальной отправки). */
+function getStepValidationError(step, form) {
+  const needsLine = !["дочь", "сын", "брат", "сестра"].includes(form.relationType);
+  const t = (v) => String(v || "").trim();
+  switch (step) {
+    case 1:
+      if (!form.basePersonId) return "Выберите базового человека.";
+      if (!form.relationType) return "Выберите тип родственной связи.";
+      if (needsLine && !form.line) return "Укажите линию родства.";
+      return null;
+    case 2:
+      if (!t(form.lastName)) return "Укажите фамилию.";
+      if (!t(form.firstName)) return "Укажите имя.";
+      if (!t(form.middleName)) return "Укажите отчество.";
+      if (!form.sex) return "Пол обязателен.";
+      if (form.sex === "F" && !t(form.maidenName)) return "Укажите девичью фамилию.";
+      return null;
+    case 3:
+      if (!form.birthDate) return "Дата рождения обязательна.";
+      if (!t(form.birthCityCustom)) return "Укажите место рождения.";
+      return null;
+    case 4:
+      if (!form.alive) {
+        if (!form.deathDate) return "Укажите дату смерти.";
+        if (!t(form.burialPlace)) return "Укажите место захоронения.";
+      }
+      return null;
+    case 5:
+      if (!t(form.education)) return "Укажите образование.";
+      if (!t(form.workPath)) return "Укажите трудовой путь.";
+      if (!t(form.militaryPath))
+        return "Укажите боевой путь / службу (или кратко «не служил», если не применимо).";
+      return null;
+    default:
+      return null;
+  }
+}
+
+/** Список в document.body: степпер и модалка режут overflow у предков */
+function FixedCitySuggestPortal({ open, anchorRef, suggestions, onPick }) {
+  const [box, setBox] = useState(null);
+
+  useLayoutEffect(() => {
+    if (!open) {
+      setBox(null);
+      return;
+    }
+    const el = anchorRef.current;
+    if (!el) {
+      setBox(null);
+      return;
+    }
+    function sync() {
+      const a = anchorRef.current;
+      if (!a) return;
+      const r = a.getBoundingClientRect();
+      setBox({ top: r.bottom + 4, left: r.left, width: Math.max(r.width, 200) });
+    }
+    sync();
+    const ro = new ResizeObserver(sync);
+    ro.observe(el);
+    window.addEventListener("scroll", sync, true);
+    window.addEventListener("resize", sync);
+    return () => {
+      ro.disconnect();
+      window.removeEventListener("scroll", sync, true);
+      window.removeEventListener("resize", sync);
+    };
+  }, [open, anchorRef, suggestions.length]);
+
+  if (!open || !box || suggestions.length === 0) return null;
+
+  return createPortal(
+    <ul
+      role="listbox"
+      className="rel-suggest-menu rel-suggest-menu--popover rel-suggest-portal"
+      style={{
+        position: "fixed",
+        top: box.top,
+        left: box.left,
+        width: box.width,
+        zIndex: 300,
+      }}
+    >
+      {suggestions.map((s) => (
+        <li key={s} role="option">
+          <button
+            type="button"
+            className="rel-suggest-item"
+            onMouseDown={(e) => e.preventDefault()}
+            onClick={() => onPick(s)}
+          >
+            {s}
+          </button>
+        </li>
+      ))}
+    </ul>,
+    document.body
+  );
 }
 
 export default function AddRelativeStepperForm({ persons, self, onCreated }) {
@@ -122,6 +224,7 @@ export default function AddRelativeStepperForm({ persons, self, onCreated }) {
 
   useEffect(() => {
     function onDocMouseDown(e) {
+      if (e.target.closest?.(".rel-suggest-portal")) return;
       if (!birthCityWrapRef.current?.contains(e.target)) setBirthCityListOpen(false);
       if (!burialCityWrapRef.current?.contains(e.target)) setBurialCityListOpen(false);
     }
@@ -189,59 +292,30 @@ export default function AddRelativeStepperForm({ persons, self, onCreated }) {
     return payload;
   }, [form, needsLine]);
 
+  const onBeforeStepChange = useCallback(async (from, to) => {
+    if (to <= from) return;
+    for (let s = from; s < to; s++) {
+      const err = getStepValidationError(s, form);
+      if (err) {
+        setSubmitErr(err);
+        throw new Error("validation");
+      }
+    }
+    setSubmitErr("");
+  }, [form]);
+
   const onBeforeComplete = useCallback(async () => {
     setSubmitErr("");
-    const p = buildPayload();
-    if (!p.basePersonId) {
-      setSubmitErr("Выберите базового человека.");
-      throw new Error("validation");
-    }
-    if (!p.relationType) {
-      setSubmitErr("Выберите тип родственной связи.");
-      throw new Error("validation");
-    }
-    if (needsLine && !p.line) {
-      setSubmitErr("Укажите линию родства.");
-      throw new Error("validation");
-    }
-    if (!p.lastName || !p.firstName || !p.middleName) {
-      setSubmitErr("Фамилия, имя и отчество обязательны.");
-      throw new Error("validation");
-    }
-    if (!p.sex) {
-      setSubmitErr("Пол обязателен.");
-      throw new Error("validation");
-    }
-    if (p.sex === "F" && !String(p.maidenName || "").trim()) {
-      setSubmitErr("Укажите девичью фамилию.");
-      throw new Error("validation");
-    }
-    if (!p.birthDate) {
-      setSubmitErr("Дата рождения обязательна.");
-      throw new Error("validation");
-    }
-    if (!p.birthCityCustom) {
-      setSubmitErr("Укажите место рождения.");
-      throw new Error("validation");
-    }
-    if (!p.alive && (!p.deathDate || !p.burialPlace)) {
-      setSubmitErr("Для умершего родственника укажите дату смерти и место захоронения.");
-      throw new Error("validation");
-    }
-    if (!p.education) {
-      setSubmitErr("Укажите образование.");
-      throw new Error("validation");
-    }
-    if (!p.workPath) {
-      setSubmitErr("Укажите трудовой путь.");
-      throw new Error("validation");
-    }
-    if (!p.militaryPath) {
-      setSubmitErr("Укажите боевой путь / службу (или кратко «не служил», если не применимо).");
-      throw new Error("validation");
+    for (let s = 1; s <= 5; s++) {
+      const err = getStepValidationError(s, form);
+      if (err) {
+        setSubmitErr(err);
+        throw new Error("validation");
+      }
     }
     setSubmitting(true);
     try {
+      const p = buildPayload();
       await apiPost("/api/persons", p);
       onCreated?.();
     } catch (e) {
@@ -250,7 +324,7 @@ export default function AddRelativeStepperForm({ persons, self, onCreated }) {
     } finally {
       setSubmitting(false);
     }
-  }, [buildPayload, onCreated]);
+  }, [buildPayload, form, onCreated]);
 
   return (
     <div className="rel-stepper-host">
@@ -265,11 +339,13 @@ export default function AddRelativeStepperForm({ persons, self, onCreated }) {
         backButtonText="Назад"
         nextButtonText="Далее"
         finalButtonText={submitting ? "Отправка…" : "Добавить в семью"}
+        onBeforeStepChange={onBeforeStepChange}
         onBeforeComplete={onBeforeComplete}
         nextButtonProps={{ disabled: submitting, type: "button" }}
         backButtonProps={{ type: "button", disabled: submitting }}
         stepCircleContainerClassName="rel-stepper-card"
         contentClassName="rel-stepper-content"
+        contentWrapperStyle={{ overflow: "visible" }}
       >
         <Step>
           <h3 className="rel-step-title">Связь в древе</h3>
@@ -370,29 +446,16 @@ export default function AddRelativeStepperForm({ persons, self, onCreated }) {
               onFocus={() => setBirthCityListOpen(true)}
               placeholder="Начните вводить, например: Тула"
             />
-            {showBirthCityDropdown ? (
-              <ul
-                role="listbox"
-                className="rel-suggest-menu rel-suggest-menu--popover"
-              >
-                {birthCitySuggestions.map((s) => (
-                  <li key={s} role="option">
-                    <button
-                      type="button"
-                      className="rel-suggest-item"
-                      onMouseDown={(e) => e.preventDefault()}
-                      onClick={() => {
-                        set("birthCityCustom", s);
-                        setBirthCityListOpen(false);
-                        birthCityInputRef.current?.blur();
-                      }}
-                    >
-                      {s}
-                    </button>
-                  </li>
-                ))}
-              </ul>
-            ) : null}
+            <FixedCitySuggestPortal
+              open={showBirthCityDropdown}
+              anchorRef={birthCityWrapRef}
+              suggestions={birthCitySuggestions}
+              onPick={(s) => {
+                set("birthCityCustom", s);
+                setBirthCityListOpen(false);
+                birthCityInputRef.current?.blur();
+              }}
+            />
           </div>
         </Step>
 
@@ -428,29 +491,16 @@ export default function AddRelativeStepperForm({ persons, self, onCreated }) {
                   onFocus={() => setBurialCityListOpen(true)}
                   placeholder="Начните вводить населённый пункт или адрес"
                 />
-                {showBurialCityDropdown ? (
-                  <ul
-                    role="listbox"
-                    className="rel-suggest-menu rel-suggest-menu--popover"
-                  >
-                    {burialCitySuggestions.map((s) => (
-                      <li key={s} role="option">
-                        <button
-                          type="button"
-                          className="rel-suggest-item"
-                          onMouseDown={(e) => e.preventDefault()}
-                          onClick={() => {
-                            set("burialPlace", s);
-                            setBurialCityListOpen(false);
-                            burialCityInputRef.current?.blur();
-                          }}
-                        >
-                          {s}
-                        </button>
-                      </li>
-                    ))}
-                  </ul>
-                ) : null}
+                <FixedCitySuggestPortal
+                  open={showBurialCityDropdown}
+                  anchorRef={burialCityWrapRef}
+                  suggestions={burialCitySuggestions}
+                  onPick={(s) => {
+                    set("burialPlace", s);
+                    setBurialCityListOpen(false);
+                    burialCityInputRef.current?.blur();
+                  }}
+                />
               </div>
             </>
           ) : (

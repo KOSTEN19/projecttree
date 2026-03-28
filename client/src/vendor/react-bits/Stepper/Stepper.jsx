@@ -13,10 +13,14 @@ export default function Stepper({
   onStepChange = () => {},
   /** Если задан, вызывается перед переходом в «готово»; при throw — остаёмся на последнем шаге */
   onBeforeComplete,
+  /** Перед переходом вперёд по кругам шагов или «Далее»: (from, to), только если to больше from. При throw — не переключать. */
+  onBeforeStepChange,
   onFinalStepCompleted = () => {},
   stepCircleContainerClassName = '',
   stepContainerClassName = '',
   contentClassName = '',
+  /** Доп. стили обёртки шага (например { overflow: 'visible' } для выпадающих списков) */
+  contentWrapperStyle = {},
   footerClassName = '',
   backButtonProps = {},
   nextButtonProps = {},
@@ -50,11 +54,17 @@ export default function Stepper({
     }
   };
 
-  const handleNext = () => {
-    if (!isLastStep) {
-      setDirection(1);
-      updateStep(currentStep + 1);
+  const handleNext = async () => {
+    if (isLastStep) return;
+    if (typeof onBeforeStepChange === 'function') {
+      try {
+        await onBeforeStepChange(currentStep, currentStep + 1);
+      } catch {
+        return;
+      }
     }
+    setDirection(1);
+    updateStep(currentStep + 1);
   };
 
   const handleComplete = async () => {
@@ -82,7 +92,15 @@ export default function Stepper({
                   renderStepIndicator({
                     step: stepNumber,
                     currentStep,
-                    onStepClick: clicked => {
+                    onStepClick: async clicked => {
+                      if (clicked === currentStep) return;
+                      if (typeof onBeforeStepChange === 'function' && clicked > currentStep) {
+                        try {
+                          await onBeforeStepChange(currentStep, clicked);
+                        } catch {
+                          return;
+                        }
+                      }
                       setDirection(clicked > currentStep ? 1 : -1);
                       updateStep(clicked);
                     }
@@ -92,7 +110,15 @@ export default function Stepper({
                     step={stepNumber}
                     disableStepIndicators={disableStepIndicators}
                     currentStep={currentStep}
-                    onClickStep={clicked => {
+                    onClickStep={async clicked => {
+                      if (clicked === currentStep) return;
+                      if (typeof onBeforeStepChange === 'function' && clicked > currentStep) {
+                        try {
+                          await onBeforeStepChange(currentStep, clicked);
+                        } catch {
+                          return;
+                        }
+                      }
                       setDirection(clicked > currentStep ? 1 : -1);
                       updateStep(clicked);
                     }}
@@ -109,6 +135,7 @@ export default function Stepper({
           currentStep={currentStep}
           direction={direction}
           className={`step-content-default ${contentClassName}`}
+          wrapperStyle={contentWrapperStyle}
         >
           {stepsArray[currentStep - 1]}
         </StepContentWrapper>
@@ -136,13 +163,13 @@ export default function Stepper({
   );
 }
 
-function StepContentWrapper({ isCompleted, currentStep, direction, children, className }) {
+function StepContentWrapper({ isCompleted, currentStep, direction, children, className, wrapperStyle }) {
   const [parentHeight, setParentHeight] = useState(0);
 
   return (
     <motion.div
       className={className}
-      style={{ position: 'relative', overflow: 'hidden' }}
+      style={{ position: 'relative', overflow: 'hidden', ...wrapperStyle }}
       animate={{ height: isCompleted ? 0 : parentHeight }}
       transition={{ type: 'spring', duration: 0.4 }}
     >

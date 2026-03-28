@@ -37,7 +37,14 @@ export default function LoginPage({ onAuth }: { onAuth?: () => void | Promise<vo
     <div className="auth-page">
       <div className="auth-card">
         <div className="auth-brand">
-          <img className="auth-logo" src="/logo.svg" alt="" />
+          <img
+            className="auth-logo app-brand-logo"
+            src="/logo.png"
+            alt="Память России"
+            width={44}
+            height={44}
+            decoding="async"
+          />
           <div className="auth-brand-text">Память России</div>
         </div>
 

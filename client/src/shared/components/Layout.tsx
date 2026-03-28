@@ -24,7 +24,14 @@ export default function Layout({
       <nav className="navbar">
         <div className="navbar-inner">
           <NavLink to="/app/home" className="navbar-brand">
-            <img className="navbar-logo" src="/logo.svg" alt="" />
+            <img
+              className="navbar-logo app-brand-logo"
+              src="/logo.png"
+              alt="Память России"
+              width={36}
+              height={36}
+              decoding="async"
+            />
             <div>
               <div className="navbar-title">Память России</div>
               <div className="navbar-sub">Генеалогический портал</div>
@@ -86,7 +93,15 @@ export default function Layout({
       <footer className="site-footer">
         <div className="footer-inner">
           <div className="footer-brand">
-            <img src="/logo.svg" alt="" style={{ width: 24, height: 24, borderRadius: 6, opacity: 0.6 }} />
+            <img
+              className="app-brand-logo shrink-0 opacity-60"
+              src="/logo.png"
+              alt=""
+              width={24}
+              height={24}
+              style={{ borderRadius: 6 }}
+              decoding="async"
+            />
             Память России
           </div>
           <div className="footer-text">Developed by ProfIU BMSTU &middot; 2024&ndash;2026</div>
