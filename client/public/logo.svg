@@ -1,0 +1,14 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 48 48" fill="none" aria-hidden="true">
+  <defs>
+    <linearGradient id="logoBg" x1="8" y1="4" x2="40" y2="44" gradientUnits="userSpaceOnUse">
+      <stop stop-color="#2563eb" />
+      <stop offset="1" stop-color="#7c3aed" />
+    </linearGradient>
+  </defs>
+  <rect width="48" height="48" rx="11" fill="url(#logoBg)" />
+  <path
+    fill="#f8fafc"
+    d="M24 9 33 22h-5l8 11h-6l7 10H13l7-10h-6l8-11h-5L24 9Z"
+  />
+  <rect x="19.5" y="35" width="9" height="10" rx="1.5" fill="#cbd5e1" />
+</svg>

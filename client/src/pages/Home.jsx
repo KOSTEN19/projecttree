@@ -1,5 +1,6 @@
 import React, { useEffect, useMemo, useRef, useState } from "react";
-import { Link } from "react-router-dom";
+import { Link, useLocation } from "react-router-dom";
+import { TrendingUp } from "lucide-react";
 import { apiGet } from "../api.js";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
@@ -261,13 +262,21 @@ function generateHistoricalInsights(persons) {
   return cards;
 }
 
+function easeOutCubic(t) {
+  return 1 - (1 - t) ** 3;
+}
+
 export default function Home({ user }) {
+  const location = useLocation();
   const [globalStats, setGlobalStats] = useState({ accounts: 0, relatives: 0 });
   const [people, setPeople] = useState([]);
   const [relationships, setRelationships] = useState([]);
   const [mePersonId, setMePersonId] = useState("");
   const carouselRef = useRef(null);
   const [isTapeHovered, setIsTapeHovered] = useState(false);
+  const [summaryDisplay, setSummaryDisplay] = useState({ accounts: 0, relatives: 0, rels: 0 });
+  const [summaryTrend, setSummaryTrend] = useState(false);
+  const summaryAnimRef = useRef(0);
 
   useEffect(() => {
     (async () => {
@@ -289,6 +298,56 @@ export default function Home({ user }) {
       }
     })();
   }, []);
+
+  const summaryTargets = useMemo(
+    () => ({
+      accounts: globalStats.accounts,
+      relatives: globalStats.relatives,
+      rels: relationships.length,
+    }),
+    [globalStats.accounts, globalStats.relatives, relationships.length],
+  );
+
+  useEffect(() => {
+    if (location.pathname.replace(/\/$/, "") !== "/app/home") return;
+
+    const id = ++summaryAnimRef.current;
+    const { accounts: toA, relatives: toR, rels: toRel } = summaryTargets;
+    const duration = 1500;
+    let raf = 0;
+    let start = null;
+    setSummaryTrend(false);
+
+    const tick = (now) => {
+      if (summaryAnimRef.current !== id) return;
+      if (start === null) start = now;
+      const t = Math.min(1, (now - start) / duration);
+      const e = easeOutCubic(t);
+      setSummaryDisplay({
+        accounts: Math.round(toA * e),
+        relatives: Math.round(toR * e),
+        rels: Math.round(toRel * e),
+      });
+      if (t < 1) {
+        raf = requestAnimationFrame(tick);
+      } else {
+        setSummaryDisplay({ accounts: toA, relatives: toR, rels: toRel });
+        const any = toA > 0 || toR > 0 || toRel > 0;
+        if (any) {
+          window.setTimeout(() => {
+            if (summaryAnimRef.current === id) setSummaryTrend(true);
+          }, 80);
+        }
+      }
+    };
+
+    setSummaryDisplay({ accounts: 0, relatives: 0, rels: 0 });
+    raf = requestAnimationFrame(tick);
+    return () => {
+      summaryAnimRef.current += 1;
+      cancelAnimationFrame(raf);
+    };
+  }, [location.pathname, summaryTargets]);
 
   const facts = useMemo(() => generateFacts(people, relationships, mePersonId), [people, relationships, mePersonId]);
   const historicalFacts = useMemo(() => generateHistoricalInsights(people), [people]);
@@ -372,17 +431,32 @@ export default function Home({ user }) {
           <div className="home-portal-summary">
             <p className="home-portal-summary-title">Сводка летописи</p>
             <div className="home-portal-summary-grid">
-              <div>
-                <strong>{globalStats.accounts}</strong>
-                <span>семей в системе</span>
+              <div className="home-portal-stat-card">
+                <div className="home-portal-stat-value-row">
+                  <strong className="home-portal-stat-value tabular-nums">{summaryDisplay.accounts}</strong>
+                  {summaryTrend && summaryTargets.accounts > 0 ? (
+                    <TrendingUp className="home-portal-stat-trend" aria-hidden strokeWidth={2.5} />
+                  ) : null}
+                </div>
+                <span className="home-portal-stat-label">семей в системе</span>
               </div>
-              <div>
-                <strong>{globalStats.relatives}</strong>
-                <span>человек в базе</span>
+              <div className="home-portal-stat-card">
+                <div className="home-portal-stat-value-row">
+                  <strong className="home-portal-stat-value tabular-nums">{summaryDisplay.relatives}</strong>
+                  {summaryTrend && summaryTargets.relatives > 0 ? (
+                    <TrendingUp className="home-portal-stat-trend" aria-hidden strokeWidth={2.5} />
+                  ) : null}
+                </div>
+                <span className="home-portal-stat-label">человек в базе</span>
               </div>
-              <div>
-                <strong>{relationships.length}</strong>
-                <span>связей поколений</span>
+              <div className="home-portal-stat-card">
+                <div className="home-portal-stat-value-row">
+                  <strong className="home-portal-stat-value tabular-nums">{summaryDisplay.rels}</strong>
+                  {summaryTrend && summaryTargets.rels > 0 ? (
+                    <TrendingUp className="home-portal-stat-trend" aria-hidden strokeWidth={2.5} />
+                  ) : null}
+                </div>
+                <span className="home-portal-stat-label">связей поколений</span>
               </div>
             </div>
             <p className="home-portal-summary-note">

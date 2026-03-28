@@ -42,7 +42,7 @@ export default function Login({ onAuth }) {
       <Card className="w-full max-w-md">
         <CardHeader className="space-y-1">
           <div className="flex items-center gap-3">
-            <img src="/logo.png" alt="" className="size-10 rounded-md border" />
+            <img src="/logo.svg" alt="" className="size-10 rounded-md border" />
             <div>
               <CardTitle className="text-xl">Память России</CardTitle>
               <CardDescription>Вход в личный кабинет</CardDescription>

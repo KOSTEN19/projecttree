@@ -323,37 +323,71 @@
   }
 
   .home-portal-summary {
-    @apply rounded-xl border bg-background px-4 py-4;
+    @apply rounded-xl border bg-background px-5 py-6 md:px-6 md:py-7;
     border-color: color-mix(in oklab, var(--border) 85%, var(--chart-2));
+    box-shadow: 0 18px 48px -28px color-mix(in oklab, var(--foreground) 14%, transparent);
   }
 
   .home-portal-summary-title {
-    @apply text-xs font-semibold uppercase;
-    letter-spacing: 0.07em;
+    @apply text-sm font-bold uppercase md:text-base;
+    letter-spacing: 0.08em;
     color: var(--muted-foreground);
   }
 
   .home-portal-summary-grid {
-    @apply mt-3 grid gap-2 sm:grid-cols-3 lg:grid-cols-1;
+    @apply mt-4 grid gap-3 sm:grid-cols-3 lg:grid-cols-1;
   }
 
-  .home-portal-summary-grid > div {
-    @apply rounded-lg border px-3 py-2;
+  .home-portal-stat-card {
+    @apply rounded-xl border px-4 py-4 md:px-5 md:py-5;
     border-color: color-mix(in oklab, var(--border) 84%, var(--chart-2));
-    background: color-mix(in oklab, var(--background) 92%, var(--secondary));
+    background: color-mix(in oklab, var(--background) 88%, var(--secondary));
+    transition: border-color 0.2s ease, box-shadow 0.2s ease;
   }
 
-  .home-portal-summary-grid strong {
-    @apply block text-lg font-semibold;
+  .home-portal-stat-card:hover {
+    border-color: color-mix(in oklab, var(--chart-2) 35%, var(--border));
+    box-shadow: 0 12px 32px -20px color-mix(in oklab, var(--chart-2) 28%, transparent);
   }
 
-  .home-portal-summary-grid span {
-    @apply text-xs;
+  .home-portal-stat-value-row {
+    @apply flex items-center gap-2;
+    min-height: 2.75rem;
+  }
+
+  .home-portal-stat-value {
+    @apply font-bold tracking-tight;
+    font-size: clamp(2rem, 5vw, 2.75rem);
+    line-height: 1;
+    color: var(--foreground);
+    text-shadow: 0 0 42px color-mix(in oklab, var(--chart-2) 22%, transparent);
+  }
+
+  .home-portal-stat-trend {
+    @apply size-7 shrink-0 md:size-8;
+    color: color-mix(in oklab, #22c55e 88%, var(--chart-2));
+    animation: home-portal-trend-in 0.55s cubic-bezier(0.22, 1, 0.36, 1) forwards;
+    filter: drop-shadow(0 2px 10px color-mix(in oklab, #22c55e 35%, transparent));
+  }
+
+  @keyframes home-portal-trend-in {
+    from {
+      opacity: 0;
+      transform: translateY(8px) scale(0.85);
+    }
+    to {
+      opacity: 1;
+      transform: translateY(0) scale(1);
+    }
+  }
+
+  .home-portal-stat-label {
+    @apply mt-2 block text-sm font-medium md:text-base;
     color: var(--muted-foreground);
   }
 
   .home-portal-summary-note {
-    @apply mt-3 text-xs leading-relaxed;
+    @apply mt-4 text-sm leading-relaxed md:text-[0.95rem];
     color: color-mix(in oklab, var(--muted-foreground) 86%, var(--foreground));
   }
 

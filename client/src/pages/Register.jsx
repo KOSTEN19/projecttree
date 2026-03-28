@@ -73,7 +73,7 @@ export default function Register({ onAuth }) {
       <Card className="w-full max-w-2xl">
         <CardHeader>
           <div className="flex items-center gap-3">
-            <img src="/logo.png" alt="" className="size-10 rounded-md border" />
+            <img src="/logo.svg" alt="" className="size-10 rounded-md border" />
             <div>
               <CardTitle className="text-xl">Регистрация</CardTitle>
               <CardDescription>Аккаунт для генеалогического портала</CardDescription>

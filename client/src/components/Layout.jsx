@@ -58,7 +58,7 @@ export default function Layout({ user, onLogout, theme = "dark", onToggleTheme }
       <header className="layout-header sticky top-0 z-50 border-b">
         <div className="layout-header-inner mx-auto flex min-h-14 max-w-6xl flex-wrap items-center justify-between gap-3 px-4 py-2">
           <div className="layout-brand hidden items-center gap-2 md:flex">
-            <img src="/logo.png" alt="" className="size-6 rounded-sm opacity-90" />
+            <img src="/logo.svg" alt="" className="size-6 rounded-sm opacity-90" />
             <div>
               <div className="layout-brand-title">Память России</div>
               <div className="layout-brand-sub">Семейная летопись</div>
@@ -128,7 +128,7 @@ export default function Layout({ user, onLogout, theme = "dark", onToggleTheme }
       <footer className="layout-footer border-t py-4">
         <div className="mx-auto flex max-w-6xl flex-col items-center justify-between gap-2 px-4 text-center text-xs text-muted-foreground sm:flex-row sm:text-left">
           <div className="layout-footer-brand flex items-center gap-2">
-            <img src="/logo.png" alt="" className="size-5 rounded opacity-70" />
+            <img src="/logo.svg" alt="" className="size-5 rounded opacity-70" />
             <span>Память России</span>
           </div>
           <span className="layout-footer-note">ProfIU BMSTU · 2024–2026</span>
