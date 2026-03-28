@@ -1,4 +1,4 @@
-# UI (shadcn): src/components/ui — с реестра на prebuild; нужен HTTPS к ui.shadcn.com.
+# UI (shadcn): src/components/ui/*.tsx хранятся в git (см. .gitignore). prebuild/ui:pull — опциональное обновление с реестра.
 # node_modules в git не хранится: зависимости ставятся здесь (`npm ci` из npm registry), не через MCP.
 # MCP shadcn в Cursor только помогает в IDE; образ собирается этим Dockerfile.
 FROM node:20-alpine AS builder
