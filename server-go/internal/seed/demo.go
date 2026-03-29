@@ -52,6 +52,7 @@ func RunDemoSeed() {
 			log.Printf("[seed] demo user exists (id=%s), password hash refreshed", existing.ID.Hex())
 		}
 		EnrichDemoPersons(ctx, existing.ID)
+		EnsureDemoSpouseRels(ctx, existing.ID)
 		return
 	}
 	if !errors.Is(err, mongo.ErrNoDocuments) {
@@ -145,6 +146,9 @@ func RunDemoSeed() {
 		{from: 0, to: 3, relType: "мать", line: "female"},
 		{from: 1, to: 4, relType: "мать", line: "female"},
 		{from: 1, to: 5, relType: "отец", line: "male"},
+		{from: 0, to: 1, relType: "жена", line: ""},
+		{from: 2, to: 3, relType: "жена", line: ""},
+		{from: 5, to: 4, relType: "жена", line: ""},
 		{from: -1, to: 6, relType: "сестра", line: ""},
 		{from: -1, to: 7, relType: "брат", line: ""},
 		{from: -1, to: 8, relType: "жена", line: ""},
@@ -179,6 +183,7 @@ func RunDemoSeed() {
 	}
 
 	EnrichDemoPersons(ctx, userID)
+	EnsureDemoSpouseRels(ctx, userID)
 
 	log.Printf("[seed] done: demo user created, %d persons, %d relationships", len(family)+1, len(rels))
 }
