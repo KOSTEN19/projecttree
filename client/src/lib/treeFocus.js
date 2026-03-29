@@ -101,7 +101,6 @@ function shortestPath(adj, from, to) {
   return null;
 }
 
-/** Предки (родители и выше), без самого anchor. */
 /** Убрать из множества людей, связанных с anchor указанным типом связи (напр. дядя по отцу при линии матери). */
 function stripAnchorRelations(keep, anchorId, relationships, relationTypeLower) {
   const want = String(relationTypeLower || "").toLowerCase();
@@ -113,6 +112,7 @@ function stripAnchorRelations(keep, anchorId, relationships, relationTypeLower) 
   }
 }
 
+/** Предки (родители и выше), без самого anchor. */
 function ancestorsUpward(anchor, fatherOf, motherOf) {
   const s = new Set();
   const q = [];
@@ -132,6 +132,104 @@ function ancestorsUpward(anchor, fatherOf, motherOf) {
     }
   }
   return s;
+}
+
+/** Все строгие предки personId (без него самого). */
+function strictAncestorsOf(personId, fatherOf, motherOf) {
+  return ancestorsUpward(personId, fatherOf, motherOf);
+}
+
+function buildChildrenMap(relationships, byId) {
+  const childrenOf = new Map();
+  function addChild(parentId, childId) {
+    if (!parentId || !childId || !byId.has(parentId) || !byId.has(childId)) return;
+    if (!childrenOf.has(parentId)) childrenOf.set(parentId, new Set());
+    childrenOf.get(parentId).add(childId);
+  }
+  for (const r of relationships || []) {
+    const base = strId(r.basePersonId);
+    const rel = strId(r.relatedPersonId);
+    const t = String(r.relationType || "").toLowerCase();
+    if (!byId.has(base) || !byId.has(rel)) continue;
+    if (t === "отец" || t === "мать") addChild(rel, base);
+    if (t === "сын" || t === "дочь") addChild(base, rel);
+  }
+  return childrenOf;
+}
+
+function collectDescendantsFrom(startId, childrenOf) {
+  const s = new Set();
+  const q = [startId];
+  s.add(startId);
+  while (q.length) {
+    const v = q.shift();
+    for (const c of childrenOf.get(v) || []) {
+      if (!s.has(c)) {
+        s.add(c);
+        q.push(c);
+      }
+    }
+  }
+  return s;
+}
+
+/** Цепочка только вверх по отцу/матери: me → … → target (target должен быть предком). */
+function pathUpToAncestor(me, target, fatherOf, motherOf) {
+  if (me === target) return [me];
+  const q = [[me]];
+  const vis = new Set([me]);
+  while (q.length) {
+    const path = q.shift();
+    const v = path[path.length - 1];
+    for (const p of [fatherOf.get(v), motherOf.get(v)]) {
+      if (!p || vis.has(p)) continue;
+      const next = [...path, p];
+      if (p === target) return next;
+      vis.add(p);
+      q.push(next);
+    }
+  }
+  return null;
+}
+
+/** Цепочка только вниз по детям: me → … → target (target должен быть потомком). */
+function pathDownToDescendant(me, target, childrenOf) {
+  if (me === target) return [me];
+  const q = [[me]];
+  const vis = new Set([me]);
+  while (q.length) {
+    const path = q.shift();
+    const v = path[path.length - 1];
+    for (const c of childrenOf.get(v) || []) {
+      if (vis.has(c)) continue;
+      const next = [...path, c];
+      if (c === target) return next;
+      vis.add(c);
+      q.push(next);
+    }
+  }
+  return null;
+}
+
+/** Рёбра только родитель–ребёнок (без супругов, братьев и т.д.) — для осмысленной «ветки». */
+function buildParentChildAdj(relationships, byId) {
+  const adj = new Map();
+  function addEdge(a, b) {
+    if (!a || !b || a === b) return;
+    if (!byId.has(a) || !byId.has(b)) return;
+    if (!adj.has(a)) adj.set(a, new Set());
+    if (!adj.has(b)) adj.set(b, new Set());
+    adj.get(a).add(b);
+    adj.get(b).add(a);
+  }
+  for (const r of relationships || []) {
+    const base = strId(r.basePersonId);
+    const rel = strId(r.relatedPersonId);
+    const t = String(r.relationType || "").toLowerCase();
+    if (!byId.has(base) || !byId.has(rel)) continue;
+    if (t === "отец" || t === "мать" || t === "сын" || t === "дочь") addEdge(base, rel);
+  }
+  return adj;
 }
 
 /**
@@ -209,11 +307,27 @@ export function applyTreeFocus(data, focus) {
     if (!byId.has(anchor)) {
       return { mePersonId, people: [...(people || [])], relationships: [...(relationships || [])] };
     }
-    const path = shortestPath(adj, mePersonId, anchor);
-    const anc = ancestorsUpward(anchor, fatherOf, motherOf);
-    keep = new Set([mePersonId, anchor]);
-    if (path) path.forEach((id) => keep.add(id));
-    anc.forEach((id) => keep.add(id));
+
+    const childrenOf = buildChildrenMap(relationships, byId);
+    const myAncestors = strictAncestorsOf(mePersonId, fatherOf, motherOf);
+    const myDescendants = collectDescendantsFrom(mePersonId, childrenOf);
+
+    if (myAncestors.has(anchor)) {
+      const path = pathUpToAncestor(mePersonId, anchor, fatherOf, motherOf);
+      keep = new Set(path || [mePersonId, anchor]);
+      ancestorsUpward(anchor, fatherOf, motherOf).forEach((id) => keep.add(id));
+    } else if (anchor !== mePersonId && myDescendants.has(anchor)) {
+      const path = pathDownToDescendant(mePersonId, anchor, childrenOf);
+      keep = new Set(path || [mePersonId, anchor]);
+    } else {
+      const adjPC = buildParentChildAdj(relationships, byId);
+      let path = shortestPath(adjPC, mePersonId, anchor);
+      if (!path) path = shortestPath(adj, mePersonId, anchor);
+      keep = new Set(path || [mePersonId, anchor]);
+      if (!myDescendants.has(anchor)) {
+        ancestorsUpward(anchor, fatherOf, motherOf).forEach((id) => keep.add(id));
+      }
+    }
   } else {
     return { mePersonId, people: [...(people || [])], relationships: [...(relationships || [])] };
   }
@@ -226,6 +340,66 @@ export function applyTreeFocus(data, focus) {
   });
 
   return { mePersonId, people: newPeople, relationships: newRel };
+}
+
+/**
+ * Волны подсветки ветки: от «корней» (нет родителя внутри keep) к периферии по рёбрам связей внутри keep.
+ * @param {Set<string>|string[]} keep
+ * @returns {string[][]}
+ */
+export function computeFocusRevealWaves(keep, fatherOf, motherOf, relationships) {
+  const K = keep instanceof Set ? keep : new Set(keep);
+  if (K.size === 0) return [];
+
+  const inducedAdj = new Map();
+  for (const id of K) inducedAdj.set(id, new Set());
+  for (const r of relationships || []) {
+    const a = strId(r.basePersonId);
+    const b = strId(r.relatedPersonId);
+    if (!K.has(a) || !K.has(b)) continue;
+    inducedAdj.get(a).add(b);
+    inducedAdj.get(b).add(a);
+  }
+
+  const roots = [...K].filter((id) => {
+    const f = fatherOf.get(id);
+    const m = motherOf.get(id);
+    return !((f && K.has(f)) || (m && K.has(m)));
+  });
+
+  const waves = [];
+  const visited = new Set();
+  let frontier = roots.length > 0 ? [...new Set(roots)].sort() : [[...K][0]].filter(Boolean);
+
+  while (frontier.length) {
+    waves.push(frontier);
+    for (const id of frontier) visited.add(id);
+    const next = new Set();
+    for (const id of frontier) {
+      for (const w of inducedAdj.get(id) || []) {
+        if (!visited.has(w)) next.add(w);
+      }
+    }
+    frontier = [...next].sort();
+  }
+
+  for (const id of K) {
+    if (visited.has(id)) continue;
+    let f2 = [id];
+    while (f2.length) {
+      waves.push(f2);
+      for (const x of f2) visited.add(x);
+      const next = new Set();
+      for (const x of f2) {
+        for (const w of inducedAdj.get(x) || []) {
+          if (!visited.has(w)) next.add(w);
+        }
+      }
+      f2 = [...next].sort();
+    }
+  }
+
+  return waves.length > 0 ? waves : [[...K]];
 }
 
 /**

@@ -1,4 +1,4 @@
-import React, { useCallback, useEffect, useMemo, useRef, useState } from "react";
+import React, { useCallback, useEffect, useLayoutEffect, useMemo, useRef, useState } from "react";
 import { CircleHelp } from "lucide-react";
 import { apiGet } from "../api.js";
 import AddRelativeStepperForm from "../components/AddRelativeStepperForm.jsx";
@@ -6,7 +6,12 @@ import { Av, sx } from "../features/tree/TreeAvatars";
 import { TreeAddRelativeRelationPicker } from "../features/tree/TreeAddRelativeRelationPicker.jsx";
 import { TreePersonCardOverlay } from "../features/tree/TreePersonCardOverlay";
 import { TreePersonPopup } from "../features/tree/TreePersonPopup.jsx";
-import { applyTreeFocus, extractParentMapsForTree, focusForClick } from "../lib/treeFocus.js";
+import {
+  applyTreeFocus,
+  computeFocusRevealWaves,
+  extractParentMapsForTree,
+  focusForClick,
+} from "../lib/treeFocus.js";
 import { parseVirtualTreeNodeId } from "../lib/parseVirtualTreeNodeId.js";
 import { Alert, AlertDescription, AlertTitle } from "@/components/ui/alert";
 import { Button } from "@/components/ui/button";
@@ -839,6 +844,57 @@ export default function Tree() {
     return s;
   }, [branchFocus, g.units, bridgedFocusPersonSet]);
 
+  const focusRevealWaves = useMemo(() => {
+    if (!branchFocus || bridgedFocusPersonSet.size === 0) return null;
+    return computeFocusRevealWaves(bridgedFocusPersonSet, parentMaps.fatherOf, parentMaps.motherOf, data.relationships);
+  }, [branchFocus, bridgedFocusPersonSet, parentMaps.fatherOf, parentMaps.motherOf, data.relationships]);
+
+  const [focusWaveStep, setFocusWaveStep] = useState(0);
+
+  useLayoutEffect(() => {
+    setFocusWaveStep(0);
+  }, [branchFocus, focusRevealWaves]);
+
+  useEffect(() => {
+    if (!branchFocus || !focusRevealWaves?.length) return undefined;
+    const n = focusRevealWaves.length;
+    if (n <= 1) return undefined;
+    const MS = 38;
+    let step = 0;
+    const t = setInterval(() => {
+      step += 1;
+      setFocusWaveStep(step);
+      if (step >= n - 1) clearInterval(t);
+    }, MS);
+    return () => clearInterval(t);
+  }, [branchFocus, focusRevealWaves]);
+
+  const revealedFocusPersonIds = useMemo(() => {
+    if (!branchFocus || !focusRevealWaves?.length) return null;
+    const n = focusRevealWaves.length;
+    const upto = Math.min(focusWaveStep, n - 1);
+    const s = new Set();
+    for (let i = 0; i <= upto; i++) {
+      for (const id of focusRevealWaves[i]) s.add(id);
+    }
+    return s;
+  }, [branchFocus, focusRevealWaves, focusWaveStep]);
+
+  const showFocusStagger = Boolean(branchFocus && focusRevealWaves && focusRevealWaves.length > 1);
+
+  const unitRevealById = useMemo(() => {
+    const m = new Map();
+    for (const u of g.units) {
+      if (!revealedFocusPersonIds) {
+        m.set(u.unitId, true);
+        continue;
+      }
+      const ok = (u.persons || []).some((p) => revealedFocusPersonIds.has(pId(p)));
+      m.set(u.unitId, ok);
+    }
+    return m;
+  }, [g.units, revealedFocusPersonIds]);
+
   const resetCameraToFit = useCallback(() => {
     const el = vpRef.current;
     if (!el) return;
@@ -1100,8 +1156,10 @@ export default function Tree() {
                       : "url(#treeStrokeSibling)";
                 const au = activeUnitIds;
                 const endActive = au && au.has(e.from) && au.has(e.to);
-                const dimEdge = Boolean(branchFocus && au && !endActive);
-                const hotEdge = Boolean(branchFocus && au && endActive);
+                const endsRevealed =
+                  !showFocusStagger || (unitRevealById.get(e.from) && unitRevealById.get(e.to));
+                const dimEdge = Boolean(branchFocus && au && (!endActive || (showFocusStagger && endActive && !endsRevealed)));
+                const hotEdge = Boolean(branchFocus && au && endActive && endsRevealed);
                 return (
                   <g key={i} className={cn(dimEdge && "tree-dim", hotEdge && "tree-edge--focus")}>
                     <path d={e.d} className={`tree-edge-bg tree-ebg-${e.kind}`} filter="url(#treeSvgGlow)" />
@@ -1118,7 +1176,12 @@ export default function Tree() {
               return (
                 <div
                   key={u.unitId}
-                  className={`tree-node${u.virtual ? " tree-node--virt" : ""}${ready ? " tree-node--enter" : ""}${branchFocus && !activeUnitIds.has(u.unitId) ? " tree-dim" : ""}`}
+                  className={`tree-node${u.virtual ? " tree-node--virt" : ""}${ready ? " tree-node--enter" : ""}${
+                    branchFocus &&
+                    (!activeUnitIds.has(u.unitId) || (showFocusStagger && activeUnitIds.has(u.unitId) && !unitRevealById.get(u.unitId)))
+                      ? " tree-dim"
+                      : ""
+                  }`}
                   style={{
                     left: p.x,
                     top: p.y,
