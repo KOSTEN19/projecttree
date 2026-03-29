@@ -102,6 +102,17 @@ function shortestPath(adj, from, to) {
 }
 
 /** Предки (родители и выше), без самого anchor. */
+/** Убрать из множества людей, связанных с anchor указанным типом связи (напр. дядя по отцу при линии матери). */
+function stripAnchorRelations(keep, anchorId, relationships, relationTypeLower) {
+  const want = String(relationTypeLower || "").toLowerCase();
+  if (!want) return;
+  for (const r of relationships || []) {
+    if (strId(r.basePersonId) !== anchorId) continue;
+    if (String(r.relationType || "").toLowerCase() !== want) continue;
+    keep.delete(strId(r.relatedPersonId));
+  }
+}
+
 function ancestorsUpward(anchor, fatherOf, motherOf) {
   const s = new Set();
   const q = [];
@@ -158,10 +169,14 @@ export function applyTreeFocus(data, focus) {
     if (!mo) {
       return { mePersonId, people: [...(people || [])], relationships: [...(relationships || [])] };
     }
+    if (!fa) {
+      return { mePersonId, people: [...(people || [])], relationships: [...(relationships || [])] };
+    }
     const blockEdge = fa && mo ? (fa < mo ? `${fa}|${mo}` : `${mo}|${fa}`) : null;
-    const side = bfsFrom(mo, anchorId, adj, blockEdge);
-    keep = new Set([...byId.keys()].filter((id) => !side.has(id)));
-    // Если подсветка выбрана относительно не-“Я”, поддерживаем видимость “Я”.
+    // Линия отца: всё, достижимо от отца без захода к матери (и без ребра супругов между ними).
+    keep = bfsFrom(fa, mo, adj, blockEdge);
+    keep.add(anchorId);
+    stripAnchorRelations(keep, anchorId, relationships, "тётя");
     if (anchorId !== mePersonId) {
       const path = shortestPath(adj, mePersonId, anchorId);
       if (path) path.forEach((id) => keep.add(id));
@@ -173,12 +188,15 @@ export function applyTreeFocus(data, focus) {
     }
     const mo = motherOf.get(anchorId);
     const fa = fatherOf.get(anchorId);
-    if (!fa) {
+    if (!mo) {
       return { mePersonId, people: [...(people || [])], relationships: [...(relationships || [])] };
     }
     const blockEdge = fa && mo ? (fa < mo ? `${fa}|${mo}` : `${mo}|${fa}`) : null;
-    const side = bfsFrom(fa, anchorId, adj, blockEdge);
-    keep = new Set([...byId.keys()].filter((id) => !side.has(id)));
+    // Линия матери: всё, достижимо от матери без захода к отцу. Раньше использовался дополнение к BFS от отца
+    // с блокировкой якоря — родственники только по связи с якорем (дядя по отцу) ошибочно попадали в кадр.
+    keep = bfsFrom(mo, fa, adj, blockEdge);
+    keep.add(anchorId);
+    stripAnchorRelations(keep, anchorId, relationships, "дядя");
     if (anchorId !== mePersonId) {
       const path = shortestPath(adj, mePersonId, anchorId);
       if (path) path.forEach((id) => keep.add(id));

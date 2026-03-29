@@ -931,7 +931,12 @@ export default function Tree() {
       if (!fp || !tp) return null;
       const y1o = e.kind === "parent" ? 50 : 0;
       const y2o = e.kind === "parent" ? -50 : 0;
-      return { kind: e.kind, d: branchPath(fp.x, fp.y + y1o, tp.x, tp.y + y2o, e.kind) };
+      return {
+        kind: e.kind,
+        from: e.from,
+        to: e.to,
+        d: branchPath(fp.x, fp.y + y1o, tp.x, tp.y + y2o, e.kind),
+      };
     }).filter(Boolean);
   }, [g.edges, pos]);
 
