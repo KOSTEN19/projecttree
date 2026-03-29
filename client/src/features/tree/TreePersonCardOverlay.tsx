@@ -89,7 +89,8 @@ export function TreePersonCardOverlay({
     <Dialog open onOpenChange={(open) => !open && onClose()}>
       <DialogContent
         showCloseButton
-        className="flex max-h-[min(92vh,880px)] w-[calc(100%-1.5rem)] max-w-2xl flex-col gap-0 overflow-hidden p-0 sm:max-w-2xl"
+        overlayClassName="z-[1990]"
+        className="z-[2000] flex max-h-[min(92vh,880px)] w-[calc(100%-1.5rem)] max-w-2xl flex-col gap-0 overflow-hidden p-0 sm:max-w-2xl"
       >
         <DialogHeader className="shrink-0 space-y-3 border-b border-border/60 bg-card px-5 pb-4 pt-5">
           <div className="flex flex-col gap-4 sm:flex-row sm:items-start">

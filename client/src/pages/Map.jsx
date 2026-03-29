@@ -16,8 +16,8 @@ import {
   CardTitle,
   CardAction,
 } from "@/components/ui/card";
-import { Separator } from "@/components/ui/separator";
 import { Skeleton } from "@/components/ui/skeleton";
+import { TreePersonCardOverlay } from "../features/tree/TreePersonCardOverlay";
 
 function subscribeDarkClass(cb) {
   const obs = new MutationObserver(cb);
@@ -50,9 +50,6 @@ const BASEMAP = {
 
 function fmtName(p) {
   return [p?.lastName, p?.firstName].filter(Boolean).join(" ") || "Без имени";
-}
-function fmtFull(p) {
-  return [p?.lastName, p?.firstName, p?.middleName].filter(Boolean).join(" ") || "Без имени";
 }
 function ini(p) {
   return ((p?.firstName || "?")[0] + ((p?.lastName || "")[0] || "")).toUpperCase().slice(0, 2);
@@ -134,7 +131,7 @@ export default function MapPage() {
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState("");
   const [panel, setPanel] = useState(null);
-  const [panelPerson, setPanelPerson] = useState(null);
+  const [detailCard, setDetailCard] = useState(null);
   const [leafletMap, setLeafletMap] = useState(null);
 
   const boxRef = useRef(null);
@@ -174,13 +171,13 @@ export default function MapPage() {
     const arr = groupsRef.current.get(city) || [];
     if (arr.length > 1) {
       setPanel({ city, items: arr.map((x) => x.person).filter(Boolean) });
-      setPanelPerson(null);
+      setDetailCard(null);
       return;
     }
     const p = arr[0]?.person;
     if (p) {
-      setPanel({ city, items: [p] });
-      setPanelPerson(p);
+      setPanel(null);
+      setDetailCard(p);
     }
   }, []);
 
@@ -387,14 +384,14 @@ export default function MapPage() {
 
   useEffect(() => {
     leafletMap?.invalidateSize({ animate: false });
-  }, [panel, filter, leafletMap]);
+  }, [panel, detailCard, filter, leafletMap]);
 
   async function load(f, opts = {}) {
     const { useCache = true } = opts;
     setLoading(true);
     setError("");
     setPanel(null);
-    setPanelPerson(null);
+    setDetailCard(null);
     if (useCache && markersCacheRef.current[f]) {
       setMarkers(markersCacheRef.current[f]);
       setLoading(false);
@@ -581,7 +578,7 @@ export default function MapPage() {
                   className="shrink-0"
                   onClick={() => {
                     setPanel(null);
-                    setPanelPerson(null);
+                    setDetailCard(null);
                   }}
                   aria-label="Закрыть"
                 >
@@ -597,7 +594,7 @@ export default function MapPage() {
                       type="button"
                       variant="ghost"
                       className="h-auto w-full justify-start gap-3 py-2.5"
-                      onClick={() => setPanelPerson(p)}
+                      onClick={() => setDetailCard(p)}
                     >
                       <Avatar size="sm" className="size-8">
                         <AvatarFallback className={cn("text-xs font-semibold", avatarFallbackClass(p))}>
@@ -615,33 +612,12 @@ export default function MapPage() {
                 ))}
               </ul>
             </CardContent>
-            {panelPerson ? (
-              <>
-                <Separator />
-                <CardHeader className="pt-3 pb-4">
-                  <CardDescription className="text-xs font-semibold tracking-widest uppercase">
-                    Карточка
-                  </CardDescription>
-                  <CardTitle className="text-base leading-snug">{fmtFull(panelPerson)}</CardTitle>
-                  <div className="space-y-1 text-sm text-muted-foreground">
-                    <p>
-                      {panelPerson.sex === "M" ? "Мужской" : panelPerson.sex === "F" ? "Женский" : "Не указан"}
-                      {panelPerson.birthDate ? ` · р. ${panelPerson.birthDate}` : ""}
-                    </p>
-                    <p>Место рождения: {panelPerson.birthCityCustom || panelPerson.birthCity || "—"}</p>
-                    <p>Статус: {panelPerson.alive ? "Жив(а)" : "Умер(ла)"}</p>
-                    {!panelPerson.alive ? (
-                      <>
-                        <p>Дата смерти: {panelPerson.deathDate || "—"}</p>
-                        <p>Место захоронения: {panelPerson.burialPlace || "—"}</p>
-                      </>
-                    ) : null}
-                  </div>
-                </CardHeader>
-              </>
-            ) : null}
           </Card>
         )}
+
+        {detailCard ? (
+          <TreePersonCardOverlay card={detailCard} onClose={() => setDetailCard(null)} />
+        ) : null}
       </div>
     </div>
   );
