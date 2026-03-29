@@ -8,6 +8,7 @@ import (
 	"fmt"
 	"log"
 	"net/http"
+	"regexp"
 	"sort"
 	"strings"
 	"sync"
@@ -17,6 +18,7 @@ import (
 	"project-drevo/internal/config"
 	"project-drevo/internal/db"
 	"project-drevo/internal/models"
+	"project-drevo/internal/textutil"
 
 	"github.com/gin-gonic/gin"
 	"go.mongodb.org/mongo-driver/v2/bson"
@@ -25,12 +27,17 @@ import (
 
 const aiFallbackImg = "https://cdn.ruwiki.ru/commonswiki/files/e/ee/WW2_collage.jpg"
 
+const aiMaxFieldRunes = 600
+
 var (
-	aiFeedMu      sync.Mutex
-	aiFeedCfg     *config.Config
-	aiHTTP        *ai.Client
-	aiTaskCh      chan aiFeedTask
-	aiEnqueueAt   = map[string]time.Time{}
+	aiFeedMu    sync.Mutex
+	aiFeedCfg   *config.Config
+	aiHTTP      *ai.Client
+	aiTaskCh    chan aiFeedTask
+	aiEnqueueAt = map[string]time.Time{}
+
+	reInterestingFact1 = regexp.MustCompile(`(?is)интересный\s+факт\s*1\b`)
+	reInterestingFact2 = regexp.MustCompile(`(?is)интересный\s+факт\s*2\b`)
 )
 
 type aiFeedTask struct {
@@ -39,14 +46,14 @@ type aiFeedTask struct {
 }
 
 type aiFeedCacheDoc struct {
-	UserID         bson.ObjectID `bson:"userId"`
-	InputHash      string        `bson:"inputHash"`
-	ItemsJSON      string        `bson:"itemsJson"`
-	Model          string        `bson:"model"`
-	SourceLabel    string        `bson:"sourceLabel"`
-	CreatedAt      time.Time     `bson:"createdAt"`
-	LastRefreshAt  time.Time     `bson:"lastRefreshAt"`
-	LastError      string        `bson:"lastError,omitempty"`
+	UserID        bson.ObjectID `bson:"userId"`
+	InputHash     string        `bson:"inputHash"`
+	ItemsJSON     string        `bson:"itemsJson"`
+	Model         string        `bson:"model"`
+	SourceLabel   string        `bson:"sourceLabel"`
+	CreatedAt     time.Time     `bson:"createdAt"`
+	LastRefreshAt time.Time     `bson:"lastRefreshAt"`
+	LastError     string        `bson:"lastError,omitempty"`
 }
 
 // InitAIFeed вызывается из main при старте (после Load config).
@@ -74,85 +81,271 @@ func aiSourceLabel(baseURL, model string) string {
 	if strings.Contains(u, "127.0.0.1") || strings.Contains(u, "localhost") || strings.Contains(u, "::1") {
 		return "Локально · " + model
 	}
+	if strings.Contains(u, "ollama") {
+		return "Локально · " + model
+	}
 	return "Облако · " + model
 }
 
-type aiPersonStub struct {
-	ID       string `json:"id"`
-	LastName string `json:"lastName"`
-	First    string `json:"firstName"`
-	Birth    string `json:"birthDate"`
-	City     string `json:"city"`
-	Self     bool   `json:"isSelf"`
-	Alive    bool   `json:"alive"`
+// aiCanonPerson и aiCanonRel — каноническое представление для хэша кэша (все поля, влияющие на промпт).
+type aiCanonPerson struct {
+	ID           string   `json:"id"`
+	LastName     string   `json:"lastName,omitempty"`
+	MaidenName   string   `json:"maidenName,omitempty"`
+	FirstName    string   `json:"firstName,omitempty"`
+	MiddleName   string   `json:"middleName,omitempty"`
+	Sex          string   `json:"sex,omitempty"`
+	BirthDate    string   `json:"birthDate,omitempty"`
+	BirthCity    string   `json:"birthCity,omitempty"`
+	Alive        bool     `json:"alive"`
+	DeathDate    string   `json:"deathDate,omitempty"`
+	BurialPlace  string   `json:"burialPlace,omitempty"`
+	Notes        string   `json:"notes,omitempty"`
+	Biography    string   `json:"biography,omitempty"`
+	Education    string   `json:"education,omitempty"`
+	WorkPath     string   `json:"workPath,omitempty"`
+	MilitaryPath string   `json:"militaryPath,omitempty"`
+	LinkTitles   []string `json:"linkTitles,omitempty"`
+	IsSelf       bool     `json:"isSelf"`
+	UpdatedAt    int64    `json:"updatedAt"`
 }
 
-type aiPayload struct {
-	People []aiPersonStub `json:"people"`
-	Stats  map[string]any `json:"stats"`
+type aiCanonRel struct {
+	ID              string `json:"id"`
+	BasePersonID    string `json:"basePersonId"`
+	RelatedPersonID string `json:"relatedPersonId"`
+	RelationType    string `json:"relationType"`
+	Line            string `json:"line,omitempty"`
+	UpdatedAt       int64  `json:"updatedAt"`
 }
 
 func hashFamilyInput(persons []models.Person, rels []models.Relationship) string {
-	type row struct {
-		ID, LN, FN, BD, City string
-		Self                 bool
-		Upd                  int64
-	}
-	var rows []row
+	var cps []aiCanonPerson
 	for _, p := range persons {
 		if p.IsPlaceholder {
 			continue
 		}
-		city := strings.TrimSpace(p.BirthCityCustom)
-		if city == "" {
-			city = strings.TrimSpace(p.BirthCity)
+		bc := strings.TrimSpace(p.BirthCityCustom)
+		if bc == "" {
+			bc = strings.TrimSpace(p.BirthCity)
 		}
-		rows = append(rows, row{
-			ID: p.ID.Hex(), LN: p.LastName, FN: p.FirstName, BD: p.BirthDate,
-			City: city, Self: p.IsSelf, Upd: p.UpdatedAt.Unix(),
+		var titles []string
+		for _, l := range p.ExternalLinks {
+			t := textutil.SanitizeForAI(l.Title, 200)
+			if t != "" {
+				titles = append(titles, t)
+			}
+		}
+		sort.Strings(titles)
+		cps = append(cps, aiCanonPerson{
+			ID: p.ID.Hex(), LastName: p.LastName, MaidenName: p.MaidenName, FirstName: p.FirstName,
+			MiddleName: p.MiddleName, Sex: p.Sex, BirthDate: p.BirthDate, BirthCity: bc,
+			Alive: p.Alive, DeathDate: p.DeathDate, BurialPlace: p.BurialPlace,
+			Notes: textutil.SanitizeForAI(p.Notes, aiMaxFieldRunes),
+			Biography: textutil.SanitizeForAI(p.Biography, aiMaxFieldRunes),
+			Education: textutil.SanitizeForAI(p.Education, aiMaxFieldRunes),
+			WorkPath: textutil.SanitizeForAI(p.WorkPath, aiMaxFieldRunes),
+			MilitaryPath: textutil.SanitizeForAI(p.MilitaryPath, aiMaxFieldRunes),
+			LinkTitles: titles, IsSelf: p.IsSelf, UpdatedAt: p.UpdatedAt.Unix(),
 		})
 	}
-	sort.Slice(rows, func(i, j int) bool { return rows[i].ID < rows[j].ID })
+	sort.Slice(cps, func(i, j int) bool { return cps[i].ID < cps[j].ID })
+
+	var crs []aiCanonRel
+	for _, r := range rels {
+		crs = append(crs, aiCanonRel{
+			ID: r.ID.Hex(), BasePersonID: r.BasePersonID.Hex(), RelatedPersonID: r.RelatedPersonID.Hex(),
+			RelationType: strings.TrimSpace(r.RelationType), Line: strings.TrimSpace(r.Line),
+			UpdatedAt: r.UpdatedAt.Unix(),
+		})
+	}
+	sort.Slice(crs, func(i, j int) bool { return crs[i].ID < crs[j].ID })
+
 	h := sha256.New()
-	_ = json.NewEncoder(h).Encode(rows)
-	h.Write([]byte(fmt.Sprintf("|rels=%d", len(rels))))
+	_ = json.NewEncoder(h).Encode(cps)
+	_ = json.NewEncoder(h).Encode(crs)
 	return hex.EncodeToString(h.Sum(nil))
 }
 
-func buildAIPayload(persons []models.Person, rels []models.Relationship) aiPayload {
-	var stubs []aiPersonStub
-	paternal, maternal := 0, 0
-	for _, r := range rels {
-		rt := strings.ToLower(strings.TrimSpace(r.RelationType))
-		if rt == "отец" {
-			paternal++
-		}
-		if rt == "мать" {
-			maternal++
+func sexLabelRu(s string) string {
+	switch strings.ToUpper(strings.TrimSpace(s)) {
+	case "M":
+		return "мужской"
+	case "F":
+		return "женский"
+	default:
+		return ""
+	}
+}
+
+func personDisplayName(p models.Person) string {
+	parts := []string{
+		strings.TrimSpace(p.LastName),
+		strings.TrimSpace(p.FirstName),
+		strings.TrimSpace(p.MiddleName),
+	}
+	var out []string
+	for _, x := range parts {
+		if x != "" {
+			out = append(out, x)
 		}
 	}
+	s := strings.Join(out, " ")
+	if s == "" {
+		return "Без имени"
+	}
+	return s
+}
+
+func personShortLabel(p models.Person) string {
+	ln := strings.TrimSpace(p.LastName)
+	fn := strings.TrimSpace(p.FirstName)
+	if fn != "" && len([]rune(fn)) > 0 {
+		r := []rune(fn)[0]
+		if ln != "" {
+			return fmt.Sprintf("%s %s.", ln, string(r))
+		}
+		return string(r) + "."
+	}
+	if ln != "" {
+		return ln
+	}
+	return "?"
+}
+
+// buildPlainAIFamilyContext — только непустые санитизированные поля + связи с именами.
+func buildPlainAIFamilyContext(persons []models.Person, rels []models.Relationship) string {
+	byID := make(map[string]models.Person)
+	for _, p := range persons {
+		if !p.IsPlaceholder {
+			byID[p.ID.Hex()] = p
+		}
+	}
+	var b strings.Builder
+	b.WriteString("РОДСТВЕННИКИ\n\n")
 	for _, p := range persons {
 		if p.IsPlaceholder {
 			continue
 		}
-		city := strings.TrimSpace(p.BirthCityCustom)
-		if city == "" {
-			city = strings.TrimSpace(p.BirthCity)
+		title := personDisplayName(p)
+		if p.MaidenName != "" {
+			title += " (девичья фамилия: " + textutil.SanitizeForAI(p.MaidenName, 120) + ")"
 		}
-		stubs = append(stubs, aiPersonStub{
-			ID: p.ID.Hex(), LastName: p.LastName, First: p.FirstName,
-			Birth: p.BirthDate, City: city, Self: p.IsSelf, Alive: p.Alive,
-		})
+		b.WriteString("— ")
+		b.WriteString(title)
+		if p.IsSelf {
+			b.WriteString(" [вы]")
+		}
+		b.WriteString("\n")
+		if sx := sexLabelRu(p.Sex); sx != "" {
+			b.WriteString("  Пол: ")
+			b.WriteString(sx)
+			b.WriteString("\n")
+		}
+		if p.BirthDate != "" {
+			b.WriteString("  Дата рождения: ")
+			b.WriteString(textutil.SanitizeForAI(p.BirthDate, 40))
+			b.WriteString("\n")
+		}
+		city := textutil.SanitizeForAI(p.BirthCityCustom, 200)
+		if city == "" {
+			city = textutil.SanitizeForAI(p.BirthCity, 200)
+		}
+		if city != "" {
+			b.WriteString("  Место рождения: ")
+			b.WriteString(city)
+			b.WriteString("\n")
+		}
+		if p.Alive {
+			b.WriteString("  Статус: жив(а)\n")
+		} else {
+			b.WriteString("  Статус: умер(ла)\n")
+			if p.DeathDate != "" {
+				b.WriteString("  Дата смерти: ")
+				b.WriteString(textutil.SanitizeForAI(p.DeathDate, 40))
+				b.WriteString("\n")
+			}
+			if bp := textutil.SanitizeForAI(p.BurialPlace, 200); bp != "" {
+				b.WriteString("  Место захоронения: ")
+				b.WriteString(bp)
+				b.WriteString("\n")
+			}
+		}
+		for label, val := range map[string]string{
+			"Биография":      textutil.SanitizeForAI(p.Biography, aiMaxFieldRunes),
+			"Образование":    textutil.SanitizeForAI(p.Education, aiMaxFieldRunes),
+			"Трудовой путь":  textutil.SanitizeForAI(p.WorkPath, aiMaxFieldRunes),
+			"Военная служба": textutil.SanitizeForAI(p.MilitaryPath, aiMaxFieldRunes),
+			"Заметки":        textutil.SanitizeForAI(p.Notes, aiMaxFieldRunes),
+		} {
+			if val != "" {
+				b.WriteString("  ")
+				b.WriteString(label)
+				b.WriteString(": ")
+				b.WriteString(val)
+				b.WriteString("\n")
+			}
+		}
+		for _, l := range p.ExternalLinks {
+			t := textutil.SanitizeForAI(l.Title, 200)
+			if t != "" {
+				b.WriteString("  Ссылка (название): ")
+				b.WriteString(t)
+				b.WriteString("\n")
+			}
+		}
+		b.WriteString("\n")
 	}
-	return aiPayload{
-		People: stubs,
-		Stats: map[string]any{
-			"relativesCount": len(stubs),
-			"relationsCount": len(rels),
-			"paternalEdges":  paternal,
-			"maternalEdges":  maternal,
-		},
+	if len(rels) > 0 {
+		b.WriteString("СВЯЗИ\n\n")
+		for _, r := range rels {
+			bp, ok1 := byID[r.BasePersonID.Hex()]
+			rp, ok2 := byID[r.RelatedPersonID.Hex()]
+			if !ok1 || !ok2 {
+				continue
+			}
+			b.WriteString(personShortLabel(bp))
+			b.WriteString(" — ")
+			b.WriteString(strings.TrimSpace(r.RelationType))
+			b.WriteString(" — ")
+			b.WriteString(personShortLabel(rp))
+			if ln := strings.TrimSpace(r.Line); ln != "" {
+				b.WriteString(" (линия: ")
+				b.WriteString(textutil.SanitizeForAI(ln, 40))
+				b.WriteString(")")
+			}
+			b.WriteString("\n")
+		}
 	}
+	return strings.TrimSpace(b.String())
+}
+
+func parseAIFactsText(raw string, sourceLabel string) ([]HomeFeedItem, error) {
+	s := strings.TrimSpace(raw)
+	loc1 := reInterestingFact1.FindStringIndex(s)
+	loc2 := reInterestingFact2.FindStringIndex(s)
+	if loc1 == nil || loc2 == nil {
+		return nil, fmt.Errorf("missing fact markers")
+	}
+	if loc2[0] < loc1[0] {
+		loc1, loc2 = loc2, loc1
+	}
+	body1 := strings.TrimSpace(s[loc1[1]:loc2[0]])
+	body2 := strings.TrimSpace(s[loc2[1]:])
+	if body1 == "" || body2 == "" {
+		return nil, fmt.Errorf("empty fact body")
+	}
+	const maxBody = 420
+	if len([]rune(body1)) > maxBody {
+		body1 = string([]rune(body1)[:maxBody]) + "…"
+	}
+	if len([]rune(body2)) > maxBody {
+		body2 = string([]rune(body2)[:maxBody]) + "…"
+	}
+	return []HomeFeedItem{
+		{ID: "ai-1", Kind: "ai", Headline: "Интересный факт 1", Body: body1, ImageURL: aiFallbackImg, SourceLabel: sourceLabel},
+		{ID: "ai-2", Kind: "ai", Headline: "Интересный факт 2", Body: body2, ImageURL: aiFallbackImg, SourceLabel: sourceLabel},
+	}, nil
 }
 
 func insertAfterEras(base []HomeFeedItem, extra []HomeFeedItem) []HomeFeedItem {
@@ -263,61 +456,38 @@ func runAIFeedJob(t aiFeedTask) {
 		}
 	}
 
-	payload := buildAIPayload(persons, rels)
-	userJSON, _ := json.MarshalIndent(payload, "", "  ")
-	system := `Ты помощник семейной летописи. Ответь ТОЛЬКО валидным JSON-массивом из 2–4 объектов без markdown и без пояснений.
-Каждый объект: {"id":"ai-1","headline":"короткий заголовок","body":"1–2 предложения по-русски"}.
-Правила: не выдумывай факты, которых нет во входных данных (имена, годы, города, числа). Можно мягко интерпретировать и связывать то, что есть. id должны быть уникальны (ai-1, ai-2, …).`
-	userPrompt := "Данные для формулировок (только из этого текста):\n" + string(userJSON)
+	dataBlock := buildPlainAIFamilyContext(persons, rels)
+	if dataBlock == "" {
+		dataBlock = "(Нет заполненных карточек родственников — опирайся только на это сообщение.)"
+	}
+
+	system := `Ты помощник семейной летописи. Тебе дают факты о родственниках (только этот текст).
+Сделай ровно два коротких текста для главной страницы: интересные исторические эпохи и события, в которые могли попасть эти люди (опирайся на годы и места из данных и общие исторические знания), пересечения поколений, другие содержательные выводы из переданного.
+Не выдумывай конкретные события в жизни человека, которых нет во входных данных. Не используй HTML, JSON, markdown и списки с тире в ответе.
+
+Формат ответа строго такой (два блока, не больше):
+Интересный факт 1
+<здесь 1–3 предложения по-русски>
+
+Интересный факт 2
+<здесь 1–3 предложения по-русски>
+
+Запрещено писать «Интересный факт 3» или больше. Заголовки строк должны быть именно «Интересный факт 1» и «Интересный факт 2».`
+
+	userPrompt := "Проанализируй моих родственников по данным ниже и дай два интересных факта для ленты (эпохи, исторический контекст, связь поколений и т.п.).\n\n--- ДАННЫЕ ---\n" + dataBlock
 
 	text, err := client.ChatComplete(ctx, system, userPrompt)
 	if err != nil {
 		log.Printf("[ai] llm: %v", err)
 		return
 	}
-	text = strings.TrimSpace(text)
-	if i := strings.Index(text, "["); i >= 0 {
-		text = text[i:]
-	}
-	if j := strings.LastIndex(text, "]"); j >= 0 {
-		text = text[:j+1]
-	}
-	var raw []struct {
-		ID       string `json:"id"`
-		Headline string `json:"headline"`
-		Body     string `json:"body"`
-	}
-	if err := json.Unmarshal([]byte(text), &raw); err != nil || len(raw) == 0 {
-		log.Printf("[ai] parse json: %v", err)
+	label := aiSourceLabel(cfg.AIAPIBaseURL, cfg.AIModel)
+	items, err := parseAIFactsText(text, label)
+	if err != nil {
+		log.Printf("[ai] parse facts: %v", err)
 		return
 	}
-	label := aiSourceLabel(cfg.AIAPIBaseURL, cfg.AIModel)
-	var items []HomeFeedItem
-	for i, r := range raw {
-		if i >= 6 {
-			break
-		}
-		id := strings.TrimSpace(r.ID)
-		if id == "" {
-			id = fmt.Sprintf("ai-%d", i+1)
-		}
-		head := strings.TrimSpace(r.Headline)
-		body := strings.TrimSpace(r.Body)
-		if head == "" || body == "" {
-			continue
-		}
-		if len([]rune(head)) > 120 {
-			head = string([]rune(head)[:118]) + "…"
-		}
-		if len([]rune(body)) > 420 {
-			body = string([]rune(body)[:418]) + "…"
-		}
-		items = append(items, HomeFeedItem{
-			ID: id, Kind: "ai", Headline: head, Body: body,
-			ImageURL: aiFallbackImg, SourceLabel: label,
-		})
-	}
-	if len(items) == 0 {
+	if len(items) != 2 {
 		return
 	}
 	b, _ := json.Marshal(items)
@@ -348,6 +518,9 @@ func mergeAIFeedItems(ctx context.Context, userID bson.ObjectID, persons []model
 	if err == nil && doc != nil && doc.InputHash == hash && doc.ItemsJSON != "" && time.Since(doc.CreatedAt) < cfg.AICacheTTL {
 		var extra []HomeFeedItem
 		if json.Unmarshal([]byte(doc.ItemsJSON), &extra) == nil && len(extra) > 0 {
+			if len(extra) > 2 {
+				extra = extra[:2]
+			}
 			for i := range extra {
 				if extra[i].ImageURL == "" {
 					extra[i].ImageURL = aiFallbackImg
