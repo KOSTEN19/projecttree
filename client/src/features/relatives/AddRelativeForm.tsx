@@ -69,6 +69,9 @@ export function AddRelativeForm({
     e.preventDefault();
 
     const payload: Record<string, unknown> = { ...form };
+    if (!payload.basePersonId && self?.id) {
+      payload.basePersonId = self.id;
+    }
     if (!needsLine) payload.line = "";
 
     if (birthCityMode === "custom") {

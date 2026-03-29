@@ -1,6 +1,7 @@
 package handlers
 
 import (
+	"log"
 	"net/http"
 	"strings"
 	"time"
@@ -83,6 +84,17 @@ func CreatePerson(c *gin.Context) {
 		return
 	}
 
+	relationType := strings.TrimSpace(req.RelationType)
+	basePersonHex := strings.TrimSpace(req.BasePersonID)
+	if relationType != "" && basePersonHex == "" {
+		respondValidation(c, validation.Err("Укажите базового человека для родственной связи."))
+		return
+	}
+	if basePersonHex != "" && relationType == "" {
+		respondValidation(c, validation.Err("Укажите тип родственной связи."))
+		return
+	}
+
 	ctx := reqCtx(c)
 	oid, ok := userOID(c)
 	if !ok {
@@ -128,8 +140,8 @@ func CreatePerson(c *gin.Context) {
 	personID := res.InsertedID.(bson.ObjectID)
 	person.ID = personID
 
-	if req.BasePersonID != "" && req.RelationType != "" {
-		baseOID, err := bson.ObjectIDFromHex(req.BasePersonID)
+	if basePersonHex != "" && relationType != "" {
+		baseOID, err := bson.ObjectIDFromHex(basePersonHex)
 		if err != nil {
 			_, _ = db.Persons.DeleteOne(ctx, bson.M{"_id": personID})
 			c.JSON(http.StatusBadRequest, gin.H{"error": "bad_basePersonId"})
@@ -147,12 +159,17 @@ func CreatePerson(c *gin.Context) {
 			UserID:          oid,
 			BasePersonID:    baseOID,
 			RelatedPersonID: personID,
-			RelationType:    req.RelationType,
+			RelationType:    relationType,
 			Line:            req.Line,
 			CreatedAt:       now,
 			UpdatedAt:       now,
 		}
-		_, _ = db.Relationships.InsertOne(ctx, rel)
+		if _, err := db.Relationships.InsertOne(ctx, rel); err != nil {
+			_, _ = db.Persons.DeleteOne(ctx, bson.M{"_id": personID})
+			log.Printf("[persons] CreatePerson relationship insert: %v", err)
+			c.JSON(http.StatusInternalServerError, gin.H{"error": "server_error", "message": "Не удалось сохранить родственную связь."})
+			return
+		}
 	}
 
 	c.JSON(http.StatusOK, person.ToClient())

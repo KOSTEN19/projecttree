@@ -301,6 +301,9 @@ export default function AddRelativeStepperForm({
 
   const buildPayload = useCallback(() => {
     const payload = { ...form };
+    let baseId = String(payload.basePersonId || "").trim();
+    if (!baseId && self?.id) baseId = String(self.id);
+    payload.basePersonId = baseId;
     payload.lastName = normalizeHumanName(payload.lastName);
     payload.firstName = normalizeHumanName(payload.firstName);
     payload.middleName = normalizeHumanName(payload.middleName);
@@ -326,7 +329,7 @@ export default function AddRelativeStepperForm({
       payload.burialPlace = "";
     }
     return payload;
-  }, [form, childTypesNoLine, treeAnchorMode]);
+  }, [form, childTypesNoLine, treeAnchorMode, self?.id]);
 
   const onBeforeStepChange = useCallback(async (from, to) => {
     if (to <= from) return;

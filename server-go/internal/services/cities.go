@@ -36,3 +36,18 @@ func CityByName(name string) *City {
 	}
 	return nil
 }
+
+// BirthCityCoordsForMap возвращает подпись и город для маркера «рождение»: сначала birthCity, иначе birthCityCustom (если название есть в справочнике).
+func BirthCityCoordsForMap(birthCity, birthCityCustom string) (label string, city *City) {
+	if birthCity != "" {
+		if c := CityByName(birthCity); c != nil {
+			return strings.TrimSpace(birthCity), c
+		}
+	}
+	if birthCityCustom != "" {
+		if c := CityByName(birthCityCustom); c != nil {
+			return strings.TrimSpace(birthCityCustom), c
+		}
+	}
+	return "", nil
+}

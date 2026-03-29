@@ -22,11 +22,11 @@ func personsToMarkers(persons []models.Person, filter string) []mapMarker {
 	markers := make([]mapMarker, 0, len(persons))
 	for _, p := range persons {
 		if filter == "birth" {
-			city := services.CityByName(p.BirthCity)
+			label, city := services.BirthCityCoordsForMap(p.BirthCity, p.BirthCityCustom)
 			if city == nil {
 				continue
 			}
-			markers = append(markers, mapMarker{Lat: city.Lat, Lon: city.Lon, Label: p.BirthCity, Person: p.ToClient()})
+			markers = append(markers, mapMarker{Lat: city.Lat, Lon: city.Lon, Label: label, Person: p.ToClient()})
 		} else {
 			if p.Alive {
 				continue
