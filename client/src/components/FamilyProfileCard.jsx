@@ -38,6 +38,7 @@ export default function FamilyProfileCard({ person, onOpen }) {
         avatarFallbackSex={person?.sex || ""}
         avatarInitials={initials(person)}
         onShellClick={open}
+        enableTilt={false}
         enableMobileTilt={false}
       />
     </div>

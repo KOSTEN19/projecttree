@@ -1,4 +1,4 @@
-import React, { useMemo, useState } from "react";
+import React, { useCallback, useMemo, useState } from "react";
 import { Button } from "@/components/ui/button";
 import {
   Dialog,
@@ -28,6 +28,7 @@ export function TreeAddRelativeRelationPicker({
   open,
   onOpenChange,
   basePersonId,
+  people = [],
   onSelect,
 }) {
   const [query, setQuery] = useState("");
@@ -46,7 +47,23 @@ export function TreeAddRelativeRelationPicker({
     return moreTypes.filter((t) => norm(t).includes(q));
   }, [moreTypes, query]);
 
+  const basePersonSex = useMemo(() => {
+    const person = (people || []).find((p) => String(p?.id) === String(basePersonId));
+    return String(person?.sex || "").trim();
+  }, [basePersonId, people]);
+
+  const isAllowedForBaseSex = useCallback(
+    (relationType) => {
+      const t = String(relationType || "").toLowerCase().trim();
+      if (t === "муж") return !basePersonSex || basePersonSex === "F";
+      if (t === "жена") return !basePersonSex || basePersonSex === "M";
+      return true;
+    },
+    [basePersonSex],
+  );
+
   function pick(relationType, line) {
+    if (!isAllowedForBaseSex(relationType)) return;
     setQuery("");
     onSelect({
       basePersonId: String(basePersonId || ""),
@@ -95,6 +112,7 @@ export function TreeAddRelativeRelationPicker({
                   variant="secondary"
                   size="sm"
                   className="h-9 w-full justify-start font-normal"
+                  disabled={!isAllowedForBaseSex(q.relationType)}
                   onClick={() => pick(q.relationType, q.line)}
                 >
                   {q.label}
@@ -115,6 +133,7 @@ export function TreeAddRelativeRelationPicker({
                     variant="outline"
                     size="sm"
                     className="h-8 w-full justify-start text-xs font-normal"
+                    disabled={!isAllowedForBaseSex(t)}
                     onClick={() =>
                       pick(t, relationNeedsLine(t) ? inferLineForRelation(t) : "")
                     }

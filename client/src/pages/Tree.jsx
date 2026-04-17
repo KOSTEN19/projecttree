@@ -3,6 +3,7 @@ import { CircleHelp } from "lucide-react";
 import { apiGet } from "../api.js";
 import AddRelativeStepperForm from "../components/AddRelativeStepperForm.jsx";
 import { Av, sx } from "../features/tree/TreeAvatars";
+import { buildGraphSmart as buildGraphSmartShared } from "../features/tree/buildGraph";
 import { TreeAddRelativeRelationPicker } from "../features/tree/TreeAddRelativeRelationPicker.jsx";
 import { TreePersonCardOverlay } from "../features/tree/TreePersonCardOverlay";
 import { TreePersonPopup } from "../features/tree/TreePersonPopup.jsx";
@@ -87,6 +88,7 @@ function makeVirtual(id, label, sex = "") {
   };
 }
 
+// eslint-disable-next-line no-unused-vars
 function buildGraphSmart({ mePersonId, people, relationships }) {
   // --------------------------
   // 0) Подготовка людей
@@ -783,7 +785,7 @@ export default function Tree() {
     for (const p of focusData.people || []) s.add(pId(p));
     return s;
   }, [focusData.people]);
-  const g = useMemo(() => buildGraphSmart(data), [data]);
+  const g = useMemo(() => buildGraphSmartShared(data), [data]);
 
   /** Заглушки v:… не в API — расширяем множество фокуса, чтобы линии и узлы ветки подсвечивались. */
   const bridgedFocusPersonSet = useMemo(() => {
@@ -996,41 +998,6 @@ export default function Tree() {
     }).filter(Boolean);
   }, [g.edges, pos]);
 
-  const eras = useMemo(() => {
-    const ROMAN = ['','I','II','III','IV','V','VI','VII','VIII','IX','X',
-      'XI','XII','XIII','XIV','XV','XVI','XVII','XVIII','XIX','XX','XXI'];
-    const byY = new Map();
-    for (const u of g.units) {
-      for (const p of u.persons) {
-        const y = parseInt((p?.birthDate || "").slice(0, 4), 10);
-        if (y > 1000 && y < 2100) {
-          if (!byY.has(u.y)) byY.set(u.y, []);
-          byY.get(u.y).push(y);
-        }
-      }
-    }
-    const result = [];
-    for (const [yPos, years] of byY) {
-      years.sort((a, b) => a - b);
-      const min = years[0];
-      const max = years[years.length - 1];
-      const avg = Math.round(years.reduce((s, v) => s + v, 0) / years.length);
-      let primary, secondary;
-      if (avg < 1800) {
-        const c = Math.ceil(avg / 100);
-        primary = `${ROMAN[c] || c} век`;
-        secondary = years.length > 1 ? `${min}–${max}` : `≈ ${avg}`;
-      } else {
-        const decade = Math.floor(avg / 10) * 10;
-        primary = `${decade}-е`;
-        secondary = min === max ? `${min} г.` : `${min}–${max}`;
-      }
-      result.push({ y: yPos, primary, secondary, avg });
-    }
-    result.sort((a, b) => a.y - b.y);
-    return result;
-  }, [g.units]);
-
   const [ready, setReady] = useState(false);
   useEffect(() => {
     if (!loading && g.units.length > 0) {
@@ -1093,30 +1060,6 @@ export default function Tree() {
               height: g.stage.h,
             }}
           >
-            {eras.length > 0 ? (
-              <div className="tree-eras">
-                {eras.length > 1 ? (
-                  <div
-                    className="tree-era-timeline"
-                    style={{
-                      top: eras[0].y,
-                      height: eras[eras.length - 1].y - eras[0].y,
-                    }}
-                  />
-                ) : null}
-                {eras.map((era, i) => (
-                  <div key={i} className="tree-era" style={{ top: era.y, width: g.stage.w }}>
-                    <div className="tree-era-line" />
-                    <div className="tree-era-dot" />
-                    <div className="tree-era-badge">
-                      <span className="tree-era-primary">{era.primary}</span>
-                      <span className="tree-era-secondary">{era.secondary}</span>
-                    </div>
-                  </div>
-                ))}
-              </div>
-            ) : null}
-
             <svg className="tree-edges" width={g.stage.w} height={g.stage.h} aria-hidden>
               <defs>
                 <filter id="treeSvgGlow" x="-35%" y="-35%" width="170%" height="170%">
@@ -1290,6 +1233,7 @@ export default function Tree() {
           if (!open) setRelationPicker(null);
         }}
         basePersonId={relationPicker?.basePersonId ?? ""}
+        people={data.people || []}
         onSelect={onRelationTypePicked}
       />
 

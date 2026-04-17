@@ -5,6 +5,7 @@ import { apiGet, apiPost } from "../api.js";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
+import { Dialog, DialogContent, DialogDescription, DialogHeader, DialogTitle } from "@/components/ui/dialog";
 import { Separator } from "@/components/ui/separator";
 import HomeFactsMarquee from "../components/HomeFactsMarquee.jsx";
 
@@ -43,6 +44,8 @@ export default function Home({ user }) {
   const [feedRetry, setFeedRetry] = useState(0);
   const [feedAiPending, setFeedAiPending] = useState(false);
   const [feedAiBusy, setFeedAiBusy] = useState(false);
+  const [factDetails, setFactDetails] = useState(null);
+  const [updateDetails, setUpdateDetails] = useState(null);
 
   useEffect(() => {
     (async () => {
@@ -174,6 +177,7 @@ export default function Home({ user }) {
       .slice(0, 6)
       .map((p) => ({
         id: p.id,
+        personId: p.id,
         title: fullName(p),
         text: p.notes?.trim()
           ? p.notes.trim().slice(0, 120)
@@ -182,6 +186,10 @@ export default function Home({ user }) {
             }.`,
       }));
   }, [people]);
+
+  function openRelativeInFamily(personId) {
+    navigate("/app/relatives", { state: { focusPersonId: personId } });
+  }
 
   const scrollTape = (dir) => {
     const el = carouselRef.current;
@@ -290,7 +298,19 @@ export default function Home({ user }) {
           onMouseLeave={() => setIsTapeHovered(false)}
         >
           {relativesTapeLoop.map((p, idx) => (
-            <Card key={`${p.id}-${idx}`} className="home-relative-card">
+            <Card
+              key={`${p.id}-${idx}`}
+              className="home-relative-card cursor-pointer"
+              role="button"
+              tabIndex={0}
+              onClick={() => openRelativeInFamily(p.id)}
+              onKeyDown={(e) => {
+                if (e.key === "Enter" || e.key === " ") {
+                  e.preventDefault();
+                  openRelativeInFamily(p.id);
+                }
+              }}
+            >
               <CardHeader>
                 <div className="home-relative-avatar">{initials(p)}</div>
                 <div className="space-y-1">
@@ -350,6 +370,7 @@ export default function Home({ user }) {
             loading={feedLoading}
             error={feedError}
             onRetry={() => setFeedRetry((n) => n + 1)}
+            onItemClick={setFactDetails}
           />
         </div>
       </section>
@@ -410,7 +431,19 @@ export default function Home({ user }) {
           <div className="home-updates-marquee">
             <div className="home-updates-track">
               {[...updates, ...updates].map((u, i) => (
-                <Card key={`${u.id}-${i}`} className="home-updates-card">
+                <Card
+                  key={`${u.id}-${i}`}
+                  className="home-updates-card cursor-pointer"
+                  role="button"
+                  tabIndex={0}
+                  onClick={() => setUpdateDetails(u)}
+                  onKeyDown={(e) => {
+                    if (e.key === "Enter" || e.key === " ") {
+                      e.preventDefault();
+                      setUpdateDetails(u);
+                    }
+                  }}
+                >
                   <CardHeader>
                     <CardTitle className="text-base">{u.title}</CardTitle>
                     <CardDescription>{u.text}</CardDescription>
@@ -429,6 +462,47 @@ export default function Home({ user }) {
         )}
         </div>
       </section>
+
+      <Dialog open={Boolean(factDetails)} onOpenChange={(open) => !open && setFactDetails(null)}>
+        <DialogContent className="max-w-lg">
+          <DialogHeader>
+            <DialogTitle>{factDetails?.headline || "Интересный факт"}</DialogTitle>
+            <DialogDescription>
+              {factDetails?.kind === "era" ? "Эпоха и род" : factDetails?.kind === "ai" ? "ИИ-формулировка" : "Факт по вашей летописи"}
+            </DialogDescription>
+          </DialogHeader>
+          <div className="space-y-3">
+            <p className="text-sm leading-relaxed">{factDetails?.body || ""}</p>
+            {factDetails?.sourceUrl ? (
+              <a
+                className="text-primary text-sm underline underline-offset-2"
+                href={factDetails.sourceUrl}
+                target="_blank"
+                rel="noreferrer"
+              >
+                {factDetails.sourceLabel || "Открыть источник"}
+              </a>
+            ) : null}
+          </div>
+        </DialogContent>
+      </Dialog>
+
+      <Dialog open={Boolean(updateDetails)} onOpenChange={(open) => !open && setUpdateDetails(null)}>
+        <DialogContent className="max-w-lg">
+          <DialogHeader>
+            <DialogTitle>{updateDetails?.title || "Обновление летописи"}</DialogTitle>
+            <DialogDescription>Детали обновления карточки родственника</DialogDescription>
+          </DialogHeader>
+          <div className="space-y-3">
+            <p className="text-sm leading-relaxed">{updateDetails?.text || ""}</p>
+            {updateDetails?.personId ? (
+              <Button type="button" onClick={() => openRelativeInFamily(updateDetails.personId)}>
+                Открыть в разделе «Семья»
+              </Button>
+            ) : null}
+          </div>
+        </DialogContent>
+      </Dialog>
     </div>
   );
 }

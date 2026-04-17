@@ -105,6 +105,23 @@ function getStepValidationError(step, form, treeAnchorMode) {
   }
 }
 
+function getMarriageRuleError({ relationType, baseSex, relatedSex }) {
+  const t = String(relationType || "").toLowerCase().trim();
+  if (t !== "муж" && t !== "жена") return null;
+  const base = String(baseSex || "").trim();
+  const related = String(relatedSex || "").trim();
+  if (!base) return "Для брака у базового человека должен быть указан пол (M/F).";
+  if (!related) return "Для брака у добавляемого человека должен быть указан пол (M/F).";
+  if (base === related) return "Брак допускается только между мужчиной и женщиной.";
+  if (t === "муж" && (base !== "F" || related !== "M")) {
+    return "Связь «муж» требует: базовый человек — женщина, добавляемый — мужчина.";
+  }
+  if (t === "жена" && (base !== "M" || related !== "F")) {
+    return "Связь «жена» требует: базовый человек — мужчина, добавляемый — женщина.";
+  }
+  return null;
+}
+
 /** Список в document.body: степпер и модалка режут overflow у предков */
 function FixedCitySuggestPortal({ open, anchorRef, suggestions, onPick }) {
   const [box, setBox] = useState(null);
@@ -257,6 +274,10 @@ export default function AddRelativeStepperForm({
   }, []);
 
   const relativesForSelect = persons.filter((p) => !p.isPlaceholder);
+  const basePerson = useMemo(
+    () => relativesForSelect.find((p) => String(p.id) === String(form.basePersonId)) || null,
+    [form.basePersonId, relativesForSelect],
+  );
 
   const basePersonReadonlyLabel = useMemo(() => {
     const p = relativesForSelect.find((x) => String(x.id) === String(form.basePersonId));
@@ -340,8 +361,19 @@ export default function AddRelativeStepperForm({
         throw new Error("validation");
       }
     }
+    if (to > 2) {
+      const spouseErr = getMarriageRuleError({
+        relationType: form.relationType,
+        baseSex: basePerson?.sex,
+        relatedSex: form.sex,
+      });
+      if (spouseErr) {
+        setSubmitErr(spouseErr);
+        throw new Error("validation");
+      }
+    }
     setSubmitErr("");
-  }, [form, treeAnchorMode]);
+  }, [basePerson?.sex, form, treeAnchorMode]);
 
   const onBeforeComplete = useCallback(async () => {
     setSubmitErr("");
@@ -351,6 +383,15 @@ export default function AddRelativeStepperForm({
         setSubmitErr(err);
         throw new Error("validation");
       }
+    }
+    const spouseErr = getMarriageRuleError({
+      relationType: form.relationType,
+      baseSex: basePerson?.sex,
+      relatedSex: form.sex,
+    });
+    if (spouseErr) {
+      setSubmitErr(spouseErr);
+      throw new Error("validation");
     }
     setSubmitting(true);
     try {
@@ -363,7 +404,7 @@ export default function AddRelativeStepperForm({
     } finally {
       setSubmitting(false);
     }
-  }, [buildPayload, form, onCreated, treeAnchorMode]);
+  }, [basePerson?.sex, buildPayload, form, onCreated, treeAnchorMode]);
 
   return (
     <div className="rel-stepper-host">

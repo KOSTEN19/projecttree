@@ -10,7 +10,7 @@ const FALLBACK_IMG =
  * @typedef {{ id: string, kind: string, headline: string, body: string, imageUrl?: string, sourceUrl?: string, sourceLabel?: string }} HomeFeedItem
  */
 
-export default function HomeFactsMarquee({ items, loading, error, onRetry }) {
+export default function HomeFactsMarquee({ items, loading, error, onRetry, onItemClick }) {
   if (error) {
     return (
       <Card className="border-destructive/40">
@@ -71,7 +71,20 @@ export default function HomeFactsMarquee({ items, loading, error, onRetry }) {
     <div className="home-facts-marquee">
       <div className="home-facts-track">
         {loop.map((it, i) => (
-          <Card key={`${it.id}-${i}`} className="home-facts-card home-story-card">
+          <Card
+            key={`${it.id}-${i}`}
+            className="home-facts-card home-story-card"
+            role={typeof onItemClick === "function" ? "button" : undefined}
+            tabIndex={typeof onItemClick === "function" ? 0 : undefined}
+            onClick={() => onItemClick?.(it)}
+            onKeyDown={(e) => {
+              if (typeof onItemClick !== "function") return;
+              if (e.key === "Enter" || e.key === " ") {
+                e.preventDefault();
+                onItemClick(it);
+              }
+            }}
+          >
             <img
               src={it.imageUrl || FALLBACK_IMG}
               alt=""
@@ -98,7 +111,13 @@ export default function HomeFactsMarquee({ items, loading, error, onRetry }) {
               <CardTitle className="text-base leading-snug font-normal text-foreground">{it.body}</CardTitle>
               {it.sourceUrl ? (
                 <CardDescription className="pt-1">
-                  <a href={it.sourceUrl} target="_blank" rel="noreferrer" className="text-primary underline underline-offset-2">
+                  <a
+                    href={it.sourceUrl}
+                    target="_blank"
+                    rel="noreferrer"
+                    className="text-primary underline underline-offset-2"
+                    onClick={(e) => e.stopPropagation()}
+                  >
                     {it.sourceLabel || "РУВИКИ"}
                   </a>
                 </CardDescription>

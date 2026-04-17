@@ -1,4 +1,5 @@
 import React, { useEffect, useMemo, useState } from "react";
+import { useLocation, useNavigate } from "react-router-dom";
 import { apiDelete, apiGet, apiPut, apiUploadPersonPhoto } from "../api.js";
 import AuthedImg from "../components/AuthedImg.jsx";
 import AddRelativeStepperForm from "../components/AddRelativeStepperForm.jsx";
@@ -62,6 +63,8 @@ function centuryLabel(c) {
 }
 
 export default function Relatives() {
+  const location = useLocation();
+  const navigate = useNavigate();
   const [persons, setPersons] = useState([]);
   const [relationships, setRelationships] = useState([]);
   const [openAdd, setOpenAdd] = useState(false);
@@ -168,6 +171,19 @@ export default function Relatives() {
     setSelected(p);
     setOpenView(true);
   }
+
+  useEffect(() => {
+    const personIdFromState = String(location.state?.focusPersonId || "").trim();
+    const personIdFromQuery = new URLSearchParams(location.search).get("focusPersonId") || "";
+    const focusPersonId = personIdFromState || personIdFromQuery;
+    if (!focusPersonId || persons.length === 0 || openView) return;
+    const target = persons.find((p) => String(p.id) === focusPersonId);
+    if (!target) return;
+    openCard(target);
+    if (personIdFromState) {
+      navigate(".", { replace: true, state: {} });
+    }
+  }, [location.search, location.state, navigate, openView, persons]);
 
   return (
     <div className="row">
