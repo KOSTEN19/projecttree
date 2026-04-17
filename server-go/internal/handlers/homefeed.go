@@ -215,13 +215,54 @@ func enrichWithWiki(item *HomeFeedItem, wikiTitle string) {
 		item.SourceURL = pURL
 		item.SourceLabel = "РУВИКИ"
 	}
-	if ex != "" && item.Kind == "era" {
-		snip := trimRunes(ex, 200)
-		if !strings.Contains(item.Body, snip) {
-			item.Body = item.Body + " " + snip
+	_ = t
+	_ = ex
+}
+
+func eraBodyText(e eraDef, count int) string {
+	personWord := func(n int) string {
+		n = n % 100
+		if n >= 11 && n <= 14 {
+			return "родственников"
+		}
+		switch n % 10 {
+		case 1:
+			return "родственник"
+		case 2, 3, 4:
+			return "родственника"
+		default:
+			return "родственников"
 		}
 	}
-	_ = t
+
+	title := strings.TrimSpace(e.Title)
+	if strings.Contains(title, "СССР") {
+		templates := []string{
+			"Не менее %d %s из вашей летописи жили при СССР.",
+			"Как минимум %d %s вашей семьи застали эпоху СССР.",
+			"%d %s вашей летописи жили во времена СССР.",
+			"По вашим данным не менее %d %s связаны с периодом СССР.",
+			"В летописи видно: %d %s жили в годы СССР.",
+			"С эпохой СССР у вас пересекаются биографии как минимум %d %s.",
+		}
+		idx := (len(e.Key) + count) % len(templates)
+		return fmt.Sprintf(templates[idx], count, personWord(count))
+	}
+	templates := []string{
+		"Не менее %d %s из вашей летописи жили в период «%s».",
+		"Как минимум %d %s семьи застали эпоху «%s».",
+		"По вашей летописи %d %s жили во времена «%s».",
+		"С периодом «%s» по биографии пересекаются не менее %d %s вашей семьи.",
+		"Ваше древо показывает: %d %s жили в эпоху «%s».",
+		"В семейной истории у %d %s отмечен период «%s».",
+		"Период «%s» затрагивает биографии как минимум %d %s из вашей летописи.",
+		"Судя по датам, %d %s вашей семьи жили в годы «%s».",
+	}
+	idx := (len(e.Key) + count) % len(templates)
+	if idx == 3 || idx == 6 {
+		return fmt.Sprintf(templates[idx], title, count, personWord(count))
+	}
+	return fmt.Sprintf(templates[idx], count, personWord(count), title)
 }
 
 func buildAdjacency(rels []models.Relationship) map[string]map[string]struct{} {
@@ -431,7 +472,7 @@ func HomeFeed(c *gin.Context) {
 			ID:       "era-" + e.Key,
 			Kind:     "era",
 			Headline: fmt.Sprintf("%s (%s)", e.Title, e.Years),
-			Body:     fmt.Sprintf("Не менее %d родственников из вашей летописи пересекаются с этим периодом.", h.count),
+			Body:     eraBodyText(e, h.count),
 			SourceLabel: "РУВИКИ",
 		})
 	}
