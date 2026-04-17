@@ -1,8 +1,7 @@
 import React, { useCallback, useEffect, useRef, useState, useSyncExternalStore } from "react";
-import L from "leaflet";
-import "leaflet/dist/leaflet.css";
 import { CircleDot, LandPlot, MapPin, Maximize2, X, AlertCircle } from "lucide-react";
 import { apiGet } from "../api.js";
+import { loadYmaps, getYandexMapsApiKey } from "../lib/yandexMaps.js";
 import { cn } from "@/lib/utils";
 import { Alert, AlertDescription, AlertTitle } from "@/components/ui/alert";
 import { Avatar, AvatarFallback } from "@/components/ui/avatar";
@@ -36,17 +35,6 @@ function getServerDarkSnapshot() {
 function useDocumentDark() {
   return useSyncExternalStore(subscribeDarkClass, getDarkSnapshot, getServerDarkSnapshot);
 }
-
-const BASEMAP = {
-  light: {
-    url: "https://{s}.basemaps.cartocdn.com/light_all/{z}/{x}/{y}{r}.png",
-    attribution: '&copy; <a href="https://www.openstreetmap.org/copyright">OpenStreetMap</a> &copy; <a href="https://carto.com/attributions">CARTO</a>',
-  },
-  dark: {
-    url: "https://{s}.basemaps.cartocdn.com/dark_all/{z}/{x}/{y}{r}.png",
-    attribution: '&copy; <a href="https://www.openstreetmap.org/copyright">OpenStreetMap</a> &copy; <a href="https://carto.com/attributions">CARTO</a>',
-  },
-};
 
 function fmtName(p) {
   return [p?.lastName, p?.firstName].filter(Boolean).join(" ") || "Без имени";
@@ -105,23 +93,31 @@ function escapeHtml(s) {
     .replace(/"/g, "&quot;");
 }
 
-/** DivIcon: маркер семьи, цвета из темы через data-атрибуты и CSS. */
-function makeFamilyPinIcon({ count, initials, cityShort, kind }) {
+/** HTML внутри кастомного макета маркера (как раньше DivIcon). */
+function makeFamilyPinHtml({ count, initials, cityShort, kind }) {
   const multi = count > 1;
-  const size = markerSizeForCount(count);
-  const half = Math.round(size / 2);
-  const anchorY = size - 4;
   const inner = multi
     ? `<div class="fam-pin fam-pin--cluster" data-kind="${kind}" role="img" aria-label="${count} человек, ${escapeHtml(cityShort)}"><span class="fam-pin__pulse" aria-hidden="true"></span><span class="fam-pin__ring" aria-hidden="true"></span><span class="fam-pin__core" aria-hidden="true"></span><span class="fam-pin__count">${count}</span></div>`
     : `<div class="fam-pin fam-pin--solo" data-kind="${kind}" role="img" aria-label="${escapeHtml(initials)}"><span class="fam-pin__pulse" aria-hidden="true"></span><span class="fam-pin__ring" aria-hidden="true"></span><span class="fam-pin__glyph">${escapeHtml(initials)}</span></div>`;
+  return inner;
+}
 
-  return L.divIcon({
-    className: "fam-pin-leaflet",
-    html: inner,
-    iconSize: [size, size],
-    iconAnchor: [half, anchorY],
-    popupAnchor: [0, -anchorY + 6],
-  });
+function createFamilyPinLayout(ymaps) {
+  const LayoutClass = ymaps.templateLayoutFactory.createClass(
+    '<div class="fam-pin-leaflet" style="width: $[properties.pinSize]px; height: $[properties.pinSize]px;"><div class="fam-pin-yandex-host"></div></div>',
+    {
+      build: function () {
+        LayoutClass.superclass.build.call(this);
+        const parent = this.getParentElement();
+        const host = parent?.querySelector?.(".fam-pin-yandex-host");
+        if (host) host.innerHTML = this.getData().properties.get("pinHtml") || "";
+      },
+      clear: function () {
+        LayoutClass.superclass.clear.call(this);
+      },
+    },
+  );
+  return LayoutClass;
 }
 
 export default function MapPage() {
@@ -132,15 +128,18 @@ export default function MapPage() {
   const [error, setError] = useState("");
   const [panel, setPanel] = useState(null);
   const [detailCard, setDetailCard] = useState(null);
-  const [leafletMap, setLeafletMap] = useState(null);
+  const [yandexMap, setYandexMap] = useState(null);
+  const [mapLoadError, setMapLoadError] = useState("");
 
   const boxRef = useRef(null);
-  const geoLayerRef = useRef(null);
-  const tileLayerRef = useRef(null);
+  const mapRef = useRef(null);
+  const collectionRef = useRef(null);
+  const pinLayoutClassRef = useRef(null);
   const groupsRef = useRef(new Map());
   const markersCacheRef = useRef({ birth: null, burial: null });
-  const hoverPopupRef = useRef(null);
-  const basemapKeyRef = useRef(null);
+  const hoverPlacemarkRef = useRef(null);
+
+  const hasApiKey = Boolean(getYandexMapsApiKey());
 
   const getCityFeatureCollection = useCallback(() => {
     const features = [];
@@ -184,19 +183,31 @@ export default function MapPage() {
   const fitBoundsIfNeeded = useCallback(
     (map) => {
       if (!map || markers.length === 0) return;
-      const b = L.latLngBounds([]);
+      let minLat = Infinity;
+      let maxLat = -Infinity;
+      let minLon = Infinity;
+      let maxLon = -Infinity;
       let any = false;
       for (const mk of markers) {
         const lat = +mk.lat;
-        const lon = +mk.lon;
-        if (Number.isFinite(lat) && Number.isFinite(lon)) {
-          b.extend([lat, lon]);
-          any = true;
-        }
+        const lon = normalizeLon(+mk.lon);
+        if (!Number.isFinite(lat) || !Number.isFinite(lon)) continue;
+        minLat = Math.min(minLat, lat);
+        maxLat = Math.max(maxLat, lat);
+        minLon = Math.min(minLon, lon);
+        maxLon = Math.max(maxLon, lon);
+        any = true;
       }
-      if (!any || !b.isValid()) return;
+      if (!any) return;
       try {
-        map.fitBounds(b, { padding: [72, 72], maxZoom: 11, animate: true });
+        map.setBounds(
+          [
+            [minLat, minLon],
+            [maxLat, maxLon],
+          ],
+          { checkZoomRange: true, zoomMargin: 72, duration: 200 },
+        );
+        if (map.getZoom() > 11) map.setZoom(11);
       } catch {
         /* ignore */
       }
@@ -204,140 +215,164 @@ export default function MapPage() {
     [markers],
   );
 
-  const rebuildGeoLayer = useCallback(
-    (map) => {
-      if (!map) return;
-      if (geoLayerRef.current) {
-        map.removeLayer(geoLayerRef.current);
-        geoLayerRef.current = null;
+  const rebuildPlacemarks = useCallback(
+    (map, ymaps) => {
+      if (!map || !ymaps) return;
+      if (collectionRef.current) {
+        map.geoObjects.remove(collectionRef.current);
+        collectionRef.current = null;
       }
       try {
-        map.closePopup();
+        if (hoverPlacemarkRef.current) {
+          hoverPlacemarkRef.current.balloon.close();
+        }
       } catch {
         /* ignore */
       }
-      hoverPopupRef.current = null;
+      hoverPlacemarkRef.current = null;
 
       const fc = getCityFeatureCollection();
       if (!fc.features.length) return;
 
+      const PinLayout = pinLayoutClassRef.current;
+      if (!PinLayout) return;
+
       const kind = filter === "burial" ? "burial" : "birth";
+      const collection = new ymaps.GeoObjectCollection();
 
-      const layer = L.geoJSON(fc, {
-        pointToLayer(feature, latlng) {
-          const count = Number(feature.properties?.count || 1);
-          const icon = makeFamilyPinIcon({
-            count,
-            initials: feature.properties?.initials || "?",
-            cityShort: feature.properties?.cityShort || "",
-            kind,
-          });
-          return L.marker(latlng, { icon });
-        },
-        onEachFeature(feature, lay) {
-          const city = feature.properties?.city;
-          const count = Number(feature.properties?.count || 0);
-          const short = feature.properties?.cityShort || city;
-          const arr = groupsRef.current.get(city) || [];
-          const p = arr[0]?.person || {};
-          const sub = [p.birthDate ? `р. ${p.birthDate}` : "", city].filter(Boolean).join(" · ");
+      for (const feature of fc.features) {
+        const city = feature.properties?.city;
+        const count = Number(feature.properties?.count || 0);
+        const short = feature.properties?.cityShort || city;
+        const arr = groupsRef.current.get(city) || [];
+        const p = arr[0]?.person || {};
+        const sub = [p.birthDate ? `р. ${p.birthDate}` : "", city].filter(Boolean).join(" · ");
 
-          const tipText = count > 1 ? `${count} · ${short}` : short;
-          lay.bindTooltip(tipText, {
-            permanent: true,
-            direction: "bottom",
-            offset: [0, 8],
-            className: "fam-map-tooltip",
-            opacity: 1,
-          });
+        const lat = feature.geometry.coordinates[1];
+        const lon = feature.geometry.coordinates[0];
 
-          lay.on("click", (ev) => {
-            L.DomEvent.stopPropagation(ev);
-            openByFeature(feature);
-          });
+        const pinSize = markerSizeForCount(count);
+        const half = Math.round(pinSize / 2);
+        const anchorY = pinSize - 4;
 
-          lay.on("mouseover", () => {
-            lay.getElement()?.classList.add("fam-pin-marker--hover");
-            const html =
-              count > 1
-                ? `<div class="gm-pop-inner"><strong>${escapeHtml(city)}</strong><div class="gm-pop-meta">${count} человек в этой точке</div></div>`
-                : `<div class="gm-pop-inner"><strong>${escapeHtml(fmtName(p))}</strong>${sub ? `<div class="gm-pop-meta">${escapeHtml(sub)}</div>` : ""}</div>`;
-            const ll = lay.getLatLng();
-            const pop = L.popup({
-              className: "map-fam-popup fam-map-hover-popup",
-              closeButton: false,
-              autoPan: false,
-              offset: L.point(0, -14),
-            })
-              .setLatLng(ll)
-              .setContent(html);
-            pop.openOn(map);
-            hoverPopupRef.current = pop;
-          });
+        const pinHtml = makeFamilyPinHtml({
+          count,
+          initials: feature.properties?.initials || "?",
+          cityShort: feature.properties?.cityShort || "",
+          kind,
+        });
 
-          lay.on("mouseout", () => {
-            lay.getElement()?.classList.remove("fam-pin-marker--hover");
-            try {
-              map.closePopup();
-            } catch {
-              /* ignore */
-            }
-            hoverPopupRef.current = null;
-          });
-        },
-      }).addTo(map);
+        const tipText = count > 1 ? `${count} · ${short}` : short;
+        const balloonHtml =
+          count > 1
+            ? `<div class="gm-pop-inner"><strong>${escapeHtml(city)}</strong><div class="gm-pop-meta">${count} человек в этой точке</div></div>`
+            : `<div class="gm-pop-inner"><strong>${escapeHtml(fmtName(p))}</strong>${sub ? `<div class="gm-pop-meta">${escapeHtml(sub)}</div>` : ""}</div>`;
 
-      geoLayerRef.current = layer;
+        const placemark = new ymaps.Placemark(
+          [lat, lon],
+          {
+            pinHtml,
+            pinSize,
+            iconCaption: tipText,
+            balloonContent: balloonHtml,
+          },
+          {
+            iconLayout: PinLayout,
+            iconOffset: [-half, -anchorY],
+            iconCaptionMaxWidth: 200,
+            balloonCloseButton: false,
+            balloonPanelMaxMapArea: 0,
+            hideIconOnBalloonOpen: false,
+          },
+        );
+
+        placemark.events.add("click", (e) => {
+          e.stopPropagation();
+          openByFeature(feature);
+        });
+
+        placemark.events.add("mouseenter", () => {
+          placemark.balloon.open();
+          hoverPlacemarkRef.current = placemark;
+        });
+
+        placemark.events.add("mouseleave", () => {
+          try {
+            placemark.balloon.close();
+          } catch {
+            /* ignore */
+          }
+          if (hoverPlacemarkRef.current === placemark) hoverPlacemarkRef.current = null;
+        });
+
+        collection.add(placemark);
+      }
+
+      map.geoObjects.add(collection);
+      collectionRef.current = collection;
     },
     [getCityFeatureCollection, openByFeature, filter],
   );
 
   useEffect(() => {
     const el = boxRef.current;
-    if (!el) return undefined;
+    if (!el || !hasApiKey) return undefined;
 
     let disposed = false;
     let map = null;
+
     const ro = new ResizeObserver(() => {
       if (disposed) return;
-      if (!map) tryInit();
-      else map.invalidateSize({ animate: false });
+      if (map) {
+        try {
+          map.container.fitToViewport();
+        } catch {
+          /* ignore */
+        }
+      }
     });
 
     function tryInit() {
       if (disposed || map) return;
       if (el.clientWidth < 8 || el.clientHeight < 8) return;
 
-      map = L.map(el, {
-        zoomControl: false,
-        attributionControl: true,
-        scrollWheelZoom: true,
-      }).setView([55.75, 37.6], 5);
+      loadYmaps()
+        .then((ymaps) => {
+          if (disposed) return;
+          if (!pinLayoutClassRef.current) {
+            pinLayoutClassRef.current = createFamilyPinLayout(ymaps);
+          }
 
-      if (map.attributionControl?.setPrefix) {
-        map.attributionControl.setPrefix(false);
-      }
+          map = new ymaps.Map(el, {
+            center: [55.75, 37.6],
+            zoom: 5,
+            controls: ["zoomControl"],
+            type: "yandex#map",
+          });
 
-      L.control.zoom({ position: "bottomright" }).addTo(map);
+          map.behaviors.enable("scrollZoom");
+          try {
+            map.options.set("theme", getDarkSnapshot() ? "dark" : "light");
+          } catch {
+            /* старые сборки API без theme */
+          }
+          mapRef.current = map;
 
-      const dark = getDarkSnapshot();
-      const spec = dark ? BASEMAP.dark : BASEMAP.light;
-      basemapKeyRef.current = dark ? "dark" : "light";
-      const tiles = L.tileLayer(spec.url, {
-        attribution: spec.attribution,
-        maxZoom: 20,
-        subdomains: "abcd",
-      });
-      tiles.addTo(map);
-      tileLayerRef.current = tiles;
-
-      map.whenReady(() => {
-        if (disposed) return;
-        requestAnimationFrame(() => {
-          map.invalidateSize({ animate: false });
-          setLeafletMap(map);
+          requestAnimationFrame(() => {
+            if (disposed) return;
+            try {
+              map.container.fitToViewport();
+            } catch {
+              /* ignore */
+            }
+            setYandexMap(map);
+            setMapLoadError("");
+          });
+        })
+        .catch((e) => {
+          if (disposed) return;
+          setMapLoadError(e?.message || String(e));
         });
-      });
     }
 
     ro.observe(el);
@@ -345,46 +380,46 @@ export default function MapPage() {
 
     return () => {
       disposed = true;
-      setLeafletMap(null);
+      setYandexMap(null);
+      mapRef.current = null;
+      collectionRef.current = null;
+      pinLayoutClassRef.current = null;
       try {
-        geoLayerRef.current = null;
-        tileLayerRef.current = null;
-        map?.remove();
+        map?.destroy();
       } catch {
         /* ignore */
       }
       map = null;
       ro.disconnect();
     };
-  }, []);
+  }, [hasApiKey]);
 
   useEffect(() => {
-    if (!leafletMap || !tileLayerRef.current) return;
-    const wantDark = isDark;
-    const key = wantDark ? "dark" : "light";
-    if (basemapKeyRef.current === key) return;
-    basemapKeyRef.current = key;
-    const spec = wantDark ? BASEMAP.dark : BASEMAP.light;
-    leafletMap.removeLayer(tileLayerRef.current);
-    const tiles = L.tileLayer(spec.url, {
-      attribution: spec.attribution,
-      maxZoom: 20,
-      subdomains: "abcd",
-    });
-    tiles.addTo(leafletMap);
-    tileLayerRef.current = tiles;
-  }, [isDark, leafletMap]);
+    const map = mapRef.current;
+    if (!map || !yandexMap) return;
+    try {
+      map.options.set("theme", isDark ? "dark" : "light");
+    } catch {
+      /* старые сборки API без переключения theme */
+    }
+  }, [isDark, yandexMap]);
 
   useEffect(() => {
     groupsRef.current = groupByCity(markers);
-    if (!leafletMap) return;
-    rebuildGeoLayer(leafletMap);
-    fitBoundsIfNeeded(leafletMap);
-  }, [markers, filter, leafletMap, rebuildGeoLayer, fitBoundsIfNeeded]);
+    if (!yandexMap || !window.ymaps) return;
+    rebuildPlacemarks(yandexMap, window.ymaps);
+    fitBoundsIfNeeded(yandexMap);
+  }, [markers, filter, yandexMap, rebuildPlacemarks, fitBoundsIfNeeded]);
 
   useEffect(() => {
-    leafletMap?.invalidateSize({ animate: false });
-  }, [panel, detailCard, filter, leafletMap]);
+    const map = yandexMap;
+    if (!map) return;
+    try {
+      map.container.fitToViewport();
+    } catch {
+      /* ignore */
+    }
+  }, [panel, detailCard, filter, yandexMap]);
 
   async function load(f, opts = {}) {
     const { useCache = true } = opts;
@@ -429,10 +464,25 @@ export default function MapPage() {
   const cities = new Set((markers || []).map((x) => x.label)).size;
   const kind = filter === "burial" ? "burial" : "birth";
 
+  const keyHint = !hasApiKey ? (
+    <div className="pointer-events-auto absolute bottom-20 left-3 right-3 z-[410] sm:left-auto sm:right-4 sm:max-w-md">
+      <Alert>
+        <AlertCircle className="size-4" />
+        <AlertTitle>Ключ Яндекс.Карт</AlertTitle>
+        <AlertDescription>
+          Задайте переменную окружения{" "}
+          <code className="bg-muted rounded px-1 text-xs">VITE_YANDEX_MAPS_API_KEY</code> в{" "}
+          <code className="bg-muted rounded px-1 text-xs">client/.env</code> и перезапустите dev-сервер. Ключ: кабинет
+          разработчика Яндекса (JavaScript API).
+        </AlertDescription>
+      </Alert>
+    </div>
+  ) : null;
+
   return (
     <div className="fam-map-page flex min-h-0 min-w-0 flex-1 flex-col">
       <div className={cn("fam-map-stage relative min-h-0 flex-1", filter === "burial" && "fam-map-stage--burial")}>
-        <div ref={boxRef} className="fam-map-canvas absolute inset-0 z-0" role="presentation" />
+        <div ref={boxRef} className="fam-map-canvas fam-map-yandex-root absolute inset-0 z-0" role="presentation" />
 
         <div className="fam-map-chrome pointer-events-none absolute inset-x-0 top-0 z-[400] flex flex-col gap-2 p-3 sm:p-4">
           <div className="pointer-events-auto flex flex-col gap-3 sm:flex-row sm:items-start sm:justify-between">
@@ -442,15 +492,15 @@ export default function MapPage() {
                   География рода
                 </Badge>
                 {isDark ? (
-                  <span className="text-muted-foreground text-[0.65rem] uppercase tracking-wider">Тёмная карта</span>
+                  <span className="text-muted-foreground text-[0.65rem] uppercase tracking-wider">Тёмная схема</span>
                 ) : (
-                  <span className="text-muted-foreground text-[0.65rem] uppercase tracking-wider">Светлая карта</span>
+                  <span className="text-muted-foreground text-[0.65rem] uppercase tracking-wider">Светлая схема</span>
                 )}
               </div>
               <h1 className="text-foreground text-lg font-semibold tracking-tight sm:text-xl">Карта семьи</h1>
               <p className="text-muted-foreground mt-1 max-w-sm text-sm leading-snug">
-                Точки по городам из справочника. Клик по маркеру — список или карточка. Цвет маркера подстраивается под
-                тему интерфейса.
+                Подложка — Яндекс.Карты. Точки по городам из справочника. Клик по маркеру — список или карточка. Цвет
+                маркера подстраивается под тему интерфейса.
               </p>
               <div className="mt-3 flex flex-wrap items-center gap-2">
                 <Button
@@ -478,8 +528,8 @@ export default function MapPage() {
                   variant="outline"
                   size="sm"
                   className="gap-1.5"
-                  disabled={!leafletMap || markers.length === 0}
-                  onClick={() => fitBoundsIfNeeded(leafletMap)}
+                  disabled={!yandexMap || markers.length === 0}
+                  onClick={() => fitBoundsIfNeeded(yandexMap)}
                   title="Показать все точки"
                 >
                   <Maximize2 className="size-3.5 opacity-80" aria-hidden />
@@ -512,8 +562,20 @@ export default function MapPage() {
           </div>
         </div>
 
-        {error ? (
+        {keyHint}
+
+        {hasApiKey && mapLoadError ? (
           <div className="pointer-events-auto absolute bottom-20 left-3 right-3 z-[410] sm:left-auto sm:right-4 sm:max-w-md">
+            <Alert variant="destructive">
+              <AlertCircle className="size-4" />
+              <AlertTitle>Яндекс.Карты</AlertTitle>
+              <AlertDescription>{mapLoadError}</AlertDescription>
+            </Alert>
+          </div>
+        ) : null}
+
+        {error ? (
+          <div className="pointer-events-auto absolute bottom-20 left-3 right-3 z-[410] sm:bottom-auto sm:top-24 sm:left-auto sm:right-4 sm:max-w-md">
             <Alert>
               <AlertCircle className="size-4" />
               <AlertTitle>Карта</AlertTitle>

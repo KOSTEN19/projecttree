@@ -33,8 +33,6 @@ export default function Home({ user }) {
   const navigate = useNavigate();
   const [globalStats, setGlobalStats] = useState({ accounts: 0, relatives: 0, rels: 0 });
   const [people, setPeople] = useState([]);
-  const carouselRef = useRef(null);
-  const [isTapeHovered, setIsTapeHovered] = useState(false);
   const [summaryDisplay, setSummaryDisplay] = useState({ accounts: 0, relatives: 0, rels: 0 });
   const [summaryTrend, setSummaryTrend] = useState(false);
   const summaryAnimRef = useRef(0);
@@ -191,28 +189,6 @@ export default function Home({ user }) {
     navigate("/app/relatives", { state: { focusPersonId: personId } });
   }
 
-  const scrollTape = (dir) => {
-    const el = carouselRef.current;
-    if (!el) return;
-    el.scrollBy({ left: dir * Math.max(280, el.clientWidth * 0.65), behavior: "smooth" });
-  };
-
-  useEffect(() => {
-    const el = carouselRef.current;
-    if (!el || relativesForTape.length <= 1) return;
-    const id = setInterval(() => {
-      if (isTapeHovered) return;
-      const half = el.scrollWidth / 2;
-      const atEnd = el.scrollLeft >= half - 6;
-      if (atEnd) {
-        el.scrollTo({ left: 0, behavior: "smooth" });
-        return;
-      }
-      el.scrollBy({ left: Math.max(160, el.clientWidth * 0.32), behavior: "smooth" });
-    }, 2600);
-    return () => clearInterval(id);
-  }, [relativesForTape.length, isTapeHovered]);
-
   return (
     <div className="home-shell home-portal -mx-4 space-y-8 md:-mx-6 md:space-y-10">
       <section className="home-hero home-portal-hero px-4 py-9 md:px-6 md:py-11">
@@ -282,60 +258,55 @@ export default function Home({ user }) {
         <div className="home-section-band home-section-band--surface">
         <div className="mb-3 flex items-center justify-between gap-3">
           <h2 className="home-section-title home-portal-section-title">Лента родственников</h2>
-          <div className="flex items-center gap-2">
-            <Button variant="outline" size="sm" className="home-portal-arrow" onClick={() => scrollTape(-1)}>
-              ←
-            </Button>
-            <Button variant="outline" size="sm" className="home-portal-arrow" onClick={() => scrollTape(1)}>
-              →
-            </Button>
-          </div>
+          <Link className="home-section-link home-portal-link" to="/app/relatives">
+            Все родственники
+          </Link>
         </div>
-        <div
-          className="home-relatives-tape"
-          ref={carouselRef}
-          onMouseEnter={() => setIsTapeHovered(true)}
-          onMouseLeave={() => setIsTapeHovered(false)}
-        >
-          {relativesTapeLoop.map((p, idx) => (
-            <Card
-              key={`${p.id}-${idx}`}
-              className="home-relative-card cursor-pointer"
-              role="button"
-              tabIndex={0}
-              onClick={() => openRelativeInFamily(p.id)}
-              onKeyDown={(e) => {
-                if (e.key === "Enter" || e.key === " ") {
-                  e.preventDefault();
-                  openRelativeInFamily(p.id);
-                }
-              }}
-            >
-              <CardHeader>
-                <div className="home-relative-avatar">{initials(p)}</div>
-                <div className="space-y-1">
-                  <CardTitle className="text-base">{fullName(p)}</CardTitle>
-                  <CardDescription>
-                    {p.birthDate ? `р. ${p.birthDate}` : "дата не указана"}
-                    {" · "}
-                    {p.birthCityCustom || p.birthCity || "город не указан"}
-                  </CardDescription>
+        {relativesForTape.length === 0 ? (
+          <Card>
+            <CardHeader>
+              <CardTitle className="text-base">Пока нет родственников</CardTitle>
+              <CardDescription>Добавьте первую карточку, чтобы лента начала заполняться.</CardDescription>
+            </CardHeader>
+          </Card>
+        ) : (
+          <div className="home-relatives-marquee">
+            <div className="home-relatives-track">
+              {relativesTapeLoop.map((p, idx) => (
+                <div
+                  key={`${p.id}-${idx}`}
+                  className="home-relative-ticker-card"
+                  role="button"
+                  tabIndex={0}
+                  onClick={() => openRelativeInFamily(p.id)}
+                  onKeyDown={(e) => {
+                    if (e.key === "Enter" || e.key === " ") {
+                      e.preventDefault();
+                      openRelativeInFamily(p.id);
+                    }
+                  }}
+                >
+                  <div className="home-relative-ticker-row">
+                    <div className="home-relative-ticker-avatar" aria-hidden>
+                      {initials(p)}
+                    </div>
+                    <div className="home-relative-ticker-main">
+                      <div className="home-relative-ticker-name">{fullName(p)}</div>
+                      <div className="home-relative-ticker-meta">
+                        {p.birthDate ? `р. ${p.birthDate}` : "дата не указана"}
+                        {" · "}
+                        {p.birthCityCustom || p.birthCity || "город не указан"}
+                      </div>
+                    </div>
+                    <Badge className="shrink-0" variant={p.isSelf ? "default" : "outline"}>
+                      {p.isSelf ? "Вы" : "Родственник"}
+                    </Badge>
+                  </div>
                 </div>
-              </CardHeader>
-              <CardContent className="pt-0">
-                <Badge variant={p.isSelf ? "default" : "outline"}>{p.isSelf ? "Вы" : "Родственник"}</Badge>
-              </CardContent>
-            </Card>
-          ))}
-          {relativesForTape.length === 0 ? (
-            <Card className="home-relative-card">
-              <CardHeader>
-                <CardTitle className="text-base">Пока нет родственников</CardTitle>
-                <CardDescription>Добавьте первую карточку, чтобы лента начала заполняться.</CardDescription>
-              </CardHeader>
-            </Card>
-          ) : null}
-        </div>
+              ))}
+            </div>
+          </div>
+        )}
         </div>
       </section>
 
