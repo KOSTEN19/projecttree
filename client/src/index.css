@@ -565,13 +565,16 @@
   }
 
   .home-facts-card {
-    width: min(400px, 88vw);
+    width: min(520px, 92vw);
     flex: 0 0 auto;
   }
 
   .home-facts-card .home-facts-card-image {
-    height: 168px;
-    object-fit: cover;
+    width: 100%;
+    height: auto;
+    aspect-ratio: 16 / 9;
+    object-fit: contain;
+    background: color-mix(in oklab, var(--muted) 70%, var(--background));
   }
 
   @keyframes home-facts-scroll {
