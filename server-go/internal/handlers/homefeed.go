@@ -27,6 +27,37 @@ const (
 	wikiCacheTTL    = 48 * time.Hour
 )
 
+var itemImageFallbacks = map[string]string{
+	// era cards
+	"era-russo-japanese": "https://upload.wikimedia.org/wikipedia/commons/0/0e/Russo-Japanese_War_collage.png",
+	"era-ww1":            "https://upload.wikimedia.org/wikipedia/commons/0/00/World_War_I_Montage.jpg",
+	"era-revolution":     "https://upload.wikimedia.org/wikipedia/commons/6/6a/Bolshevik.jpg",
+	"era-collectivization": "https://upload.wikimedia.org/wikipedia/commons/a/a0/Magnitogorsk_construction.jpg",
+	"era-ww2":              "https://upload.wikimedia.org/wikipedia/commons/1/10/WW2_Collage.png",
+	"era-postwar":          "https://upload.wikimedia.org/wikipedia/commons/7/74/Moscow_1959.jpg",
+	"era-space":            "https://upload.wikimedia.org/wikipedia/commons/5/5d/Yuri_Gagarin_1961.jpg",
+	"era-thaw":             "https://upload.wikimedia.org/wikipedia/commons/9/90/Nikita_Khrushchev_1962.jpg",
+	"era-stagnation":       "https://upload.wikimedia.org/wikipedia/commons/8/87/Leonid_Brezhnev_1972.jpg",
+	"era-afghan":           "https://upload.wikimedia.org/wikipedia/commons/a/a5/Soviet_Afghan_war.jpg",
+	"era-perestroika":      "https://upload.wikimedia.org/wikipedia/commons/5/52/Mikhail_Gorbachev_1987.jpg",
+	"era-new-russia":       "https://upload.wikimedia.org/wikipedia/commons/3/3e/Moscow_City_from_Vorobyovy_Gory.jpg",
+	// stat cards
+	"stat-generations": "https://upload.wikimedia.org/wikipedia/commons/6/6b/Family_tree.jpg",
+	"stat-timeline":    "https://upload.wikimedia.org/wikipedia/commons/8/8c/Timeline.jpg",
+	"stat-branch":      "https://upload.wikimedia.org/wikipedia/commons/6/6b/Oak_tree.jpg",
+	"stat-lines":       "https://upload.wikimedia.org/wikipedia/commons/1/1d/Old_family_photo.jpg",
+	"stat-city-0":      "https://upload.wikimedia.org/wikipedia/commons/e/ec/City_panorama.jpg",
+	"stat-city-1":      "https://upload.wikimedia.org/wikipedia/commons/e/ec/City_panorama.jpg",
+	"stat-city-2":      "https://upload.wikimedia.org/wikipedia/commons/e/ec/City_panorama.jpg",
+}
+
+func fallbackImageForItem(itemID string) string {
+	if u, ok := itemImageFallbacks[itemID]; ok && strings.TrimSpace(u) != "" {
+		return u
+	}
+	return fallbackWikiImg
+}
+
 type wikiCacheEntry struct {
 	Title        string
 	Extract      string
@@ -191,7 +222,7 @@ type HomeFeedItem struct {
 func enrichWithWiki(item *HomeFeedItem, wikiTitle string) {
 	if wikiTitle == "" {
 		if item.ImageURL == "" {
-			item.ImageURL = fallbackWikiImg
+			item.ImageURL = fallbackImageForItem(item.ID)
 		}
 		return
 	}
@@ -202,14 +233,14 @@ func enrichWithWiki(item *HomeFeedItem, wikiTitle string) {
 	t, ex, thumb, pURL, err := fetchRuwikiSummary(wikiCtx, wikiTitle)
 	if err != nil {
 		if item.ImageURL == "" {
-			item.ImageURL = fallbackWikiImg
+			item.ImageURL = fallbackImageForItem(item.ID)
 		}
 		return
 	}
 	if thumb != "" {
 		item.ImageURL = thumb
 	} else if item.ImageURL == "" {
-		item.ImageURL = fallbackWikiImg
+		item.ImageURL = fallbackImageForItem(item.ID)
 	}
 	if pURL != "" {
 		item.SourceURL = pURL
