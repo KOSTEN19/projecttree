@@ -368,3 +368,29 @@ func ValidatePersonState(p PersonState) error {
 	}
 	return nil
 }
+
+// MarriageRelation validates strict M-F marriage constraints for relationType муж/жена.
+func MarriageRelation(relationType, baseSex, relatedSex string) error {
+	t := strings.ToLower(strings.TrimSpace(relationType))
+	if t != "муж" && t != "жена" {
+		return nil
+	}
+	base := strings.TrimSpace(baseSex)
+	related := strings.TrimSpace(relatedSex)
+	if base == "" || related == "" {
+		return Err("Для брака у обоих людей должен быть указан пол (M/F).")
+	}
+	if base == related {
+		return Err("Брак допускается только между мужчиной и женщиной.")
+	}
+	if t == "муж" {
+		if base != "F" || related != "M" {
+			return Err("Связь «муж» требует: базовый человек — женщина, добавляемый человек — мужчина.")
+		}
+		return nil
+	}
+	if base != "M" || related != "F" {
+		return Err("Связь «жена» требует: базовый человек — мужчина, добавляемый человек — женщина.")
+	}
+	return nil
+}

@@ -18,13 +18,13 @@
 
 - Включение: `AI_ENABLED=true`; обязательны **`AI_API_BASE_URL`** (например `http://127.0.0.1:11434/v1` для Ollama) и **`AI_MODEL`** (имя модели в вашем провайдере).
 - Ключ: для локального Ollama обычно не нужен; для облака — `AI_API_KEY`.
-- Пример для Ollama: `AI_ENABLED=true`, `AI_API_BASE_URL=http://127.0.0.1:11434/v1`, `AI_MODEL=tinyllama` (или другая скачанная модель).
+- Пример для Ollama (быстрый CPU-режим): `AI_ENABLED=true`, `AI_API_BASE_URL=http://127.0.0.1:11434/v1`, `AI_MODEL=hf.co/QuantFactory/SmolLM2-360M-Instruct-GGUF:Q4_K_M`.
 - Ручное обновление кэша пользователем: `POST /api/ai/feed/refresh` (лимит по времени на сервере).
 
 
 #### Локальный Ollama в Docker Compose
 
-- Сервис входит в обычный `docker compose up -d`. По умолчанию образ **`alpine/ollama`**, модель **`tinyllama`** (легче для слабого хоста). При старте контейнера [`scripts/ollama-docker-entry.sh`](scripts/ollama-docker-entry.sh) поднимает `ollama serve` и выполняет **`ollama pull`** для `AI_MODEL` (первый раз может занять несколько минут).
-- На слабом VPS **API (`server`) не зависит от Ollama** в `docker-compose`: сайт поднимается, пока модель качается или если Ollama недоступен; ИИ-ленту можно включить позже. При желании ограничьте CPU/RAM контейнера `ollama` вручную в настройках Docker. Ещё легче модель: `AI_MODEL=qwen2:0.5b`. Полный официальный образ: `OLLAMA_IMAGE=ollama/ollama:latest`.
+- Сервис входит в обычный `docker compose up -d`. По умолчанию образ **`alpine/ollama`**, модель **`hf.co/QuantFactory/SmolLM2-360M-Instruct-GGUF:Q4_K_M`** (очень лёгкая для слабого хоста). При старте контейнера [`scripts/ollama-docker-entry.sh`](scripts/ollama-docker-entry.sh) поднимает `ollama serve` и выполняет **`ollama pull`** для `AI_MODEL` (первый раз может занять несколько минут).
+- На слабом VPS **API (`server`) не зависит от Ollama** в `docker-compose`: сайт поднимается, пока модель качается или если Ollama недоступен; ИИ-ленту можно включить позже. При желании ограничьте CPU/RAM контейнера `ollama` вручную в настройках Docker. Ещё быстрее (хуже качество): `AI_MODEL=hf.co/QuantFactory/SmolLM2-360M-Instruct-GGUF:Q3_K_M`. Полный официальный образ: `OLLAMA_IMAGE=ollama/ollama:latest`.
 - В Docker Compose ИИ **включён по умолчанию** (`AI_ENABLED=true`); выключить: `AI_ENABLED=false` в `.env`. У `server`: `AI_API_BASE_URL=http://ollama:11434/v1`, `AI_MODEL` совпадает с подгружаемой в Ollama.
 - Порт **11434** на хосте: **127.0.0.1**.

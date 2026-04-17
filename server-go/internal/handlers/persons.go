@@ -148,10 +148,15 @@ func CreatePerson(c *gin.Context) {
 			return
 		}
 
-		count, _ := db.Persons.CountDocuments(ctx, bson.M{"_id": baseOID, "userId": oid})
-		if count == 0 {
+		var basePerson models.Person
+		if err := db.Persons.FindOne(ctx, bson.M{"_id": baseOID, "userId": oid}).Decode(&basePerson); err != nil {
 			_, _ = db.Persons.DeleteOne(ctx, bson.M{"_id": personID})
 			c.JSON(http.StatusBadRequest, gin.H{"error": "bad_basePersonId"})
+			return
+		}
+		if err := validation.MarriageRelation(relationType, basePerson.Sex, person.Sex); err != nil {
+			_, _ = db.Persons.DeleteOne(ctx, bson.M{"_id": personID})
+			respondValidation(c, err)
 			return
 		}
 

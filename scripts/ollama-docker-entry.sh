@@ -2,7 +2,7 @@
 # Старт Ollama и однократная подгрузка модели из $OLLAMA_MODEL (синхронизируйте с AI_MODEL в compose).
 # Повторный pull при уже скачанной модели занимает секунды.
 
-MODEL="${OLLAMA_MODEL:-tinyllama}"
+MODEL="${OLLAMA_MODEL:-hf.co/QuantFactory/SmolLM2-360M-Instruct-GGUF:Q4_K_M}"
 
 ollama serve &
 SRV=$!

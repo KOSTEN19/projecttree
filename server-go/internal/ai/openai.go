@@ -115,12 +115,9 @@ func (c *Client) ChatComplete(ctx context.Context, systemPrompt, userPrompt stri
 		return "", fmt.Errorf("ai: missing base URL or model")
 	}
 	timeout := c.Timeout
-	if timeout <= 0 {
-		timeout = 60 * time.Second
-	}
 	maxTok := c.MaxTokens
 	if maxTok <= 0 {
-		maxTok = 384
+		maxTok = 128
 	}
 
 	body := chatRequest{
@@ -147,7 +144,10 @@ func (c *Client) ChatComplete(ctx context.Context, systemPrompt, userPrompt stri
 		req.Header.Set("Authorization", "Bearer "+strings.TrimSpace(c.APIKey))
 	}
 
-	client := &http.Client{Timeout: timeout}
+	client := &http.Client{}
+	if timeout > 0 {
+		client.Timeout = timeout
+	}
 	res, err := client.Do(req)
 	if err != nil {
 		return "", err

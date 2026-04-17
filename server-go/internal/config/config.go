@@ -57,10 +57,10 @@ func Load() (*Config, error) {
 		return nil, fmt.Errorf("AI_ENABLED=true requires AI_API_BASE_URL and AI_MODEL")
 	}
 
-	aiMaxTok := 384
+	aiMaxTok := 128
 	if v := strings.TrimSpace(os.Getenv("AI_MAX_TOKENS")); v != "" {
 		var n int
-		if _, err := fmt.Sscanf(v, "%d", &n); err == nil && n >= 64 && n <= 2048 {
+		if _, err := fmt.Sscanf(v, "%d", &n); err == nil && n >= 32 && n <= 1024 {
 			aiMaxTok = n
 		}
 	}
@@ -76,7 +76,8 @@ func Load() (*Config, error) {
 		AIAPIBaseURL:   strings.TrimSuffix(aiBase, "/"),
 		AIAPIKey:       strings.TrimSpace(os.Getenv("AI_API_KEY")),
 		AIModel:        aiModel,
-		AITimeout:      getEnvDuration("AI_TIMEOUT", 90*time.Second),
+		// 0 => no HTTP timeout in AI client (for very slow CPU setups).
+		AITimeout:      getEnvDuration("AI_TIMEOUT", 0),
 		AIMaxTokens:    aiMaxTok,
 		AICacheTTL:     getEnvDuration("AI_CACHE_TTL", 168*time.Hour),
 		AIRateRefresh:  getEnvDuration("AI_RATE_REFRESH", time.Hour),

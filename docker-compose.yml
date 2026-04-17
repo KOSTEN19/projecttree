@@ -3,7 +3,8 @@
 # Полный сброс БД: docker compose down && rm -rf mongo-data && docker compose up -d
 # Именованный том docker compose down -v с хоста не удаляет — для bind-mount нужно убрать каталог.
 #
-# Ollama: образ alpine/ollama (OLLAMA_IMAGE), модель по умолчанию tinyllama (~0.6 GB) под 1 vCPU / ~2 GB RAM на весь хост.
+# Ollama: образ alpine/ollama (OLLAMA_IMAGE), модель по умолчанию SmolLM2-360M Q4_K_M (HF GGUF via Ollama)
+# под 1 vCPU / ~2 GB RAM на весь хост.
 # При старте контейнера скрипт scripts/ollama-docker-entry.sh подтягивает модель (OLLAMA_MODEL = AI_MODEL).
 # Лимиты для Ollama при необходимости задайте вручную в Docker; reservations в compose на слабых VPS мешали старту контейнеров.
 # ИИ-лента: AI_ENABLED=true; server → http://ollama:11434/v1
@@ -41,7 +42,7 @@ services:
       # ИИ: по умолчанию включён для compose (отключить: AI_ENABLED=false в .env)
       - AI_ENABLED=${AI_ENABLED:-true}
       - AI_API_BASE_URL=${AI_API_BASE_URL:-http://ollama:11434/v1}
-      - AI_MODEL=${AI_MODEL:-tinyllama}
+      - AI_MODEL=${AI_MODEL:-hf.co/QuantFactory/SmolLM2-360M-Instruct-GGUF:Q4_K_M}
       - AI_API_KEY=${AI_API_KEY:-}
     volumes:
       - ./logs/nginx:/var/log/nginx:ro
@@ -53,7 +54,7 @@ services:
     environment:
       - OLLAMA_NUM_PARALLEL=1
       - OLLAMA_MAX_LOADED_MODELS=1
-      - OLLAMA_MODEL=${AI_MODEL:-tinyllama}
+      - OLLAMA_MODEL=${AI_MODEL:-hf.co/QuantFactory/SmolLM2-360M-Instruct-GGUF:Q4_K_M}
     volumes:
       - ollama-data:/root/.ollama
       - ./scripts/ollama-docker-entry.sh:/ollama-docker-entry.sh:ro

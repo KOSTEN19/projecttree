@@ -27,7 +27,7 @@ import (
 
 const aiFallbackImg = "https://cdn.ruwiki.ru/commonswiki/files/e/ee/WW2_collage.jpg"
 
-const aiMaxFieldRunes = 600
+const aiMaxFieldRunes = 220
 
 var (
 	aiFeedMu    sync.Mutex
@@ -335,7 +335,7 @@ func parseAIFactsText(raw string, sourceLabel string) ([]HomeFeedItem, error) {
 	if body1 == "" || body2 == "" {
 		return nil, fmt.Errorf("empty fact body")
 	}
-	const maxBody = 420
+	const maxBody = 220
 	if len([]rune(body1)) > maxBody {
 		body1 = string([]rune(body1)[:maxBody]) + "…"
 	}
@@ -415,6 +415,7 @@ func aiFeedWorkerLoop() {
 }
 
 func runAIFeedJob(t aiFeedTask) {
+	startedAt := time.Now()
 	aiFeedMu.Lock()
 	cfg := aiFeedCfg
 	client := aiHTTP
@@ -422,7 +423,16 @@ func runAIFeedJob(t aiFeedTask) {
 	if cfg == nil || client == nil {
 		return
 	}
-	ctx, cancel := context.WithTimeout(context.Background(), cfg.AITimeout+45*time.Second)
+	var (
+		ctx    context.Context
+		cancel context.CancelFunc
+	)
+	if cfg.AITimeout > 0 {
+		ctx, cancel = context.WithTimeout(context.Background(), cfg.AITimeout+45*time.Second)
+	} else {
+		ctx = context.Background()
+		cancel = func() {}
+	}
 	defer cancel()
 
 	filter := bson.M{"userId": t.UserID}
@@ -461,26 +471,28 @@ func runAIFeedJob(t aiFeedTask) {
 		dataBlock = "(Нет заполненных карточек родственников — опирайся только на это сообщение.)"
 	}
 
-	system := `Ты помощник семейной летописи. Тебе дают факты о родственниках (только этот текст).
-Сделай ровно два коротких текста для главной страницы: интересные исторические эпохи и события, в которые могли попасть эти люди (опирайся на годы и места из данных и общие исторические знания), пересечения поколений, другие содержательные выводы из переданного.
-Не выдумывай конкретные события в жизни человека, которых нет во входных данных. Не используй HTML, JSON, markdown и списки с тире в ответе.
-
-Формат ответа строго такой (два блока, не больше):
+	system := `Ты помощник семейной летописи.
+Сделай РОВНО 2 коротких факта на русском по входным данным.
+Не выдумывай личные события, которых нет во входе.
+Без HTML/JSON/markdown.
+Строгий формат:
 Интересный факт 1
-<здесь 1–3 предложения по-русски>
+<1-2 коротких предложения, до 220 символов>
 
 Интересный факт 2
-<здесь 1–3 предложения по-русски>
+<1-2 коротких предложения, до 220 символов>
 
-Запрещено писать «Интересный факт 3» или больше. Заголовки строк должны быть именно «Интересный факт 1» и «Интересный факт 2».`
+Никаких "Интересный факт 3".`
 
-	userPrompt := "Проанализируй моих родственников по данным ниже и дай два интересных факта для ленты (эпохи, исторический контекст, связь поколений и т.п.).\n\n--- ДАННЫЕ ---\n" + dataBlock
+	userPrompt := "Дай 2 очень коротких исторических факта по семье.\n\nДАННЫЕ:\n" + dataBlock
 
+	llmStartedAt := time.Now()
 	text, err := client.ChatComplete(ctx, system, userPrompt)
 	if err != nil {
-		log.Printf("[ai] llm: %v", err)
+		log.Printf("[ai] llm: %v (took=%s)", err, time.Since(llmStartedAt).Round(time.Millisecond))
 		return
 	}
+	log.Printf("[ai] llm ok (took=%s)", time.Since(llmStartedAt).Round(time.Millisecond))
 	label := aiSourceLabel(cfg.AIAPIBaseURL, cfg.AIModel)
 	items, err := parseAIFactsText(text, label)
 	if err != nil {
@@ -503,6 +515,7 @@ func runAIFeedJob(t aiFeedTask) {
 	if err := saveAIFeedCache(ctx, doc); err != nil {
 		log.Printf("[ai] save cache: %v", err)
 	}
+	log.Printf("[ai] feed job done user=%s force=%v total=%s", t.UserID.Hex(), t.Force, time.Since(startedAt).Round(time.Millisecond))
 }
 
 // mergeAIFeedItems добавляет кэшированные ИИ-карточки и при необходимости ставит фоновую генерацию.
