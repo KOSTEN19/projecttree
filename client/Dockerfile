@@ -1,11 +1,12 @@
 # UI (shadcn): src/components/ui/*.tsx хранятся в git (см. .gitignore). prebuild/ui:pull — опциональное обновление с реестра.
-# node_modules в git не хранится: зависимости ставятся здесь (`npm ci` из npm registry), не через MCP.
+# node_modules в git не хранится: зависимости ставятся здесь из npm registry, не через MCP.
+# Используем `npm install`, а не `npm ci`: при добавлении пакета в package.json без обновления lock сборка не ломается.
 # MCP shadcn в Cursor только помогает в IDE; образ собирается этим Dockerfile.
 FROM node:20-alpine AS builder
 WORKDIR /app
 ENV CI=true
 COPY package.json package-lock.json components.json ./
-RUN npm ci --no-audit --fund=false
+RUN npm install --no-audit --fund=false
 
 # Явно копируем исходники (не полагаемся на «случайные» исключения в контексте).
 COPY index.html vite.config.ts tsconfig.json ./
