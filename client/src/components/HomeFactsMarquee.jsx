@@ -39,7 +39,9 @@ export default function HomeFactsMarquee({ items, loading, error, onRetry, onIte
         <div className="flex gap-3 overflow-hidden">
           {[0, 1, 2].map((k) => (
             <Card key={k} className="home-facts-card home-story-card shrink-0">
-              <Skeleton className="home-facts-card-image rounded-none rounded-t-xl" />
+              <div className="home-facts-card-media">
+                <Skeleton className="home-facts-card-image" />
+              </div>
               <CardHeader className="space-y-2">
                 <Skeleton className="h-5 w-16" />
                 <Skeleton className="h-4 w-3/4" />
@@ -85,18 +87,20 @@ export default function HomeFactsMarquee({ items, loading, error, onRetry, onIte
               }
             }}
           >
-            <img
-              src={it.imageUrl || FALLBACK_IMG}
-              alt=""
-              className="home-historical-image home-facts-card-image"
-              loading="lazy"
-              decoding="async"
-              referrerPolicy="no-referrer"
-              onError={(e) => {
-                if (e.currentTarget.src === FALLBACK_IMG) return;
-                e.currentTarget.src = FALLBACK_IMG;
-              }}
-            />
+            <div className="home-facts-card-media">
+              <img
+                src={it.imageUrl || FALLBACK_IMG}
+                alt=""
+                className="home-historical-image home-facts-card-image"
+                loading="lazy"
+                decoding="async"
+                referrerPolicy="no-referrer"
+                onError={(e) => {
+                  if (e.currentTarget.src === FALLBACK_IMG) return;
+                  e.currentTarget.src = FALLBACK_IMG;
+                }}
+              />
+            </div>
             <CardHeader className="gap-2">
               <div className="flex flex-wrap items-center gap-2">
                 <Badge

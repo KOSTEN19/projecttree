@@ -184,6 +184,44 @@ export default function Home({ user }) {
             }.`,
       }));
   }, [people]);
+  const homeFocus = useMemo(() => {
+    const total = people.length;
+    const withoutBirthDate = people.filter((p) => !p.birthDate).length;
+    const withoutCity = people.filter((p) => !(p.birthCityCustom || p.birthCity)).length;
+    const withoutStory = people.filter((p) => !String(p.notes || "").trim()).length;
+
+    const cards = [
+      {
+        id: "dates",
+        title: "Проверьте даты рождения",
+        text:
+          withoutBirthDate > 0
+            ? `У ${withoutBirthDate} ${withoutBirthDate === 1 ? "карточки" : "карточек"} пока нет даты рождения. Это поможет точнее выстроить поколения.`
+            : "По датам всё хорошо: в карточках уже заполнены даты рождения.",
+        cta: "Открыть карточки",
+      },
+      {
+        id: "cities",
+        title: "Добавьте географию рода",
+        text:
+          withoutCity > 0
+            ? `Для ${withoutCity} ${withoutCity === 1 ? "человека" : "человек"} не указан город. После этого карта семьи станет более полной.`
+            : "Города указаны во всех карточках, карта семьи уже выглядит цельно.",
+        cta: "Перейти к карте",
+      },
+      {
+        id: "stories",
+        title: "Соберите семейные истории",
+        text:
+          withoutStory > 0
+            ? `У ${withoutStory} ${withoutStory === 1 ? "профиля" : "профилей"} пока нет заметок. Добавьте пару фактов или воспоминаний.`
+            : "В заметках уже есть истории родственников. Отличная живая летопись!",
+        cta: "Написать заметки",
+      },
+    ];
+
+    return { total, cards };
+  }, [people]);
 
   function openRelativeInFamily(personId) {
     navigate("/app/relatives", { state: { focusPersonId: personId } });
@@ -316,11 +354,11 @@ export default function Home({ user }) {
         <div className="home-section-band home-section-band--muted">
           <h2 className="home-section-title home-portal-section-title mb-1">Интересные факты о вашем роде</h2>
           <p className="text-muted-foreground mb-3 max-w-3xl text-sm leading-relaxed">
-            Сводка по вашей летописи, пересечения с эпохами и иллюстрации из статей{" "}
+            Короткая подборка о вашей семье: важные пересечения с эпохами, живые исторические контексты и иллюстрации из статей{" "}
             <a href="https://ru.ruwiki.ru" target="_blank" rel="noreferrer" className="text-primary underline underline-offset-2">
               РУВИКИ
             </a>
-            . При включённом ИИ на сервере сюда добавляются короткие формулировки по вашим данным (локальная или облачная модель).
+            . При включённом ИИ добавляются аккуратные формулировки по данным вашей летописи.
           </p>
           <div className="mb-4 flex flex-wrap items-center gap-2">
             <Button
@@ -330,10 +368,10 @@ export default function Home({ user }) {
               disabled={feedAiBusy || feedLoading}
               onClick={() => void refreshAIFeed()}
             >
-              {feedAiBusy ? "Запрос…" : "Обновить факты (ИИ)"}
+              {feedAiBusy ? "Запрос…" : "Освежить подборку фактов"}
             </Button>
             {feedAiPending ? (
-              <span className="text-muted-foreground text-xs">Подготовка ИИ-формулировок… Обновите страницу через минуту.</span>
+              <span className="text-muted-foreground text-xs">Подборка обновляется… Проверьте ленту через минуту.</span>
             ) : null}
           </div>
           <HomeFactsMarquee
@@ -343,6 +381,32 @@ export default function Home({ user }) {
             onRetry={() => setFeedRetry((n) => n + 1)}
             onItemClick={setFactDetails}
           />
+        </div>
+      </section>
+
+      <Separator className="opacity-50" />
+
+      <section className="px-4 md:px-6">
+        <div className="home-section-band home-section-band--surface">
+          <div className="mb-3 flex items-center justify-between gap-3">
+            <h2 className="home-section-title home-portal-section-title">Семейный фокус на сегодня</h2>
+            <Badge variant="secondary">В вашей летописи: {homeFocus.total}</Badge>
+          </div>
+          <div className="grid gap-3 md:grid-cols-3">
+            {homeFocus.cards.map((item) => (
+              <Card key={item.id} className="home-nav-card">
+                <CardHeader>
+                  <CardTitle className="text-base">{item.title}</CardTitle>
+                  <CardDescription>{item.text}</CardDescription>
+                </CardHeader>
+                <CardContent className="pt-0">
+                  <Button asChild variant="outline" size="sm" className="w-full">
+                    <Link to={item.id === "cities" ? "/app/map" : "/app/relatives"}>{item.cta}</Link>
+                  </Button>
+                </CardContent>
+              </Card>
+            ))}
+          </div>
         </div>
       </section>
 

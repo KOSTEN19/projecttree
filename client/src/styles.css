@@ -639,7 +639,7 @@
   max-width: 12rem;
 }
 
-/* ——— Карта семьи (Яндекс.Карты JS API): полноэкранный stage, тема светлая/тёмная, кастомные маркеры ——— */
+/* ——— Карта семьи (Leaflet + OSM/CARTO): полноэкранный stage, тема светлая/тёмная, кастомные маркеры ——— */
 .fam-map-page {
   width: 100%;
   max-width: 100%;
@@ -659,32 +659,28 @@
   background: color-mix(in oklab, var(--muted) 35%, var(--background));
 }
 
-.fam-map-yandex-root {
-  font-family: inherit;
-}
-
-.fam-map-yandex-root [class*="balloon__content"],
-.fam-map-yandex-root [class*="balloon__layout"] {
-  font-family: inherit;
-}
-
-.fam-map-yandex-root [class*="balloon__content"] {
-  background: color-mix(in oklab, var(--card) 94%, var(--background)) !important;
+.fam-map-popup .leaflet-popup-content-wrapper {
+  background: color-mix(in oklab, var(--card) 94%, var(--background));
   backdrop-filter: blur(12px);
-  border: 1px solid var(--border) !important;
-  border-radius: var(--radius-md, 12px) !important;
-  color: var(--foreground) !important;
-  box-shadow: 0 12px 40px color-mix(in oklab, var(--foreground) 12%, transparent) !important;
+  border: 1px solid var(--border);
+  border-radius: var(--radius-md, 12px);
+  color: var(--foreground);
+  box-shadow: 0 12px 40px color-mix(in oklab, var(--foreground) 12%, transparent);
 }
 
-.fam-map-yandex-root [class*="balloon__close"] {
-  color: var(--muted-foreground) !important;
+.fam-map-popup .leaflet-popup-content {
+  margin: 0.65rem 0.85rem;
 }
 
-.fam-map-yandex-root [class*="copyrights-pane"],
-.fam-map-yandex-root [class*="map-copyrights"] {
-  font-size: 0.62rem !important;
+.fam-map-popup .leaflet-popup-tip {
+  background: color-mix(in oklab, var(--card) 94%, var(--background));
+}
+
+.fam-map-canvas .leaflet-control-attribution {
+  font-size: 0.62rem;
   max-width: min(55%, 14rem);
+  background: color-mix(in oklab, var(--background) 82%, transparent);
+  color: var(--muted-foreground);
 }
 
 .fam-map-tooltip {
@@ -698,7 +694,7 @@
   box-shadow: 0 4px 16px color-mix(in oklab, var(--foreground) 12%, transparent);
 }
 
-/* Кастомный макет маркера (Яндекс + ранее Leaflet) */
+/* Кастомный макет маркера семейной карты */
 .fam-pin-leaflet {
   background: transparent !important;
   border: none !important;
@@ -871,7 +867,7 @@
   border: 2px solid color-mix(in oklab, var(--chart-4) 38%, var(--card));
 }
 
-.fam-map-yandex-root [class*="balloon__content"] .gm-pop-inner {
+.fam-map-popup .gm-pop-inner {
   margin: 0.65rem 0.85rem;
   font-size: 0.8rem;
   line-height: 1.35;
@@ -1700,7 +1696,7 @@ html:not(.dark) .fam-map-stage {
   box-shadow: inset 0 1px 0 rgba(255, 255, 255, 0.85);
 }
 
-html:not(.dark) .fam-map-yandex-root [class*="balloon__content"] {
+html:not(.dark) .fam-map-popup .leaflet-popup-content-wrapper {
   background: linear-gradient(165deg, rgba(255, 255, 255, 0.97), rgba(248, 250, 252, 0.98)) !important;
   color: #0f172a !important;
   border: 1px solid rgba(15, 23, 42, 0.14) !important;
@@ -1708,7 +1704,7 @@ html:not(.dark) .fam-map-yandex-root [class*="balloon__content"] {
 
 @media (forced-colors: active) {
   .fam-map-stage,
-  .fam-map-yandex-root [class*="balloon__content"] {
+  .fam-map-popup .leaflet-popup-content-wrapper {
     forced-color-adjust: none;
     background: Canvas;
     color: CanvasText;

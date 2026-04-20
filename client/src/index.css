@@ -213,11 +213,12 @@
   }
 
   .home-section-band {
-    @apply rounded-2xl border border-border/85;
+    @apply rounded-2xl border border-border/95;
+    box-shadow: 0 10px 28px -24px color-mix(in oklab, var(--foreground) 28%, transparent);
   }
 
   .home-section-band--surface {
-    @apply bg-card/92 p-5 shadow-sm md:p-6;
+    @apply bg-card p-5 shadow-sm md:p-6;
   }
 
   .dark .home-section-band--surface {
@@ -225,7 +226,7 @@
   }
 
   .home-section-band--muted {
-    @apply bg-muted/55 p-5 md:p-6;
+    @apply bg-muted/68 p-5 md:p-6;
   }
 
   .dark .home-section-band--muted {
@@ -280,13 +281,17 @@
 
   .home-nav-card {
     @apply border-border bg-card transition-all duration-200;
-    box-shadow: 0 12px 26px -20px rgba(33, 23, 12, 0.48);
+    box-shadow:
+      inset 0 1px 0 color-mix(in oklab, var(--foreground) 4%, transparent),
+      0 12px 26px -20px rgba(33, 23, 12, 0.48);
   }
 
   .home-nav-card:hover {
     transform: translateY(-2px);
-    border-color: color-mix(in oklab, var(--border) 65%, var(--chart-5));
-    box-shadow: 0 14px 28px -20px rgba(50, 28, 17, 0.52);
+    border-color: color-mix(in oklab, var(--border) 52%, var(--primary));
+    box-shadow:
+      inset 0 1px 0 color-mix(in oklab, var(--foreground) 5%, transparent),
+      0 16px 30px -20px rgba(50, 28, 17, 0.58);
   }
 
   .home-portal {
@@ -422,8 +427,8 @@
   }
 
   .home-portal-section-title {
-    @apply border-l-[3px] pl-3;
-    border-left-color: color-mix(in oklab, var(--chart-1) 78%, var(--border));
+    @apply border-l-4 pl-3;
+    border-left-color: color-mix(in oklab, var(--chart-1) 68%, var(--primary));
   }
 
   .home-portal-arrow {
@@ -589,11 +594,10 @@
 
   .home-historical-image {
     width: 100%;
-    height: 180px;
-    object-fit: cover;
-    border-top-left-radius: calc(var(--radius-lg) - 1px);
-    border-top-right-radius: calc(var(--radius-lg) - 1px);
-    border-bottom: 1px solid color-mix(in oklab, var(--border) 80%, transparent);
+    height: 100%;
+    object-fit: contain;
+    object-position: center;
+    display: block;
   }
 
   .home-updates-marquee {
@@ -636,19 +640,29 @@
   }
 
   .home-facts-card {
-    width: min(520px, 92vw);
+    width: min(360px, 78vw);
     flex: 0 0 auto;
   }
 
-  /* Единая горизонтальная зона: портретные кадры обрезаются по центру, без «узких» полос */
+  .home-facts-card-media {
+    width: 100%;
+    aspect-ratio: 1 / 1;
+    overflow: hidden;
+    border-top-left-radius: calc(var(--radius-lg) - 1px);
+    border-top-right-radius: calc(var(--radius-lg) - 1px);
+    border-bottom: 1px solid color-mix(in oklab, var(--border) 80%, transparent);
+    background: color-mix(in oklab, var(--muted) 72%, var(--background));
+  }
+
   .home-facts-card .home-facts-card-image {
     width: 100%;
-    height: 180px;
-    min-height: 180px;
-    object-fit: cover;
+    height: 100%;
+    min-height: 100%;
+    object-fit: contain;
     object-position: center;
     display: block;
-    background: color-mix(in oklab, var(--muted) 70%, var(--background));
+    border-radius: 0;
+    background: transparent;
   }
 
   @keyframes home-facts-scroll {
@@ -711,6 +725,10 @@
 
     .home-updates-card {
       width: min(360px, 88vw);
+    }
+
+    .home-facts-card {
+      width: min(310px, 88vw);
     }
   }
 
