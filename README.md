@@ -29,6 +29,6 @@
 - В Docker Compose ИИ **включён по умолчанию** (`AI_ENABLED=true`); выключить: `AI_ENABLED=false` в `.env`. У `server`: `AI_API_BASE_URL=http://ollama:11434/v1`, `AI_MODEL` совпадает с подгружаемой в Ollama.
 - Порт **11434** на хосте: **127.0.0.1**.
 
-### Карта семьи (клиент Яндекс.Карт)
+### Карта семьи (Leaflet + OpenStreetMap/CARTO)
 
-Раздел «Карта» использует JavaScript API Яндекс.Карт. Задайте в **`client/.env`** переменную **`VITE_YANDEX_MAPS_API_KEY`** (ключ в [кабинете разработчика Яндекса](https://developer.tech.yandex.ru/) для JavaScript API) и перезапустите Vite. Без ключа в интерфейсе показывается подсказка; шаблон в корневом `.env.example`.
+Раздел «Карта» использует Leaflet с подложкой OpenStreetMap/CARTO (светлая и тёмная тема). Отдельный API-ключ для карты не требуется.
