@@ -1,6 +1,6 @@
 import React, { useEffect, useMemo, useRef, useState } from "react";
 import { Link, useLocation, useNavigate } from "react-router-dom";
-import { TrendingUp } from "lucide-react";
+import { GalleryVerticalEnd, MapPinned, Network, ShieldCheck, Sparkles, TrendingUp, WandSparkles } from "lucide-react";
 import { apiGet, apiPost } from "../api.js";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
@@ -37,6 +37,7 @@ export default function Home({ user }) {
   const [summaryTrend, setSummaryTrend] = useState(false);
   const summaryAnimRef = useRef(0);
   const [feedItems, setFeedItems] = useState([]);
+  const [feedRequested, setFeedRequested] = useState(false);
   const [feedLoading, setFeedLoading] = useState(true);
   const [feedError, setFeedError] = useState("");
   const [feedRetry, setFeedRetry] = useState(0);
@@ -62,6 +63,13 @@ export default function Home({ user }) {
   }, []);
 
   useEffect(() => {
+    if (!feedRequested) {
+      setFeedLoading(false);
+      setFeedError("");
+      setFeedItems([]);
+      setFeedAiPending(false);
+      return;
+    }
     let cancelled = false;
     (async () => {
       setFeedLoading(true);
@@ -84,7 +92,7 @@ export default function Home({ user }) {
     return () => {
       cancelled = true;
     };
-  }, [feedRetry]);
+  }, [feedRequested, feedRetry]);
 
   useEffect(() => {
     const st = location.state;
@@ -94,6 +102,7 @@ export default function Home({ user }) {
   }, [location.state, navigate]);
 
   async function refreshAIFeed() {
+    setFeedRequested(true);
     setFeedAiBusy(true);
     try {
       await apiPost("/api/ai/feed/refresh", {});
@@ -228,13 +237,18 @@ export default function Home({ user }) {
   }
 
   return (
-    <div className="home-shell home-portal -mx-4 space-y-8 md:-mx-6 md:space-y-10">
-      <section className="home-hero home-portal-hero px-4 py-9 md:px-6 md:py-11">
+    <div className="home-shell home-portal magic-glow-bg -mx-4 space-y-8 md:-mx-6 md:space-y-10">
+      <section className="home-hero home-portal-hero magic-glass magic-card magic-hero px-4 py-9 md:px-6 md:py-11">
         <div className="home-portal-grid">
           <div className="space-y-5">
-            <Badge variant="secondary" className="home-pill home-portal-kicker">
-              Официальная семейная летопись
-            </Badge>
+            <div className="flex flex-wrap items-center gap-2">
+              <Badge variant="secondary" className="home-pill home-portal-kicker">
+                Официальная семейная летопись
+              </Badge>
+              <Badge variant="outline" className="magic-chip">
+                <Sparkles className="mr-1 size-3.5" /> Magic UI style
+              </Badge>
+            </div>
             <h1 className="home-title home-portal-title">
               {user?.firstName ? `${user.firstName}, запишите историю своей семьи` : "Запишите историю своей семьи"}
             </h1>
@@ -250,9 +264,23 @@ export default function Home({ user }) {
                 <Link to="/app/tree">Открыть древо</Link>
               </Button>
             </div>
+            <div className="magic-mini-grid">
+              <div className="magic-mini-pill">
+                <Network className="size-4" aria-hidden />
+                <span>Генеалогические связи</span>
+              </div>
+              <div className="magic-mini-pill">
+                <MapPinned className="size-4" aria-hidden />
+                <span>Карта поколений</span>
+              </div>
+              <div className="magic-mini-pill">
+                <GalleryVerticalEnd className="size-4" aria-hidden />
+                <span>Единый архив семьи</span>
+              </div>
+            </div>
           </div>
 
-          <div className="home-portal-summary">
+          <div className="home-portal-summary magic-glass magic-card">
             <p className="home-portal-summary-title">Сводка летописи</p>
             <div className="home-portal-summary-grid">
               <div className="home-portal-stat-card">
@@ -286,6 +314,16 @@ export default function Home({ user }) {
             <p className="home-portal-summary-note">
               Цифры по всей платформе: учётные записи, карточки людей и связи между ними во всех семьях.
             </p>
+            <div className="mt-4 grid gap-2 sm:grid-cols-2 lg:grid-cols-1">
+              <div className="magic-insight-row">
+                <ShieldCheck className="size-4" aria-hidden />
+                <span>Подтвержденные сведения отделены от ИИ-блока</span>
+              </div>
+              <div className="magic-insight-row">
+                <WandSparkles className="size-4" aria-hidden />
+                <span>ИИ архив запускается только вручную по кнопке</span>
+              </div>
+            </div>
           </div>
         </div>
       </section>
@@ -293,7 +331,7 @@ export default function Home({ user }) {
       <Separator className="opacity-50" />
 
       <section className="px-4 md:px-6">
-        <div className="home-section-band home-section-band--surface">
+        <div className="home-section-band home-section-band--surface magic-glass magic-card">
         <div className="mb-3 flex items-center justify-between gap-3">
           <h2 className="home-section-title home-portal-section-title">Лента родственников</h2>
           <Link className="home-section-link home-portal-link" to="/app/relatives">
@@ -351,16 +389,19 @@ export default function Home({ user }) {
       <Separator className="opacity-50" />
 
       <section className="px-4 md:px-6">
-        <div className="home-section-band home-section-band--muted">
-          <h2 className="home-section-title home-portal-section-title mb-1">Интересные факты о вашем роде</h2>
-          <p className="text-muted-foreground mb-3 max-w-3xl text-sm leading-relaxed">
-            Короткая подборка о вашей семье: важные пересечения с эпохами, живые исторические контексты и иллюстрации из статей{" "}
-            <a href="https://ru.ruwiki.ru" target="_blank" rel="noreferrer" className="text-primary underline underline-offset-2">
-              РУВИКИ
-            </a>
-            . При включённом ИИ добавляются аккуратные формулировки по данным вашей летописи.
+        <div className="home-section-band home-section-band--muted magic-glass magic-card">
+          <div className="mb-1 flex flex-wrap items-center gap-2">
+            <h2 className="home-section-title home-portal-section-title">ИИ Архив (эксперимент)</h2>
+            <Badge variant="outline">Неподтверждено (ИИ)</Badge>
+          </div>
+          <p className="text-muted-foreground mb-2 max-w-3xl text-sm leading-relaxed">
+            Это опциональный инструмент по кнопке. Тексты ИИ могут содержать неточности и не считаются подтверждённым
+            историческим источником.
           </p>
-          <div className="mb-4 flex flex-wrap items-center gap-2">
+          <p className="text-muted-foreground mb-3 max-w-3xl text-xs leading-relaxed">
+            Заглушки источников: Архивы, РУВИКИ, Частные архивы, Сбер, РЖД, Росатом, Бессмертный полк.
+          </p>
+          <div className="mb-4 flex flex-wrap items-center gap-2.5">
             <Button
               type="button"
               variant="outline"
@@ -368,33 +409,49 @@ export default function Home({ user }) {
               disabled={feedAiBusy || feedLoading}
               onClick={() => void refreshAIFeed()}
             >
-              {feedAiBusy ? "Запрос…" : "Освежить подборку фактов"}
+              {feedAiBusy ? "Запрос…" : feedRequested ? "Обновить ИИ Архив" : "Запросить ИИ Архив"}
             </Button>
+            {["Архивы", "РУВИКИ", "Частные архивы", "Сбер", "РЖД", "Росатом", "Бессмертный полк"].map((src) => (
+              <Badge key={src} variant="secondary" className="magic-chip">
+                {src}: скоро
+              </Badge>
+            ))}
             {feedAiPending ? (
               <span className="text-muted-foreground text-xs">Подборка обновляется… Проверьте ленту через минуту.</span>
             ) : null}
           </div>
-          <HomeFactsMarquee
-            items={feedItems}
-            loading={feedLoading}
-            error={feedError}
-            onRetry={() => setFeedRetry((n) => n + 1)}
-            onItemClick={setFactDetails}
-          />
+          {feedRequested ? (
+            <HomeFactsMarquee
+              items={feedItems}
+              loading={feedLoading}
+              error={feedError}
+              onRetry={() => setFeedRetry((n) => n + 1)}
+              onItemClick={setFactDetails}
+            />
+          ) : (
+            <Card>
+              <CardHeader>
+                <CardTitle className="text-base">ИИ Архив выключен</CardTitle>
+                <CardDescription>
+                  Нажмите кнопку «Запросить ИИ Архив», чтобы получить экспериментальную подборку фактов.
+                </CardDescription>
+              </CardHeader>
+            </Card>
+          )}
         </div>
       </section>
 
       <Separator className="opacity-50" />
 
       <section className="px-4 md:px-6">
-        <div className="home-section-band home-section-band--surface">
+        <div className="home-section-band home-section-band--surface magic-glass magic-card">
           <div className="mb-3 flex items-center justify-between gap-3">
             <h2 className="home-section-title home-portal-section-title">Семейный фокус на сегодня</h2>
             <Badge variant="secondary">В вашей летописи: {homeFocus.total}</Badge>
           </div>
-          <div className="grid gap-3 md:grid-cols-3">
+          <div className="magic-bento-grid">
             {homeFocus.cards.map((item) => (
-              <Card key={item.id} className="home-nav-card">
+              <Card key={item.id} className="home-nav-card magic-glass magic-card">
                 <CardHeader>
                   <CardTitle className="text-base">{item.title}</CardTitle>
                   <CardDescription>{item.text}</CardDescription>
@@ -413,7 +470,7 @@ export default function Home({ user }) {
       <Separator className="opacity-50" />
 
       <section className="px-4 md:px-6">
-        <div className="home-section-band home-section-band--muted">
+        <div className="home-section-band home-section-band--muted magic-glass magic-card">
         <h2 className="home-section-title home-portal-section-title mb-3">Разделы семейного пространства</h2>
         <div className="grid gap-3 sm:grid-cols-2">
           <Link to="/app/relatives">
@@ -455,7 +512,7 @@ export default function Home({ user }) {
       <Separator className="opacity-50" />
 
       <section className="px-4 pb-2 md:px-6">
-        <div className="home-section-band home-section-band--surface pb-1">
+        <div className="home-section-band home-section-band--surface magic-glass magic-card pb-1">
         <div className="mb-3 flex items-center justify-between">
           <h2 className="home-section-title home-portal-section-title">Обновления семейной летописи</h2>
           <Link className="home-section-link home-portal-link" to="/app/relatives">

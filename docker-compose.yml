@@ -63,7 +63,7 @@ services:
       - "127.0.0.1:11434:11434"
     restart: unless-stopped
 
-  # Фронт: в образе `npm ci` (client/node_modules не в git) → prebuild/shadcn → Vite → dist в nginx.
+  # Фронт: в образе npm install (client/node_modules не в git) → Vite → dist в nginx.
   client:
     build:
       context: ./client

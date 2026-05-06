@@ -62,6 +62,26 @@ function centuryLabel(c) {
   return `${ROMAN[c] || c} век (${from}-${to})`;
 }
 
+function notifyMapInvalidated() {
+  try {
+    window.dispatchEvent(new Event("map:invalidate"));
+  } catch {
+    // ignore
+  }
+}
+
+function buildAiArchiveSummary(person) {
+  const name = [person?.lastName, person?.firstName, person?.middleName].filter(Boolean).join(" ").trim() || "Родственник";
+  const city = person?.birthCityCustom || person?.birthCity || "место рождения не указано";
+  const birth = person?.birthDate ? `Родился(ась): ${person.birthDate}.` : "Дата рождения в карточке не указана.";
+  const hints = [];
+  hints.push(`${name}: ${birth}`);
+  hints.push(`География для проверки: ${city}.`);
+  if (person?.notes) hints.push(`Из заметок: ${String(person.notes).slice(0, 140)}${String(person.notes).length > 140 ? "…" : ""}`);
+  hints.push("Сверяйте сведения только с документами и подтвержденными ссылками.");
+  return hints;
+}
+
 export default function Relatives() {
   const location = useLocation();
   const navigate = useNavigate();
@@ -188,7 +208,7 @@ export default function Relatives() {
   return (
     <div className="row">
       <div className="col">
-        <Card>
+        <Card className="magic-glass magic-card">
           <CardContent className="space-y-6 pt-6">
           <div className="flex flex-col gap-4 sm:flex-row sm:items-start sm:justify-between">
             <div className="min-w-0 space-y-2">
@@ -267,15 +287,27 @@ export default function Relatives() {
         <AddRelativeStepperForm
           persons={persons}
           self={self}
-          onCreated={async () => { setOpenAdd(false); await load(); }}
+          onCreated={async () => {
+            setOpenAdd(false);
+            await load();
+            notifyMapInvalidated();
+          }}
         />
       </Modal>
 
       <Modal open={openView} title="Карточка родственника" onClose={() => setOpenView(false)}>
         <RelativeCard
           person={selected}
-          onUpdated={async () => { setOpenView(false); await load(); }}
-          onDeleted={async () => { setOpenView(false); await load(); }}
+          onUpdated={async () => {
+            setOpenView(false);
+            await load();
+            notifyMapInvalidated();
+          }}
+          onDeleted={async () => {
+            setOpenView(false);
+            await load();
+            notifyMapInvalidated();
+          }}
         />
       </Modal>
     </div>
@@ -284,6 +316,9 @@ export default function Relatives() {
 
 function RelativeCard({ person, onUpdated, onDeleted }) {
   const [p, setP] = useState(person);
+  const [aiArchiveOpen, setAiArchiveOpen] = useState(false);
+  const [aiArchiveLoading, setAiArchiveLoading] = useState(false);
+  const [aiArchiveLines, setAiArchiveLines] = useState([]);
   const [birthSuggestOpen, setBirthSuggestOpen] = useState(false);
   const [burialSuggestOpen, setBurialSuggestOpen] = useState(false);
   const birthAddressSuggestions = useAddressSuggestions(p?.birthCityCustom || "");
@@ -298,6 +333,9 @@ function RelativeCard({ person, onUpdated, onDeleted }) {
     setBirthSuggestOpen(false);
 
     setBurialSuggestOpen(false);
+    setAiArchiveOpen(false);
+    setAiArchiveLoading(false);
+    setAiArchiveLines([]);
   }, [person]);
 
   if (!p) return <div className="small">Не выбрано</div>;
@@ -360,6 +398,14 @@ function RelativeCard({ person, onUpdated, onDeleted }) {
   }
 
   const name = [p.lastName, p.firstName, p.middleName].filter(Boolean).join(" ").trim();
+
+  async function requestAiArchive() {
+    setAiArchiveOpen(true);
+    setAiArchiveLoading(true);
+    await new Promise((resolve) => setTimeout(resolve, 450));
+    setAiArchiveLines(buildAiArchiveSummary(p));
+    setAiArchiveLoading(false);
+  }
 
   return (
     <div>
@@ -531,6 +577,30 @@ function RelativeCard({ person, onUpdated, onDeleted }) {
         >
           Добавить ссылку
         </button>
+      </details>
+
+      <details className="rel-details magic-glass" style={{ marginTop: 12, padding: 10, borderRadius: 12 }} open={aiArchiveOpen}>
+        <summary className="label" style={{ cursor: "pointer" }}>ИИ Архив (эксперимент, по кнопке)</summary>
+        <div className="small" style={{ marginBottom: 8 }}>
+          Неподтвержденный источник: тексты ИИ могут ошибаться и служат только как идеи для поиска документов.
+        </div>
+        <div className="row" style={{ gap: 8, marginBottom: 8, flexWrap: "wrap" }}>
+          <button className="btn" type="button" onClick={() => void requestAiArchive()} disabled={aiArchiveLoading}>
+            {aiArchiveLoading ? "Запрос..." : "Запросить ИИ Архив"}
+          </button>
+          {["Архивы", "РУВИКИ", "Частные архивы", "Сбер", "РЖД", "Росатом", "Бессмертный полк"].map((src) => (
+            <span key={src} className="badge">
+              {src}: скоро
+            </span>
+          ))}
+        </div>
+        {aiArchiveOpen && !aiArchiveLoading && aiArchiveLines.length > 0 ? (
+          <div className="small" style={{ display: "grid", gap: 6 }}>
+            {aiArchiveLines.map((line, idx) => (
+              <div key={`${idx}-${line}`}>{line}</div>
+            ))}
+          </div>
+        ) : null}
       </details>
 
       <div className="label">Старые заметки</div>

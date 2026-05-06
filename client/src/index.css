@@ -193,6 +193,137 @@
       radial-gradient(760px 460px at -100px 20%, rgba(124, 83, 36, 0.11), transparent 60%);
   }
 
+  /* Magic UI inspired primitives: glass + gradient glow + soft noise */
+  .magic-glow-bg {
+    position: relative;
+    isolation: isolate;
+  }
+
+  .magic-glow-bg::before {
+    content: "";
+    position: absolute;
+    inset: -14% -8% auto;
+    height: 52%;
+    z-index: -1;
+    pointer-events: none;
+    background:
+      radial-gradient(42% 56% at 18% 28%, color-mix(in oklab, var(--chart-2) 28%, transparent), transparent 72%),
+      radial-gradient(40% 58% at 82% 22%, color-mix(in oklab, var(--chart-5) 24%, transparent), transparent 74%),
+      radial-gradient(34% 46% at 52% 84%, color-mix(in oklab, var(--chart-1) 24%, transparent), transparent 72%);
+    filter: blur(10px);
+    opacity: 0.88;
+  }
+
+  .magic-glass {
+    border: 1px solid color-mix(in oklab, var(--border) 74%, var(--foreground));
+    background:
+      linear-gradient(155deg, color-mix(in oklab, var(--card) 86%, white), color-mix(in oklab, var(--card) 95%, transparent));
+    backdrop-filter: blur(14px) saturate(1.08);
+    box-shadow:
+      inset 0 1px 0 color-mix(in oklab, white 55%, transparent),
+      0 18px 44px -28px color-mix(in oklab, var(--foreground) 24%, transparent);
+  }
+
+  .dark .magic-glass {
+    background:
+      linear-gradient(155deg, color-mix(in oklab, var(--card) 80%, transparent), color-mix(in oklab, var(--background) 84%, transparent));
+    box-shadow:
+      inset 0 1px 0 color-mix(in oklab, white 12%, transparent),
+      0 22px 50px -30px color-mix(in oklab, black 66%, transparent);
+  }
+
+  .magic-card {
+    border-radius: calc(var(--radius-2xl) + 2px);
+    transition: transform 0.22s ease, box-shadow 0.24s ease, border-color 0.24s ease;
+  }
+
+  .magic-card:hover {
+    transform: translateY(-2px);
+    border-color: color-mix(in oklab, var(--border) 58%, var(--chart-2));
+    box-shadow:
+      inset 0 1px 0 color-mix(in oklab, white 45%, transparent),
+      0 24px 48px -30px color-mix(in oklab, var(--chart-2) 42%, transparent);
+  }
+
+  .magic-chip {
+    border: 1px solid color-mix(in oklab, var(--border) 62%, var(--chart-2));
+    background:
+      linear-gradient(145deg, color-mix(in oklab, var(--background) 82%, var(--card)), color-mix(in oklab, var(--secondary) 72%, transparent));
+    box-shadow: inset 0 1px 0 color-mix(in oklab, white 38%, transparent);
+  }
+
+  .magic-hero {
+    position: relative;
+    overflow: hidden;
+  }
+
+  .magic-hero::after {
+    content: "";
+    position: absolute;
+    inset: auto -8% -38% -8%;
+    height: 58%;
+    pointer-events: none;
+    background:
+      radial-gradient(50% 60% at 20% 40%, color-mix(in oklab, var(--chart-2) 26%, transparent), transparent 72%),
+      radial-gradient(52% 62% at 82% 36%, color-mix(in oklab, var(--chart-5) 22%, transparent), transparent 74%);
+    opacity: 0.6;
+  }
+
+  .magic-mini-grid {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 0.55rem;
+    align-items: center;
+  }
+
+  .magic-mini-pill {
+    display: inline-flex;
+    align-items: center;
+    gap: 0.4rem;
+    padding: 0.34rem 0.7rem;
+    border-radius: 999px;
+    font-size: 0.72rem;
+    border: 1px solid color-mix(in oklab, var(--border) 62%, var(--chart-2));
+    background: color-mix(in oklab, var(--card) 84%, var(--secondary));
+    color: color-mix(in oklab, var(--foreground) 84%, var(--muted-foreground));
+  }
+
+  .magic-insight-row {
+    display: inline-flex;
+    align-items: center;
+    gap: 0.45rem;
+    font-size: 0.76rem;
+    color: var(--muted-foreground);
+    border: 1px solid color-mix(in oklab, var(--border) 70%, var(--chart-1));
+    border-radius: 0.7rem;
+    padding: 0.45rem 0.55rem;
+    background: color-mix(in oklab, var(--card) 92%, transparent);
+  }
+
+  .magic-bento-grid {
+    display: grid;
+    gap: 0.75rem;
+    grid-template-columns: repeat(1, minmax(0, 1fr));
+  }
+
+  @media (min-width: 768px) {
+    .magic-bento-grid {
+      grid-template-columns: repeat(6, minmax(0, 1fr));
+    }
+
+    .magic-bento-grid > :nth-child(1) {
+      grid-column: span 3 / span 3;
+    }
+
+    .magic-bento-grid > :nth-child(2) {
+      grid-column: span 3 / span 3;
+    }
+
+    .magic-bento-grid > :nth-child(3) {
+      grid-column: span 6 / span 6;
+    }
+  }
+
   .dark .home-shell {
     background:
       linear-gradient(

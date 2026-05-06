@@ -148,6 +148,8 @@ export default function MapPage() {
   const groupsRef = useRef(new Map());
   const markersCacheRef = useRef({ birth: null, burial: null });
   const hoverPopupRef = useRef(null);
+  const requestSeqRef = useRef(0);
+  const activeAbortRef = useRef(null);
 
   const getCityFeatureCollection = useCallback(() => {
     const features = [];
@@ -396,12 +398,20 @@ export default function MapPage() {
     }
   }, [panel, detailCard, filter, leafletMap]);
 
-  async function load(f, opts = {}) {
+  const load = useCallback(async (f, opts = {}) => {
     const { useCache = true } = opts;
+    const reqId = ++requestSeqRef.current;
+    if (activeAbortRef.current) {
+      activeAbortRef.current.abort();
+    }
+    const controller = new AbortController();
+    activeAbortRef.current = controller;
     setLoading(true);
     setError("");
-    setPanel(null);
-    setDetailCard(null);
+    if (!opts.keepPanels) {
+      setPanel(null);
+      setDetailCard(null);
+    }
     if (useCache && markersCacheRef.current[f]) {
       setMarkers(markersCacheRef.current[f]);
       setLoading(false);
@@ -410,13 +420,16 @@ export default function MapPage() {
     try {
       const timeoutMs = 9000;
       const d = await Promise.race([
-        apiGet(`/api/map?filter=${f}`),
+        apiGet(`/api/map?filter=${f}`, { signal: controller.signal, silentGlobalDialog: true }),
         new Promise((_, reject) => setTimeout(() => reject(new Error("timeout")), timeoutMs)),
       ]);
+      if (reqId !== requestSeqRef.current) return;
       const next = d?.markers || [];
       markersCacheRef.current[f] = next;
       setMarkers(next);
     } catch (e) {
+      if (e?.name === "AbortError") return;
+      if (reqId !== requestSeqRef.current) return;
       const cached = markersCacheRef.current[f];
       if (cached) {
         setMarkers(cached);
@@ -428,13 +441,28 @@ export default function MapPage() {
         setMarkers([]);
       }
     } finally {
-      setLoading(false);
+      if (reqId === requestSeqRef.current) setLoading(false);
     }
-  }
+  }, []);
 
   useEffect(() => {
-    load(filter, { useCache: true });
-  }, [filter]);
+    void load(filter, { useCache: true });
+  }, [filter, load]);
+
+  useEffect(() => {
+    function onInvalidate() {
+      void load(filter, { useCache: false, keepPanels: true });
+    }
+    window.addEventListener("map:invalidate", onInvalidate);
+    return () => window.removeEventListener("map:invalidate", onInvalidate);
+  }, [filter, load]);
+
+  useEffect(
+    () => () => {
+      if (activeAbortRef.current) activeAbortRef.current.abort();
+    },
+    [],
+  );
 
   const cities = new Set((markers || []).map((x) => x.label)).size;
   const kind = filter === "burial" ? "burial" : "birth";
@@ -446,7 +474,7 @@ export default function MapPage() {
 
         <div className="fam-map-chrome pointer-events-none absolute inset-x-0 top-0 z-[400] flex flex-col gap-2 p-3 sm:p-4">
           <div className="pointer-events-auto flex flex-col gap-3 sm:flex-row sm:items-start sm:justify-between">
-            <div className="fam-map-chrome-panel max-w-md rounded-xl border border-border/70 bg-card/90 px-4 py-3 shadow-lg ring-1 ring-black/5 backdrop-blur-md dark:bg-card/85 dark:ring-white/10">
+            <div className="fam-map-chrome-panel magic-glass magic-card max-w-md rounded-xl border border-border/70 bg-card/90 px-4 py-3 shadow-lg ring-1 ring-black/5 backdrop-blur-md dark:bg-card/85 dark:ring-white/10">
               <div className="mb-2 flex flex-wrap items-center gap-2">
                 <Badge variant="secondary" className="font-medium">
                   География рода
@@ -488,6 +516,17 @@ export default function MapPage() {
                   variant="outline"
                   size="sm"
                   className="gap-1.5"
+                  disabled={loading}
+                  onClick={() => void load(filter, { useCache: false, keepPanels: true })}
+                  title="Перезагрузить данные карты"
+                >
+                  Обновить
+                </Button>
+                <Button
+                  type="button"
+                  variant="outline"
+                  size="sm"
+                  className="gap-1.5"
                   disabled={!leafletMap || markers.length === 0}
                   onClick={() => fitBoundsIfNeeded(leafletMap)}
                   title="Показать все точки"
@@ -508,7 +547,7 @@ export default function MapPage() {
               ) : null}
             </div>
 
-            <div className="pointer-events-auto fam-map-legend hidden rounded-lg border border-border/60 bg-card/88 px-3 py-2 text-xs shadow-md backdrop-blur-md sm:block dark:bg-card/80">
+            <div className="pointer-events-auto fam-map-legend magic-glass hidden rounded-lg border border-border/60 bg-card/88 px-3 py-2 text-xs shadow-md backdrop-blur-md sm:block dark:bg-card/80">
               <div className="text-muted-foreground mb-1.5 font-semibold uppercase tracking-wide">Условные обозначения</div>
               <div className="flex items-center gap-2 py-0.5">
                 <span className="fam-map-legend-sample fam-map-legend-sample--solo" data-kind={kind} aria-hidden />

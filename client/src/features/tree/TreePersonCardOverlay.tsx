@@ -1,3 +1,4 @@
+import { useState } from "react";
 import { Link } from "react-router-dom";
 import type { TreeChipPerson } from "./TreeAvatars";
 import { Av } from "./TreeAvatars";
@@ -80,10 +81,24 @@ export function TreePersonCardOverlay({
   /** Для заглушки v:… — готовые basePersonId / тип связи (из parseVirtualTreeNodeId). */
   virtualAddPreset?: TreeAddRelativePayload | null;
 }) {
+  const [aiPreview, setAiPreview] = useState<string[]>([]);
+  const [aiLoading, setAiLoading] = useState(false);
   const pid = String(card.id || "");
   const isVirtual = Boolean(card.isVirtual || card.isPlaceholder || pid.startsWith("v:"));
   const city = (card.birthCityCustom || card.birthCity || "").trim();
   const sexLabel = card.sex === "M" ? "Мужской" : card.sex === "F" ? "Женский" : "Не указан";
+
+  async function requestAiArchivePreview() {
+    setAiLoading(true);
+    await new Promise((resolve) => setTimeout(resolve, 300));
+    const lines = [
+      `${fmtFullName(card)}: неподтвержденная ИИ-заметка по карточке.`,
+      `Проверьте город: ${(card.birthCityCustom || card.birthCity || "не указан").trim() || "не указан"}.`,
+      "Используйте это как подсказку, а не как исторический факт.",
+    ];
+    setAiPreview(lines);
+    setAiLoading(false);
+  }
 
   return (
     <Dialog open onOpenChange={(open) => !open && onClose()}>
@@ -195,7 +210,10 @@ export function TreePersonCardOverlay({
 
             {Array.isArray(card.externalLinks) && card.externalLinks.length > 0 ? (
               <div className="space-y-2">
-                <h4 className="text-muted-foreground text-xs font-semibold tracking-wide uppercase">Ссылки</h4>
+                <div className="flex flex-wrap items-center gap-2">
+                  <h4 className="text-muted-foreground text-xs font-semibold tracking-wide uppercase">Ссылки</h4>
+                  <Badge variant="outline">Подтверждено</Badge>
+                </div>
                 <ul className="flex flex-col gap-2">
                   {card.externalLinks.map((L, i) => (
                     <li key={i}>
@@ -212,6 +230,33 @@ export function TreePersonCardOverlay({
                 </ul>
               </div>
             ) : null}
+
+            <div className="space-y-2 rounded-lg border border-amber-300/40 bg-amber-50/30 p-3 dark:bg-amber-900/10">
+              <div className="flex flex-wrap items-center gap-2">
+                <h4 className="text-muted-foreground text-xs font-semibold tracking-wide uppercase">ИИ Архив</h4>
+                <Badge variant="secondary">Неподтверждено (ИИ)</Badge>
+              </div>
+              <p className="text-muted-foreground text-sm">
+                Запускается по кнопке и не является подтвержденным историческим источником.
+              </p>
+              <div className="flex flex-wrap gap-2">
+                <Button type="button" size="sm" variant="outline" disabled={aiLoading} onClick={() => void requestAiArchivePreview()}>
+                  {aiLoading ? "Запрос..." : "Запросить ИИ Архив"}
+                </Button>
+                {["Архивы", "РУВИКИ", "Частные архивы", "Сбер", "РЖД", "Росатом", "Бессмертный полк"].map((src) => (
+                  <Badge key={src} variant="secondary">
+                    {src}: скоро
+                  </Badge>
+                ))}
+              </div>
+              {aiPreview.length > 0 ? (
+                <ul className="space-y-1 text-sm">
+                  {aiPreview.map((line) => (
+                    <li key={line}>{line}</li>
+                  ))}
+                </ul>
+              ) : null}
+            </div>
           </div>
         </div>
 

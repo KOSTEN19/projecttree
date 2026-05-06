@@ -95,10 +95,6 @@ function getStepValidationError(step, form, treeAnchorMode) {
       }
       return null;
     case 5:
-      if (!t(form.education)) return "Укажите образование.";
-      if (!t(form.workPath)) return "Укажите трудовой путь.";
-      if (!t(form.militaryPath))
-        return "Укажите боевой путь / службу (или кратко «не служил», если не применимо).";
       return null;
     default:
       return null;
@@ -608,16 +604,16 @@ export default function AddRelativeStepperForm({
         <Step>
           <h3 className="rel-step-title">Биография и заметки</h3>
           <p className="rel-step-hint">
-            Обязательны образование, трудовой путь и блок про службу. Биография и заметки можно оставить пустыми или дополнить позже.
+            Образование, трудовой путь и служба теперь можно заполнять по желанию. Биография и заметки тоже можно дополнить позже.
           </p>
           <div className="label">Биография</div>
           <textarea className="textarea" rows={3} value={form.biography} onChange={(e) => set("biography", e.target.value)} />
           <div className="label">Образование</div>
-          <textarea className="textarea" required rows={2} value={form.education} onChange={(e) => set("education", e.target.value)} />
+          <textarea className="textarea" rows={2} value={form.education} onChange={(e) => set("education", e.target.value)} />
           <div className="label">Трудовой путь</div>
-          <textarea className="textarea" required rows={2} value={form.workPath} onChange={(e) => set("workPath", e.target.value)} />
+          <textarea className="textarea" rows={2} value={form.workPath} onChange={(e) => set("workPath", e.target.value)} />
           <div className="label">Боевой путь / служба</div>
-          <textarea className="textarea" required rows={2} value={form.militaryPath} onChange={(e) => set("militaryPath", e.target.value)} />
+          <textarea className="textarea" rows={2} value={form.militaryPath} onChange={(e) => set("militaryPath", e.target.value)} />
           <div className="label">Заметки</div>
           <textarea className="textarea" rows={2} value={form.notes} onChange={(e) => set("notes", e.target.value)} />
         </Step>

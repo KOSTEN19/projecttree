@@ -1,6 +1,6 @@
 import React, { useCallback, useEffect, useLayoutEffect, useMemo, useRef, useState } from "react";
 import { CircleHelp } from "lucide-react";
-import { apiGet } from "../api.js";
+import { apiGet, apiPost } from "../api.js";
 import AddRelativeStepperForm from "../components/AddRelativeStepperForm.jsx";
 import { Av, sx } from "../features/tree/TreeAvatars";
 import { buildGraphSmart as buildGraphSmartShared } from "../features/tree/buildGraph";
@@ -693,8 +693,9 @@ function branchPath(x1, y1, x2, y2, kind) {
 }
 
 export default function Tree() {
+  const manualLayoutStorageKey = "tree:manual-layout-enabled";
   const [loading, setLoading] = useState(true);
-  const [data, setData] = useState({ mePersonId: "", people: [], relationships: [] });
+  const [data, setData] = useState({ mePersonId: "", people: [], relationships: [], positionsByPerson: {} });
   const [branchFocus, setBranchFocus] = useState(null);
   const [err, setErr] = useState("");
   const [card, setCard] = useState(null);
@@ -712,9 +713,20 @@ export default function Tree() {
   const [relationPicker, setRelationPicker] = useState(null);
   const vpRef = useRef(null);
   const [pos, setPos] = useState({});
+  const [manualLayoutEnabled, setManualLayoutEnabled] = useState(() => {
+    try {
+      return localStorage.getItem(manualLayoutStorageKey) === "1";
+    } catch {
+      return false;
+    }
+  });
+  const [saveStatus, setSaveStatus] = useState("idle");
   const [cam, setCam] = useState({ x: 0, y: 0, s: 1 });
   const camDrag = useRef(null);
   const nodeDrag = useRef(null);
+  const basePosRef = useRef({});
+  const pendingSaveRef = useRef(new Map());
+  const saveTimerRef = useRef(null);
 
   const suppressNextClickRef = useRef(false);
 
@@ -731,15 +743,25 @@ export default function Tree() {
     setLoading(true); setErr("");
     try {
       const d = await apiGet("/api/tree");
+      const incomingPositions = d?.built?.positions && typeof d.built.positions === "object" ? d.built.positions : {};
       setData({
         mePersonId: strId(d.mePersonId || ""),
         people: (d.people || []).map(p => ({ ...p, id: pId(p) })),
         relationships: d.relationships || [],
+        positionsByPerson: incomingPositions,
       });
     } catch (e) { setErr(e?.message || String(e)); }
     finally { setLoading(false); }
   }
   useEffect(() => { load(); }, []);
+
+  useEffect(() => {
+    try {
+      localStorage.setItem(manualLayoutStorageKey, manualLayoutEnabled ? "1" : "0");
+    } catch {
+      // ignore persistence errors
+    }
+  }, [manualLayoutEnabled]);
 
   const selfPerson = useMemo(
     () => (data.people || []).find((p) => p.isSelf) || (data.mePersonId ? { id: data.mePersonId, isSelf: true } : null),
@@ -908,15 +930,94 @@ export default function Tree() {
 
   useEffect(() => {
     const p = {};
-    for (const u of g.units) p[u.unitId] = { x: u.x, y: u.y };
-    setPos(p);
+    for (const u of g.units) {
+      p[u.unitId] = { x: u.x, y: u.y };
+    }
+    basePosRef.current = p;
+
+    const withOffsets = {};
+    for (const u of g.units) {
+      const base = p[u.unitId] || { x: u.x, y: u.y };
+      let offsetX = 0;
+      let offsetY = 0;
+      let count = 0;
+      for (const person of u.persons || []) {
+        const id = pId(person);
+        if (!id || id.startsWith("v:")) continue;
+        const off = data.positionsByPerson?.[id];
+        if (!off) continue;
+        const dx = Number(off.dx);
+        const dy = Number(off.dy);
+        if (!Number.isFinite(dx) || !Number.isFinite(dy)) continue;
+        offsetX += dx;
+        offsetY += dy;
+        count += 1;
+      }
+      const meanDx = count > 0 ? offsetX / count : 0;
+      const meanDy = count > 0 ? offsetY / count : 0;
+      withOffsets[u.unitId] = { x: base.x + meanDx, y: base.y + meanDy };
+    }
+    setPos(manualLayoutEnabled ? withOffsets : p);
     const el = vpRef.current;
     if (el) {
       const w = el.clientWidth, h = el.clientHeight;
       const s = Math.min(w / g.stage.w, h / g.stage.h, 1) * 0.82;
       setCam({ x: (w - g.stage.w * s) / 2, y: (h - g.stage.h * s) / 2, s });
     }
-  }, [g]);
+  }, [g, data.positionsByPerson, manualLayoutEnabled]);
+
+  useEffect(() => {
+    if (manualLayoutEnabled) return;
+    setPos({ ...basePosRef.current });
+  }, [manualLayoutEnabled]);
+
+  const flushPendingSaves = useCallback(async () => {
+    if (!manualLayoutEnabled) return;
+    if (pendingSaveRef.current.size === 0) return;
+    const batch = Array.from(pendingSaveRef.current.entries());
+    pendingSaveRef.current.clear();
+    setSaveStatus("saving");
+    try {
+      await Promise.all(
+        batch.map(([personId, payload]) =>
+          apiPost("/api/tree/position", { personId, dx: payload.dx, dy: payload.dy }, { silentGlobalDialog: true }),
+        ),
+      );
+      setSaveStatus("saved");
+    } catch {
+      setSaveStatus("error");
+    }
+  }, [manualLayoutEnabled]);
+
+  const queueUnitPositionSave = useCallback(
+    (unitId) => {
+      if (!manualLayoutEnabled) return;
+      const base = basePosRef.current[unitId];
+      const current = pos[unitId];
+      const unit = g.units.find((x) => x.unitId === unitId);
+      if (!base || !current || !unit) return;
+      const dx = current.x - base.x;
+      const dy = current.y - base.y;
+      for (const person of unit.persons || []) {
+        const id = pId(person);
+        if (!id || id.startsWith("v:")) continue;
+        pendingSaveRef.current.set(id, { dx, dy });
+      }
+      if (pendingSaveRef.current.size === 0) return;
+      if (saveTimerRef.current) clearTimeout(saveTimerRef.current);
+      saveTimerRef.current = setTimeout(() => {
+        void flushPendingSaves();
+      }, 350);
+    },
+    [flushPendingSaves, g.units, manualLayoutEnabled, pos],
+  );
+
+  useEffect(
+    () => () => {
+      if (saveTimerRef.current) clearTimeout(saveTimerRef.current);
+    },
+    [],
+  );
 
   useEffect(() => {
     const el = vpRef.current;
@@ -973,6 +1074,7 @@ export default function Tree() {
     }
   };
   const onUp = () => {
+    const draggedUnitId = nodeDrag.current?.active ? nodeDrag.current.unitId : "";
     if (nodeDrag.current?.active || camDrag.current?.moved) {
       suppressNextClickRef.current = true;
       setTimeout(() => {
@@ -981,6 +1083,9 @@ export default function Tree() {
     }
     nodeDrag.current = null;
     camDrag.current = null;
+    if (draggedUnitId) {
+      queueUnitPositionSave(draggedUnitId);
+    }
   };
 
   const edgePaths = useMemo(() => {
@@ -1010,7 +1115,7 @@ export default function Tree() {
   return (
     <div className="tree-route-shell flex min-h-0 min-w-0 flex-1 flex-col">
       <div className="tree-page">
-        <div className="tree-actions tree-actions--overlay">
+        <div className="tree-actions tree-actions--overlay magic-glass rounded-xl p-1.5">
           <Button
             type="button"
             variant="outline"
@@ -1025,6 +1130,31 @@ export default function Tree() {
           <Button type="button" variant="outline" size="sm" onClick={resetCameraToFit}>
             В экран
           </Button>
+          <label className="inline-flex items-center gap-2 rounded-md border border-border/70 bg-background/80 px-2 py-1 text-xs">
+            <input
+              type="checkbox"
+              checked={manualLayoutEnabled}
+              onChange={(e) => {
+                setSaveStatus("idle");
+                setManualLayoutEnabled(e.target.checked);
+              }}
+            />
+            Пользовательская раскладка
+          </label>
+          {manualLayoutEnabled ? (
+            <Button
+              type="button"
+              variant="outline"
+              size="sm"
+              onClick={() => {
+                pendingSaveRef.current.clear();
+                setPos({ ...basePosRef.current });
+                setSaveStatus("idle");
+              }}
+            >
+              Сбросить раскладку
+            </Button>
+          ) : null}
           {branchFocus ? (
             <Button type="button" variant="secondary" size="sm" onClick={() => setBranchFocus(null)}>
               Убрать фокус
@@ -1033,6 +1163,17 @@ export default function Tree() {
           <Button type="button" variant="default" size="sm" onClick={() => void load()} disabled={loading}>
             {loading ? "…" : "Обновить"}
           </Button>
+          {manualLayoutEnabled ? (
+            <span className="rounded-md border border-border/60 bg-background/85 px-2 py-1 text-xs">
+              {saveStatus === "saving"
+                ? "Сохраняется…"
+                : saveStatus === "saved"
+                  ? "Сохранено"
+                  : saveStatus === "error"
+                    ? "Ошибка сохранения"
+                    : "Готово"}
+            </span>
+          ) : null}
         </div>
 
         {err ? (
